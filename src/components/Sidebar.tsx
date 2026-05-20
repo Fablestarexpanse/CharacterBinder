@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { NavPage } from "../types";
 import {
   PlusSquare,
+  Library,
   Upload,
   FileSearch,
   LayoutTemplate,
@@ -18,6 +19,7 @@ interface SidebarProps {
 
 const NAV_ITEMS: { page: NavPage; label: string; icon: LucideIcon }[] = [
   { page: "create", label: "Create Card", icon: PlusSquare },
+  { page: "library", label: "Library", icon: Library },
   { page: "import", label: "Import PNG", icon: Upload },
   { page: "decode", label: "Decode PNG", icon: FileSearch },
   { page: "templates", label: "Templates", icon: LayoutTemplate },
@@ -63,7 +65,7 @@ export default function Sidebar({ activePage, onNavigate, onNewCard }: SidebarPr
       <div className="border-t border-border px-4 py-2.5 flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-accent-green shrink-0" />
         <span className="text-xs text-text-muted">Ready</span>
-        <span className="ml-auto text-xs text-text-muted">v1.0.0</span>
+        <span className="ml-auto text-xs text-text-muted">v1.1.0</span>
       </div>
     </aside>
   );

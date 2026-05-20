@@ -10,6 +10,7 @@ import DecodePNG from "./components/DecodePNG";
 import Templates from "./components/Templates";
 import Settings from "./components/Settings";
 import HelpAbout from "./components/HelpAbout";
+import Library from "./components/Library";
 import ConfirmModal from "./components/ConfirmModal";
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -58,6 +59,24 @@ function App() {
       metadataInfo: meta,
     }));
     if (sourcePlatform) setTargetPlatform(sourcePlatform);
+    setActivePage("create");
+  }, []);
+
+  const loadFromLibrary = useCallback((
+    card: TavernCardV2,
+    pngData: Uint8Array | null,
+    imageSrc: string | null,
+    libraryId: string
+  ) => {
+    setProject((p) => ({
+      ...p,
+      id: libraryId,
+      card,
+      imageSrc: imageSrc ?? undefined,
+      outputFileName: card.data.name.replace(/\s+/g, "_") + "_Tavern_Card.png",
+      lastModified: new Date().toISOString(),
+      metadataInfo: undefined,
+    }));
     setActivePage("create");
   }, []);
 
@@ -118,6 +137,9 @@ function App() {
         )}
         {activePage === "templates" && (
           <Templates onLoad={loadCard} />
+        )}
+        {activePage === "library" && (
+          <Library onEditCard={loadFromLibrary} />
         )}
         {activePage === "settings" && (
           <Settings settings={settings} onSave={setSettings} />

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import type { AppSettings, CardProject } from "../types";
-import { Download, Shield, FileJson, ChevronDown, ChevronUp } from "lucide-react";
+import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked } from "lucide-react";
+import { saveCard } from "../lib/library";
 import { validateTavernCardV2 } from "../lib/validators";
 import { encodeCharaToPng, base64ToUint8Array } from "../lib/pngMetadata";
 import { downloadPng } from "../lib/exporters";
@@ -15,6 +16,7 @@ interface CardPreviewPanelProps {
   targetPlatform: PlatformId;
   onPlatformChange: (id: PlatformId) => void;
   onUpdateOutputFileName: (name: string) => void;
+  onNavigateLibrary?: () => void;
 }
 
 export default function CardPreviewPanel({
@@ -23,10 +25,12 @@ export default function CardPreviewPanel({
   targetPlatform,
   onPlatformChange,
   onUpdateOutputFileName,
+  onNavigateLibrary,
 }: CardPreviewPanelProps) {
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [compatOpen, setCompatOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const platform = PLATFORMS[targetPlatform];
   const validation = validateTavernCardV2(project.card);
@@ -113,6 +117,25 @@ export default function CardPreviewPanel({
       setStatus(`${validation.errors.length} error(s): ${validation.errors[0]}`, false);
     }
   };
+
+  const handleSaveToLibrary = useCallback(async () => {
+    setSaving(true);
+    try {
+      let pngData: Uint8Array | null = null;
+      if (project.imageSrc?.startsWith("data:image/png")) {
+        const b64 = project.imageSrc.split(",")[1];
+        pngData = base64ToUint8Array(b64);
+      } else if (project.imageSrc?.startsWith("data:image/")) {
+        pngData = await imageSrcToPngBytes(project.imageSrc);
+      }
+      await saveCard(project.card, pngData, project.imageSrc ?? null, targetPlatform, project.id !== "default" ? project.id : undefined);
+      setStatus("Saved to library!", true);
+    } catch {
+      setStatus("Failed to save to library.", false);
+    } finally {
+      setSaving(false);
+    }
+  }, [project, targetPlatform]);
 
   const metaInfo = project.metadataInfo;
 
@@ -270,6 +293,16 @@ export default function CardPreviewPanel({
             {exportStatus.msg}
           </p>
         )}
+
+        {/* Save to Library */}
+        <button
+          onClick={handleSaveToLibrary}
+          disabled={saving}
+          className="w-full btn-secondary justify-center py-2 text-sm"
+        >
+          <BookMarked size={14} />
+          {saving ? "Saving…" : "Save to Library"}
+        </button>
 
         {/* Tools row */}
         <div className="border-t border-border pt-3 mt-1">

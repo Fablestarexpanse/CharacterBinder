@@ -18,15 +18,55 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 
 ## Features
 
-- **Character Editor** — Fill in all Tavern Card v2 fields: name, description, personality, scenario, first message, example dialogs, system prompt, and more
-- **Multi-Platform Export** — Switch target platforms and see live field compatibility warnings before you export
-- **PNG Import** — Load an existing Tavern Card PNG and edit it
-- **PNG Decode** — Inspect the raw embedded metadata of any Tavern Card PNG
-- **Templates** — Start from a pre-built character or a blank slate
-- **JSON View** — Live formatted JSON of your card at any time
-- **Raw Preview** — See the exact Base64-encoded output that will be embedded in the PNG
-- **Alternate Greetings** — Add multiple opening messages
-- **Tags, Creator Fields, Character Version** — Full v2 spec support
+### Character Editor
+- Fill in all Tavern Card v2 fields: name, description, personality, scenario, first message, example dialogs, system prompt, and more
+- Live character image preview with drag-and-drop support
+- Alternate greetings — add multiple opening messages
+- Tags, creator fields, and character version support
+- JSON View and Raw Preview tabs for direct inspection
+
+### Card Library *(v1.1)*
+- Save cards locally in your browser's IndexedDB — no files to manage
+- Browse your collection in a thumbnail grid
+- Search by name, platform, or tag
+- Sort by last modified, created date, or name
+- Click any card to reopen it in the editor
+- Multi-select for bulk operations
+
+### Archive & Export *(v1.1)*
+- **Export ZIP** — download selected cards (or your entire library) as a single `.zip` file
+- Each card exports as a `.png` (with embedded metadata) or `.json` (if no image)
+- A `manifest.json` is included listing all cards, platforms, and timestamps
+- Perfect for backing up your collection or moving it to another machine
+
+### Multi-Platform Export
+- Switch target platforms and see live field compatibility warnings before you export
+- Automatic field mapping and renaming per platform
+- PNG export or JSON export depending on platform support
+
+### Tools
+- **PNG Import** — load an existing Tavern Card PNG and edit it
+- **PNG Decode** — inspect the raw embedded metadata of any Tavern Card PNG
+- **Templates** — start from a pre-built character or a blank slate
+- **Validate** — check your card against the Tavern Card v2 spec before exporting
+
+---
+
+## Changelog
+
+### v1.1.0
+- Added **Card Library** — save, browse, search, and manage your characters locally
+- Added **ZIP Archive** — export selected or all cards as a portable `.zip` with manifest
+- Save to Library button in the export panel
+- White / light theme (Apple-style)
+- Wider sidebar with full logo display
+
+### v1.0.0
+- Initial release
+- Character editor with full Tavern Card v2 support
+- Multi-platform export (8 platforms)
+- PNG encoding/decoding (pure JS, no native deps)
+- Templates, JSON view, Raw preview, Decode PNG
 
 ---
 
@@ -38,6 +78,8 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 | Frontend | React 18 + TypeScript |
 | Styling | Tailwind CSS |
 | Build tool | Vite |
+| Local storage | IndexedDB via [idb](https://github.com/jakearchibald/idb) |
+| ZIP export | [JSZip](https://stuk.github.io/jszip/) |
 | PNG encoding | Pure JavaScript (no native deps) |
 
 ---
@@ -47,8 +89,8 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) v18 or later
-- [Rust](https://rustup.rs) (for the Tauri desktop build)
-- [Tauri CLI prerequisites](https://tauri.app/start/prerequisites/) for your OS
+- [Rust](https://rustup.rs) (for the Tauri desktop build only)
+- [Tauri CLI prerequisites](https://tauri.app/start/prerequisites/) for your OS (desktop only)
 
 ### 1 — Clone the repo
 
@@ -63,24 +105,26 @@ cd CharacterBinder
 npm install
 ```
 
-### 3 — Run in development
+### 3 — Run in development (web)
 
 ```bash
 npm run dev
 ```
 
-This starts the Vite dev server on **port 3737**. Open [http://localhost:3737](http://localhost:3737) in your browser to use it as a web app, or run the Tauri dev command below to launch the desktop window.
+Opens on **[http://localhost:3737](http://localhost:3737)**. Works fully in any modern browser — no Rust required for the web version.
 
-### 4 — Run the Tauri desktop app (optional)
+### 4 — Run as a desktop app (Tauri)
 
 ```bash
 npm run tauri dev
 ```
 
+Requires Rust and the Tauri prerequisites for your OS.
+
 ### 5 — Build for production
 
 ```bash
-# Web build (outputs to dist/)
+# Web build — outputs to dist/
 npm run build
 
 # Desktop installer
@@ -94,12 +138,14 @@ npm run tauri build
 ```
 CharacterBinder/
 ├── src/
-│   ├── components/       # UI components (editor, sidebar, panels, modals)
+│   ├── components/       # UI components (editor, sidebar, library, modals)
 │   ├── lib/
 │   │   ├── pngMetadata/  # PNG tEXt chunk encoder/decoder
 │   │   ├── platforms/    # Platform definitions + format converters
 │   │   ├── validators/   # Card validation logic
-│   │   └── exporters/    # PNG/JSON download helpers
+│   │   ├── exporters/    # PNG/JSON download helpers
+│   │   ├── library/      # IndexedDB card storage (idb)
+│   │   └── archive/      # ZIP export (jszip)
 │   ├── data/templates/   # Built-in character templates
 │   ├── types/            # TypeScript type definitions
 │   └── App.tsx           # Root component and app state

@@ -160,8 +160,21 @@ export interface ValidationResult {
 
 export type NavPage =
   | "create"
+  | "library"
   | "import"
   | "decode"
   | "templates"
   | "settings"
   | "help";
+
+export interface LibraryCard {
+  id: string;
+  name: string;
+  cardData: TavernCardV2;
+  pngData: Uint8Array | null;
+  imageSrc: string | null;
+  platform: string;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}
