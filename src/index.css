@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #F5F5F7;
+    color: #1D1D1F;
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  textarea,
+  input {
+    user-select: text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #F5F5F7;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #C7C7CC;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #AEAEB2;
+  }
+}
+
+@layer components {
+  .input-base {
+    @apply w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-purple focus:ring-1 focus:ring-accent-purple transition-colors text-sm;
+  }
+
+  .label-base {
+    @apply block text-xs font-medium text-text-secondary uppercase tracking-wider mb-1.5;
+  }
+
+  .btn-primary {
+    @apply bg-accent-purple hover:bg-accent-purple-hover text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply bg-bg-tertiary hover:bg-bg-hover border border-border text-text-primary font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-bg-hover text-text-secondary hover:text-text-primary px-3 py-2 rounded-lg transition-colors text-sm flex items-center gap-2;
+  }
+
+  .card-panel {
+    @apply bg-bg-card border border-border rounded-xl p-4;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold text-text-primary mb-3;
+  }
+
+  .badge-green {
+    @apply inline-flex items-center gap-1 bg-accent-green-dim text-accent-green text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .badge-purple {
+    @apply inline-flex items-center gap-1 bg-purple-900/40 text-accent-purple-light text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .tab-button {
+    @apply px-4 py-2 text-sm font-medium transition-colors border-b-2;
+  }
+
+  .tab-active {
+    @apply text-accent-purple-light border-accent-purple;
+  }
+
+  .tab-inactive {
+    @apply text-text-secondary border-transparent hover:text-text-primary hover:border-border;
+  }
+}
