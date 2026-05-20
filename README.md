@@ -2,7 +2,7 @@
 
 > Create, embed, share — a local-first desktop tool for building and exporting AI roleplay character cards in the Tavern Card PNG format.
 
-![CharacterBinder — Main Editor](docs/preview.png)
+![CharacterBinder — Main Editor](docs/preview-v1.2.0.png)
 
 ---
 
