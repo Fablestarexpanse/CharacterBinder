@@ -1,7 +1,15 @@
 import { useState, useCallback } from "react";
 import type { AppSettings, CardProject } from "../types";
-import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked } from "lucide-react";
+import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate } from "lucide-react";
 import { saveCard } from "../lib/library";
+import { saveCustomTemplate } from "../lib/customTemplates";
+import {
+  getCardTokenBreakdown,
+  getTokenBudgetLevel,
+  TOKEN_BUDGET_LABELS,
+  TOKEN_BUDGET_COLORS,
+  TOKEN_BUDGET_BAR_COLORS,
+} from "../lib/tokenizer";
 import { validateTavernCardV2 } from "../lib/validators";
 import { encodeCharaToPng, base64ToUint8Array } from "../lib/pngMetadata";
 import { downloadPng } from "../lib/exporters";
@@ -31,9 +39,15 @@ export default function CardPreviewPanel({
   const [exportStatus, setExportStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [compatOpen, setCompatOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [tokenOpen, setTokenOpen] = useState(false);
 
   const platform = PLATFORMS[targetPlatform];
   const validation = validateTavernCardV2(project.card);
+  const tokenBreakdown = getCardTokenBreakdown(project.card);
+  const budgetLevel = getTokenBudgetLevel(tokenBreakdown.total);
+  const MAX_TOKENS = 3000;
+  const barPct = Math.min((tokenBreakdown.total / MAX_TOKENS) * 100, 100);
   const lossCount = platform.fields.filter((f) => f.support === "none").length;
   const partialCount = platform.fields.filter((f) => f.support === "partial" || f.support === "renamed").length;
 
@@ -137,6 +151,18 @@ export default function CardPreviewPanel({
     }
   }, [project, targetPlatform]);
 
+  const handleSaveAsTemplate = useCallback(() => {
+    setSavingTemplate(true);
+    try {
+      saveCustomTemplate(project.card);
+      setStatus("Saved as template!", true);
+    } catch {
+      setStatus("Failed to save template.", false);
+    } finally {
+      setSavingTemplate(false);
+    }
+  }, [project.card]);
+
   const metaInfo = project.metadataInfo;
 
   return (
@@ -191,6 +217,79 @@ export default function CardPreviewPanel({
               </span>
             </MetaRow>
           </div>
+        </div>
+
+        {/* Token Budget */}
+        <div className="p-4 border-b border-border">
+          <button
+            onClick={() => setTokenOpen(!tokenOpen)}
+            className="w-full flex items-center justify-between mb-2"
+          >
+            <p className="section-title mb-0">Token Count</p>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-bold ${TOKEN_BUDGET_COLORS[budgetLevel]}`}>
+                {tokenBreakdown.total.toLocaleString()}
+              </span>
+              <span className={`text-xs ${TOKEN_BUDGET_COLORS[budgetLevel]}`}>
+                {TOKEN_BUDGET_LABELS[budgetLevel]}
+              </span>
+              {tokenOpen ? <ChevronUp size={12} className="text-text-muted" /> : <ChevronDown size={12} className="text-text-muted" />}
+            </div>
+          </button>
+
+          {/* Budget bar */}
+          <div className="w-full h-1.5 bg-bg-tertiary rounded-full overflow-hidden mb-1">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${TOKEN_BUDGET_BAR_COLORS[budgetLevel]}`}
+              style={{ width: `${barPct}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-text-muted mb-2">
+            <span>0</span>
+            <span>1k</span>
+            <span>2k</span>
+            <span>3k+ limit</span>
+          </div>
+
+          {tokenOpen && (
+            <div className="space-y-1 mt-3">
+              {(
+                [
+                  ["Description", tokenBreakdown.description],
+                  ["Personality", tokenBreakdown.personality],
+                  ["Scenario", tokenBreakdown.scenario],
+                  ["First Message", tokenBreakdown.first_mes],
+                  ["Example Dialogs", tokenBreakdown.mes_example],
+                  ["System Prompt", tokenBreakdown.system_prompt],
+                  ["Post-History", tokenBreakdown.post_history_instructions],
+                  ["Alt. Greetings", tokenBreakdown.alternate_greetings],
+                  ["Creator Notes", tokenBreakdown.creator_notes],
+                ] as [string, number][]
+              )
+                .filter(([, v]) => v > 0)
+                .map(([label, count]) => (
+                  <div key={label} className="flex items-center gap-2 text-xs">
+                    <span className="text-text-muted w-28 shrink-0">{label}</span>
+                    <div className="flex-1 h-1 bg-bg-tertiary rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[getTokenBudgetLevel(count)]}`}
+                        style={{ width: `${Math.min((count / tokenBreakdown.total) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-text-primary font-medium w-10 text-right">{count}</span>
+                  </div>
+                ))}
+              {tokenBreakdown.total === 0 && (
+                <p className="text-xs text-text-muted italic">No content yet.</p>
+              )}
+            </div>
+          )}
+
+          {budgetLevel === "over" && (
+            <p className="text-xs text-red-500 mt-2">
+              Over 3,000 tokens — some platforms may truncate or ignore part of this card.
+            </p>
+          )}
         </div>
 
         {/* Target Platform */}
@@ -302,6 +401,15 @@ export default function CardPreviewPanel({
         >
           <BookMarked size={14} />
           {saving ? "Saving…" : "Save to Library"}
+        </button>
+
+        <button
+          onClick={handleSaveAsTemplate}
+          disabled={savingTemplate}
+          className="w-full btn-secondary justify-center py-2 text-sm"
+        >
+          <LayoutTemplate size={14} />
+          {savingTemplate ? "Saving…" : "Save as Template"}
         </button>
 
         {/* Tools row */}

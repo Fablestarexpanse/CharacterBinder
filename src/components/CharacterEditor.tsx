@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import type { TavernCardV2 } from "../types";
-import { Plus, Minus, ChevronDown, ChevronUp, Image } from "lucide-react";
+import { Plus, Minus, ChevronDown, ChevronUp, Image, Copy, ClipboardPaste, Check } from "lucide-react";
+import { countTokens } from "../lib/tokenizer";
 
 interface CharacterEditorProps {
   card: TavernCardV2;
@@ -93,7 +94,7 @@ export default function CharacterEditor({
             <TextAreaField
               label="Description"
               value={data.description}
-              maxLength={1000}
+              
               rows={3}
               onChange={(v) => onUpdate({ description: v })}
               placeholder="Describe your character..."
@@ -102,7 +103,7 @@ export default function CharacterEditor({
             <TextAreaField
               label="Personality"
               value={data.personality}
-              maxLength={2000}
+
               rows={3}
               onChange={(v) => onUpdate({ personality: v })}
               placeholder="Character personality traits..."
@@ -111,7 +112,7 @@ export default function CharacterEditor({
             <TextAreaField
               label="Scenario / First Message"
               value={data.first_mes}
-              maxLength={2000}
+
               rows={3}
               onChange={(v) => onUpdate({ first_mes: v })}
               placeholder="Opening scenario or first message..."
@@ -213,7 +214,7 @@ export default function CharacterEditor({
           <TextAreaField
             label="Raw Dialog Block"
             value={data.mes_example}
-            maxLength={10000}
+
             rows={4}
             onChange={(v) => onUpdate({ mes_example: v })}
             placeholder={`{{user}}: Hello!\n{{char}}: Hi there.`}
@@ -257,7 +258,7 @@ export default function CharacterEditor({
             <TextAreaField
               label="System Prompt"
               value={data.system_prompt}
-              maxLength={5000}
+
               rows={3}
               onChange={(v) => onUpdate({ system_prompt: v })}
               placeholder="Optional system prompt injected at the start of every conversation..."
@@ -266,7 +267,7 @@ export default function CharacterEditor({
             <TextAreaField
               label="Post-History Instructions"
               value={data.post_history_instructions}
-              maxLength={2000}
+
               rows={2}
               onChange={(v) => onUpdate({ post_history_instructions: v })}
               placeholder="Instructions injected after chat history..."
@@ -275,7 +276,7 @@ export default function CharacterEditor({
             <TextAreaField
               label="Creator Notes"
               value={data.creator_notes}
-              maxLength={2000}
+
               rows={2}
               onChange={(v) => onUpdate({ creator_notes: v })}
               placeholder="Notes for users of this character card..."
@@ -338,29 +339,89 @@ export default function CharacterEditor({
 interface TextAreaFieldProps {
   label: string;
   value: string;
-  maxLength: number;
   rows: number;
   onChange: (v: string) => void;
   placeholder?: string;
 }
 
-function TextAreaField({ label, value, maxLength, rows, onChange, placeholder }: TextAreaFieldProps) {
+function TextAreaField({ label, value, rows, onChange, placeholder }: TextAreaFieldProps) {
+  const tokens = countTokens(value);
+  const [copied, setCopied] = useState(false);
+  const [pasteHint, setPasteHint] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function handlePaste() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!textareaRef.current || !text) return;
+      const el = textareaRef.current;
+      const start = el.selectionStart ?? value.length;
+      const end = el.selectionEnd ?? value.length;
+      const next = value.slice(0, start) + text + value.slice(end);
+      onChange(next);
+      setTimeout(() => {
+        el.focus();
+        el.setSelectionRange(start + text.length, start + text.length);
+      }, 0);
+    } catch {
+      // Clipboard read permission denied — focus the field so Ctrl+V works
+      textareaRef.current?.focus();
+      setPasteHint(true);
+      setTimeout(() => setPasteHint(false), 2500);
+    }
+  }
+
   return (
     <div>
-      <label className="label-base">{label}</label>
-      <div className="relative">
-        <textarea
-          className="input-base resize-none"
-          rows={rows}
-          maxLength={maxLength}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-        />
-        <span className="absolute bottom-2 right-2 text-xs text-text-muted">
-          {value.length} / {maxLength}
-        </span>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="label-base mb-0">{label}</label>
+        <div className="flex items-center gap-2">
+          {value.length > 0 && (
+            <span className={`text-xs font-medium ${tokens > 500 ? "text-orange-500" : "text-text-muted"}`}>
+              {tokens} tk
+            </span>
+          )}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleCopy}
+              title="Copy"
+              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+            >
+              {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={handlePaste}
+                title="Paste from clipboard"
+                className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+              >
+                <ClipboardPaste size={12} />
+              </button>
+              {pasteHint && (
+                <div className="absolute right-0 top-6 z-10 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg">
+                  Press Ctrl+V to paste
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
+      <textarea
+        ref={textareaRef}
+        className="input-base resize-none"
+        rows={rows}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
     </div>
   );
 }

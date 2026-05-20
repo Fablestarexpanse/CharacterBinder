@@ -62,15 +62,9 @@ export const blankTemplate: TavernCardV2 = {
 
 export const templates = [
   {
-    id: "ronan-voss",
-    name: "Ronan Voss",
-    description: "A stoic wolf demi-human operative",
-    card: ronanVossTemplate,
-  },
-  {
     id: "blank",
     name: "Blank Character",
-    description: "Start from scratch",
+    description: "Start from scratch with an empty card",
     card: blankTemplate,
   },
 ];

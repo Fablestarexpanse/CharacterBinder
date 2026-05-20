@@ -25,6 +25,17 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 - Tags, creator fields, and character version support
 - JSON View and Raw Preview tabs for direct inspection
 
+### Token Counter *(v1.2)*
+- Live per-field token counts using the **cl100k** tokenizer (GPT-4 standard — the most widely used reference)
+- Total budget bar colour-coded: Lightweight / Moderate / Heavy / Very Large
+- Expandable per-field breakdown in the export sidebar
+- Warning shown when card exceeds 3,000 tokens
+
+### Save as Template *(v1.2)*
+- Save any card as a reusable template directly from the export panel
+- Custom templates appear in the Templates page under "Your Templates"
+- Delete custom templates anytime with the hover trash icon
+
 ### Card Library *(v1.1)*
 - Save cards locally in your browser's IndexedDB — no files to manage
 - Browse your collection in a thumbnail grid
@@ -53,6 +64,13 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 ---
 
 ## Changelog
+
+### v1.2.0
+- Added **Token Counter** — live per-field token counts (cl100k / GPT-4 standard) with a total budget bar and breakdown panel in the export sidebar
+- Added **Save as Template** — save any card as a reusable template that appears in the Templates page
+- Added **Copy / Paste buttons** on every text field — copy field content with one click; paste inserts at cursor position
+- Removed character limits on all text fields — token counter is the guidance instead
+- Fixed blank template appearing in Templates page alongside Ronan Voss
 
 ### v1.1.0
 - Added **Card Library** — save, browse, search, and manage your characters locally
