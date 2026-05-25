@@ -6,6 +6,42 @@
 
 ---
 
+## Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org) v18 or later
+- [Rust](https://rustup.rs) — only needed for the Tauri desktop build
+
+### Install & Run
+
+```bash
+git clone https://github.com/Fablestarexpanse/CharacterBinder.git
+cd CharacterBinder
+npm install
+npm run dev
+```
+
+Opens at **[http://localhost:3737](http://localhost:3737)** in your browser. No Rust required for the web version.
+
+### Desktop App (Tauri)
+
+```bash
+npm run tauri dev
+```
+
+### Production Build
+
+```bash
+# Web — outputs to dist/
+npm run build
+
+# Desktop installer
+npm run tauri build
+```
+
+---
+
 ## What Is CharacterBinder?
 
 CharacterBinder lets you build character cards compatible with **SillyTavern**, **JanitorAI**, **Chub.ai**, **Agnai**, **Venus AI**, **Backyard AI**, **RisuAI**, and generic platforms — all from a clean, focused editor.
@@ -23,6 +59,7 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 - Live character image preview with drag-and-drop support
 - Alternate greetings — add multiple opening messages
 - Tags, creator fields, and character version support
+- Copy / Paste buttons on every text field
 - JSON View and Raw Preview tabs for direct inspection
 
 ### Token Counter *(v1.2)*
@@ -63,117 +100,6 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 
 ---
 
-## Changelog
-
-### v1.2.0
-- Added **Token Counter** — live per-field token counts (cl100k / GPT-4 standard) with a total budget bar and breakdown panel in the export sidebar
-- Added **Save as Template** — save any card as a reusable template that appears in the Templates page
-- Added **Copy / Paste buttons** on every text field — copy field content with one click; paste inserts at cursor position
-- Removed character limits on all text fields — token counter is the guidance instead
-- Fixed blank template appearing in Templates page alongside Ronan Voss
-
-### v1.1.0
-- Added **Card Library** — save, browse, search, and manage your characters locally
-- Added **ZIP Archive** — export selected or all cards as a portable `.zip` with manifest
-- Save to Library button in the export panel
-- White / light theme (Apple-style)
-- Wider sidebar with full logo display
-
-### v1.0.0
-- Initial release
-- Character editor with full Tavern Card v2 support
-- Multi-platform export (8 platforms)
-- PNG encoding/decoding (pure JS, no native deps)
-- Templates, JSON view, Raw preview, Decode PNG
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Desktop shell | [Tauri 2.x](https://tauri.app) (Rust) |
-| Frontend | React 18 + TypeScript |
-| Styling | Tailwind CSS |
-| Build tool | Vite |
-| Local storage | IndexedDB via [idb](https://github.com/jakearchibald/idb) |
-| ZIP export | [JSZip](https://stuk.github.io/jszip/) |
-| PNG encoding | Pure JavaScript (no native deps) |
-
----
-
-## Installation
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org) v18 or later
-- [Rust](https://rustup.rs) (for the Tauri desktop build only)
-- [Tauri CLI prerequisites](https://tauri.app/start/prerequisites/) for your OS (desktop only)
-
-### 1 — Clone the repo
-
-```bash
-git clone https://github.com/Fablestarexpanse/CharacterBinder.git
-cd CharacterBinder
-```
-
-### 2 — Install dependencies
-
-```bash
-npm install
-```
-
-### 3 — Run in development (web)
-
-```bash
-npm run dev
-```
-
-Opens on **[http://localhost:3737](http://localhost:3737)**. Works fully in any modern browser — no Rust required for the web version.
-
-### 4 — Run as a desktop app (Tauri)
-
-```bash
-npm run tauri dev
-```
-
-Requires Rust and the Tauri prerequisites for your OS.
-
-### 5 — Build for production
-
-```bash
-# Web build — outputs to dist/
-npm run build
-
-# Desktop installer
-npm run tauri build
-```
-
----
-
-## Project Structure
-
-```
-CharacterBinder/
-├── src/
-│   ├── components/       # UI components (editor, sidebar, library, modals)
-│   ├── lib/
-│   │   ├── pngMetadata/  # PNG tEXt chunk encoder/decoder
-│   │   ├── platforms/    # Platform definitions + format converters
-│   │   ├── validators/   # Card validation logic
-│   │   ├── exporters/    # PNG/JSON download helpers
-│   │   ├── library/      # IndexedDB card storage (idb)
-│   │   └── archive/      # ZIP export (jszip)
-│   ├── data/templates/   # Built-in character templates
-│   ├── types/            # TypeScript type definitions
-│   └── App.tsx           # Root component and app state
-├── src-tauri/            # Tauri (Rust) desktop shell
-├── public/               # Static assets (logo, etc.)
-└── docs/                 # Screenshots and documentation assets
-```
-
----
-
 ## Supported Platforms
 
 | Platform | PNG Export | JSON Export | Metadata Key |
@@ -205,6 +131,65 @@ PNG Signature (8 bytes)
 → IDAT chunks (pixel data)
 → IEND chunk
 ```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Desktop shell | [Tauri 2.x](https://tauri.app) (Rust) |
+| Frontend | React 18 + TypeScript |
+| Styling | Tailwind CSS |
+| Build tool | Vite |
+| Local storage | IndexedDB via [idb](https://github.com/jakearchibald/idb) |
+| ZIP export | [JSZip](https://stuk.github.io/jszip/) |
+| PNG encoding | Pure JavaScript (no native deps) |
+| Token counting | [gpt-tokenizer](https://github.com/niieani/gpt-tokenizer) (cl100k) |
+
+---
+
+## Project Structure
+
+```
+CharacterBinder/
+├── src/
+│   ├── components/       # UI components (editor, sidebar, library, modals)
+│   ├── lib/
+│   │   ├── pngMetadata/  # PNG tEXt chunk encoder/decoder
+│   │   ├── platforms/    # Platform definitions + format converters
+│   │   ├── validators/   # Card validation logic
+│   │   ├── exporters/    # PNG/JSON download helpers
+│   │   ├── library/      # IndexedDB card storage (idb)
+│   │   ├── archive/      # ZIP export (jszip)
+│   │   ├── tokenizer/    # Token counting (cl100k)
+│   │   └── customTemplates/ # User-saved templates (localStorage)
+│   ├── data/templates/   # Built-in character templates
+│   ├── types/            # TypeScript type definitions
+│   └── App.tsx           # Root component and app state
+├── src-tauri/            # Tauri (Rust) desktop shell
+├── public/               # Static assets (logo, etc.)
+└── docs/                 # Screenshots and documentation assets
+```
+
+---
+
+## Changelog
+
+### v1.2.0
+- Added **Token Counter** — live per-field token counts (cl100k / GPT-4 standard) with a total budget bar and breakdown panel
+- Added **Save as Template** — save any card as a reusable template from the export panel
+- Added **Copy / Paste buttons** on every text field — paste inserts at cursor position
+- Removed character limits on all text fields
+
+### v1.1.0
+- Added **Card Library** — save, browse, search, and manage your characters locally
+- Added **ZIP Archive** — export selected or all cards as a portable `.zip` with manifest
+- White / light theme
+- Wider sidebar with full logo display
+
+### v1.0.0
+- Initial release — character editor, multi-platform export, PNG encoding/decoding, templates
 
 ---
 
