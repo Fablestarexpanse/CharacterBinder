@@ -92,6 +92,23 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 - Automatic field mapping and renaming per platform
 - PNG export or JSON export depending on platform support
 
+### Lorebook Editor *(v1.3)*
+- Build SillyTavern-compatible world info / knowledge books
+- Add and manage entries with keyword triggers (primary + secondary), priority, insertion order, and position
+- Per-entry toggles: enabled, constant, selective, case-sensitive
+- Live token count per entry and total vs. configured budget
+- Export as SillyTavern-compatible JSON
+
+### Script Card Editor *(v1.3)*
+- Package a full system prompt or instruction set as a portable card
+- Monospace content editor with live token counter and colour-coded budget bar
+- Export as JSON or embed in a PNG using a `script` tEXt chunk
+
+### Scenario Card Editor *(v1.3)*
+- Create a standalone situation or setting card that can be dropped into any conversation
+- Optional scene image (drag-and-drop), opening message, and tags
+- Per-field token counts and export as JSON or PNG (`scenario` chunk)
+
 ### Tools
 - **PNG Import** — load an existing Tavern Card PNG and edit it
 - **PNG Decode** — inspect the raw embedded metadata of any Tavern Card PNG
@@ -175,6 +192,12 @@ CharacterBinder/
 ---
 
 ## Changelog
+
+### v1.3.0
+- Added **Lorebook Editor** — build SillyTavern-compatible world info books with keyword-triggered entries, priority/insertion order controls, and JSON export
+- Added **Script Card Editor** — package system prompts and instruction sets as portable cards (JSON + optional PNG embed)
+- Added **Scenario Card Editor** — create standalone scenario cards with optional scene image, opening message, and JSON + PNG export
+- Navigation sidebar reorganised into grouped sections: Character Cards, Card Types, Tools
 
 ### v1.2.0
 - Added **Token Counter** — live per-field token counts (cl100k / GPT-4 standard) with a total budget bar and breakdown panel

@@ -33,7 +33,7 @@ export default function CardPreviewPanel({
   targetPlatform,
   onPlatformChange,
   onUpdateOutputFileName,
-  onNavigateLibrary,
+  onNavigateLibrary: _onNavigateLibrary,
 }: CardPreviewPanelProps) {
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<{ msg: string; ok: boolean } | null>(null);

@@ -8,6 +8,9 @@ import {
   LayoutTemplate,
   Settings,
   HelpCircle,
+  BookOpen,
+  FileCode2,
+  Map,
   type LucideIcon,
 } from "lucide-react";
 
@@ -17,14 +20,37 @@ interface SidebarProps {
   onNewCard: () => void;
 }
 
-const NAV_ITEMS: { page: NavPage; label: string; icon: LucideIcon }[] = [
-  { page: "create", label: "Create Card", icon: PlusSquare },
-  { page: "library", label: "Library", icon: Library },
-  { page: "import", label: "Import PNG", icon: Upload },
-  { page: "decode", label: "Decode PNG", icon: FileSearch },
-  { page: "templates", label: "Templates", icon: LayoutTemplate },
-  { page: "settings", label: "Settings", icon: Settings },
-  { page: "help", label: "Help / About", icon: HelpCircle },
+interface NavSection {
+  label: string;
+  items: { page: NavPage; label: string; icon: LucideIcon }[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Character Cards",
+    items: [
+      { page: "create", label: "Create Card", icon: PlusSquare },
+      { page: "library", label: "Library", icon: Library },
+      { page: "templates", label: "Templates", icon: LayoutTemplate },
+    ],
+  },
+  {
+    label: "Card Types",
+    items: [
+      { page: "lorebook", label: "Lorebook", icon: BookOpen },
+      { page: "script", label: "Script Card", icon: FileCode2 },
+      { page: "scenario", label: "Scenario Card", icon: Map },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { page: "import", label: "Import PNG", icon: Upload },
+      { page: "decode", label: "Decode PNG", icon: FileSearch },
+      { page: "settings", label: "Settings", icon: Settings },
+      { page: "help", label: "Help / About", icon: HelpCircle },
+    ],
+  },
 ];
 
 export default function Sidebar({ activePage, onNavigate, onNewCard }: SidebarProps) {
@@ -36,20 +62,27 @@ export default function Sidebar({ activePage, onNavigate, onNewCard }: SidebarPr
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-3 space-y-0.5 px-2">
-        {NAV_ITEMS.map(({ page, label, icon: Icon }) => (
-          <button
-            key={page}
-            onClick={() => onNavigate(page)}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-              activePage === page
-                ? "bg-accent-purple/20 text-accent-purple-light border border-accent-purple/30"
-                : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-            }`}
-          >
-            <Icon size={16} />
-            {label}
-          </button>
+      <nav className="flex-1 py-3 overflow-y-auto px-2 space-y-4">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label}>
+            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider px-3 mb-1">{section.label}</p>
+            <div className="space-y-0.5">
+              {section.items.map(({ page, label, icon: Icon }) => (
+                <button
+                  key={page}
+                  onClick={() => onNavigate(page)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
+                    activePage === page
+                      ? "bg-accent-purple/20 text-accent-purple-light border border-accent-purple/30"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                  }`}
+                >
+                  <Icon size={16} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
@@ -65,7 +98,7 @@ export default function Sidebar({ activePage, onNavigate, onNewCard }: SidebarPr
       <div className="border-t border-border px-4 py-2.5 flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-accent-green shrink-0" />
         <span className="text-xs text-text-muted">Ready</span>
-        <span className="ml-auto text-xs text-text-muted">v1.2.0</span>
+        <span className="ml-auto text-xs text-text-muted">v1.3.0</span>
       </div>
     </aside>
   );

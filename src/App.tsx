@@ -11,6 +11,9 @@ import Templates from "./components/Templates";
 import Settings from "./components/Settings";
 import HelpAbout from "./components/HelpAbout";
 import Library from "./components/Library";
+import LoreBookEditor from "./components/LoreBookEditor";
+import ScriptEditor from "./components/ScriptEditor";
+import ScenarioEditor from "./components/ScenarioEditor";
 import ConfirmModal from "./components/ConfirmModal";
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -64,7 +67,7 @@ function App() {
 
   const loadFromLibrary = useCallback((
     card: TavernCardV2,
-    pngData: Uint8Array | null,
+    _pngData: Uint8Array | null,
     imageSrc: string | null,
     libraryId: string
   ) => {
@@ -144,6 +147,9 @@ function App() {
         {activePage === "settings" && (
           <Settings settings={settings} onSave={setSettings} />
         )}
+        {activePage === "lorebook" && <LoreBookEditor />}
+        {activePage === "script" && <ScriptEditor />}
+        {activePage === "scenario" && <ScenarioEditor />}
         {activePage === "help" && <HelpAbout />}
       </main>
     </div>

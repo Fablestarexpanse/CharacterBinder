@@ -161,11 +161,60 @@ export interface ValidationResult {
 export type NavPage =
   | "create"
   | "library"
+  | "lorebook"
+  | "script"
+  | "scenario"
   | "import"
   | "decode"
   | "templates"
   | "settings"
   | "help";
+
+export interface LoreEntry {
+  id: string;
+  name: string;
+  keys: string[];
+  secondary_keys: string[];
+  content: string;
+  enabled: boolean;
+  insertion_order: number;
+  case_sensitive: boolean;
+  priority: number;
+  selective: boolean;
+  constant: boolean;
+  position: "before_char" | "after_char";
+  comment: string;
+}
+
+export interface LoreBook {
+  name: string;
+  description: string;
+  scan_depth: number;
+  token_budget: number;
+  recursive_scanning: boolean;
+  entries: LoreEntry[];
+}
+
+export interface ScriptCard {
+  spec: "script_card_v1";
+  name: string;
+  description: string;
+  content: string;
+  tags: string[];
+  author: string;
+  version: string;
+}
+
+export interface ScenarioCard {
+  spec: "scenario_card_v1";
+  name: string;
+  description: string;
+  scenario: string;
+  first_mes: string;
+  tags: string[];
+  creator: string;
+  version: string;
+}
 
 export interface LibraryCard {
   id: string;
