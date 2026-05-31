@@ -67,4 +67,10 @@ export const templates = [
     description: "Start from scratch with an empty card",
     card: blankTemplate,
   },
+  {
+    id: "ronan-voss",
+    name: "Ronan Voss",
+    description: "A stoic wolf demi-human and former black ops operative — full example card",
+    card: ronanVossTemplate,
+  },
 ];

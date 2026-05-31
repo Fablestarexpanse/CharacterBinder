@@ -115,7 +115,10 @@ export type MetadataKey =
   | "chara"
   | "character"
   | "tavern"
-  | "tavern_card_v2";
+  | "tavern_card_v2"
+  | "lorebook"
+  | "script"
+  | "scenario";
 
 export interface AppSettings {
   defaultExportFormat: ExportFormat;

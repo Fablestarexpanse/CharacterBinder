@@ -11,13 +11,16 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
     if (card.pngData) {
       zip.file(`cards/${safeName}.png`, card.pngData);
     } else {
-      const json = JSON.stringify(card.cardData, null, 2);
+      // Use rawData for non-character cards; cardData for character cards
+      const data = card.cardData ?? card.rawData;
+      const json = JSON.stringify(data, null, 2);
       zip.file(`cards/${safeName}.json`, json);
     }
 
     manifest.push({
       id: card.id,
       name: card.name,
+      cardType: card.cardType ?? "character",
       platform: card.platform,
       tags: card.tags,
       createdAt: new Date(card.createdAt).toISOString(),

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import type { TavernCardV2 } from "../types";
 import { Plus, Minus, ChevronDown, ChevronUp, Image, Copy, ClipboardPaste, Check } from "lucide-react";
-import { countTokens } from "../lib/tokenizer";
+import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
 
 interface CharacterEditorProps {
   card: TavernCardV2;
@@ -110,12 +110,21 @@ export default function CharacterEditor({
             />
 
             <TextAreaField
-              label="Scenario / First Message"
+              label="Scenario"
+              value={data.scenario}
+
+              rows={2}
+              onChange={(v) => onUpdate({ scenario: v })}
+              placeholder="The setting or situation the character exists in..."
+            />
+
+            <TextAreaField
+              label="First Message"
               value={data.first_mes}
 
               rows={3}
               onChange={(v) => onUpdate({ first_mes: v })}
-              placeholder="Opening scenario or first message..."
+              placeholder="The opening message the character sends to start a conversation..."
             />
           </div>
 
@@ -383,7 +392,7 @@ function TextAreaField({ label, value, rows, onChange, placeholder }: TextAreaFi
         <label className="label-base mb-0">{label}</label>
         <div className="flex items-center gap-2">
           {value.length > 0 && (
-            <span className={`text-xs font-medium ${tokens > 500 ? "text-orange-500" : "text-text-muted"}`}>
+            <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[getTokenBudgetLevel(tokens)]}`}>
               {tokens} tk
             </span>
           )}

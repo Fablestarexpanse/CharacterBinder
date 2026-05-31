@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { NavPage } from "../types";
 import {
   PlusSquare,
@@ -11,6 +11,7 @@ import {
   BookOpen,
   FileCode2,
   Map,
+  FileJson,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ interface SidebarProps {
   activePage: NavPage;
   onNavigate: (page: NavPage) => void;
   onNewCard: () => void;
+  onLoadJson?: (file: File) => void;
 }
 
 interface NavSection {
@@ -53,7 +55,9 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export default function Sidebar({ activePage, onNavigate, onNewCard }: SidebarProps) {
+export default function Sidebar({ activePage, onNavigate, onNewCard, onLoadJson }: SidebarProps) {
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <aside className="w-80 bg-bg-secondary border-r border-border flex flex-col shrink-0">
       {/* Logo */}
@@ -90,8 +94,27 @@ export default function Sidebar({ activePage, onNavigate, onNewCard }: SidebarPr
       <div className="border-t border-border px-3 py-3 space-y-1.5">
         <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2 px-1">Quick Actions</p>
         <QuickBtn label="New Character" onClick={onNewCard} danger />
-        <QuickBtn label="Load JSON" />
-        <QuickBtn label="Save JSON" />
+        <QuickBtn
+          label="Load JSON"
+          icon={<FileJson size={12} />}
+          onClick={() => jsonInputRef.current?.click()}
+        />
+        <QuickBtn
+          label="Library"
+          icon={<Library size={12} />}
+          onClick={() => onNavigate("library")}
+        />
+        <input
+          ref={jsonInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f && onLoadJson) onLoadJson(f);
+            e.target.value = "";
+          }}
+        />
       </div>
 
       {/* Status */}
@@ -128,7 +151,7 @@ function LogoImage() {
   );
 }
 
-function QuickBtn({ label, onClick, danger }: { label: string; onClick?: () => void; danger?: boolean }) {
+function QuickBtn({ label, onClick, danger, icon }: { label: string; onClick?: () => void; danger?: boolean; icon?: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
@@ -140,7 +163,9 @@ function QuickBtn({ label, onClick, danger }: { label: string; onClick?: () => v
     >
       <span className={`w-4 h-4 rounded border flex items-center justify-center ${
         danger ? "border-red-800/50 text-red-500/70" : "border-border text-text-muted"
-      }`}>+</span>
+      }`}>
+        {icon ?? "+"}
+      </span>
       {label}
     </button>
   );

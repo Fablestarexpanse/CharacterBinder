@@ -24,9 +24,21 @@ const DEFAULT_SETTINGS: AppSettings = {
   prettyPrintJson: true,
 };
 
+const SETTINGS_KEY = "cb_settings_v1";
+
+function loadStoredSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
 function App() {
   const [activePage, setActivePage] = useState<NavPage>("create");
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(loadStoredSettings);
   const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -166,6 +178,37 @@ function App() {
     setActivePage("scenario");
   }, []);
 
+  // ── Load JSON from sidebar quick action ──
+  const handleLoadJson = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const raw = JSON.parse(e.target?.result as string);
+        if (raw.spec === "chara_card_v2" || raw.spec_version === "2.0" || raw.data?.name !== undefined) {
+          loadCard(raw as TavernCardV2);
+          return;
+        }
+        if (raw.spec === "lorebook_v1" || (raw.entries !== undefined && raw.scan_depth !== undefined)) {
+          handleImportLorebook(raw as LoreBook, null);
+          return;
+        }
+        if (raw.spec === "script_card_v1" || (raw.content !== undefined && raw.author !== undefined)) {
+          handleImportScript(raw as ScriptCard, null);
+          return;
+        }
+        if (raw.spec === "scenario_card_v1" || (raw.scenario !== undefined && raw.first_mes !== undefined)) {
+          handleImportScenario(raw as ScenarioCard, null);
+          return;
+        }
+        // Fallback: treat as character card
+        loadCard(raw as TavernCardV2);
+      } catch {
+        // silently ignore — user sees nothing happen on bad JSON
+      }
+    };
+    reader.readAsText(file);
+  }, [loadCard, handleImportLorebook, handleImportScript, handleImportScenario]);
+
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
       {showClearConfirm && (
@@ -179,7 +222,7 @@ function App() {
         />
       )}
 
-      <Sidebar activePage={activePage} onNavigate={setActivePage} onNewCard={() => setShowClearConfirm(true)} />
+      <Sidebar activePage={activePage} onNavigate={setActivePage} onNewCard={() => setShowClearConfirm(true)} onLoadJson={handleLoadJson} />
 
       <main className="flex-1 overflow-hidden">
         {activePage === "create" && (
@@ -226,7 +269,14 @@ function App() {
             onLoadScenario={handleImportScenario}
           />
         )}
-        {activePage === "decode" && <DecodePNG onLoad={loadCard} />}
+        {activePage === "decode" && (
+          <DecodePNG
+            onLoad={loadCard}
+            onLoadLorebook={handleImportLorebook}
+            onLoadScript={handleImportScript}
+            onLoadScenario={handleImportScenario}
+          />
+        )}
         {activePage === "templates" && <Templates onLoad={loadCard} />}
         {activePage === "library" && (
           <Library
@@ -236,7 +286,7 @@ function App() {
             onEditScenario={handleEditScenario}
           />
         )}
-        {activePage === "settings" && <Settings settings={settings} onSave={setSettings} />}
+        {activePage === "settings" && <Settings settings={settings} onSave={(s) => { setSettings(s); localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }} />}
         {activePage === "help" && <HelpAbout />}
       </main>
     </div>

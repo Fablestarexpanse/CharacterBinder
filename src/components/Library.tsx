@@ -156,7 +156,7 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
           {selected.size > 0 && (
             <>
               <span className="text-xs text-text-muted">{selected.size} selected</span>
-              <button onClick={handleDeleteSelected} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 transition-colors">
+              <button onClick={handleDeleteSelected} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-950/30 transition-colors">
                 <Trash2 size={13} /> Delete
               </button>
               <button onClick={() => handleArchive()} disabled={archiving} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:bg-bg-hover transition-colors">
@@ -165,12 +165,12 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
             </>
           )}
           <button
-            onClick={() => handleArchive(cards.map((c) => c.id))}
-            disabled={archiving || cards.length === 0}
+            onClick={() => handleArchive(filtered.map((c) => c.id))}
+            disabled={archiving || filtered.length === 0}
             className="btn-secondary text-xs py-1.5 px-3"
           >
             <Archive size={13} />
-            {archiving ? "Archiving…" : "Archive All"}
+            {archiving ? "Archiving…" : search ? `Archive ${filtered.length}` : "Archive All"}
           </button>
         </div>
       </div>

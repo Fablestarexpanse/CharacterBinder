@@ -1,21 +1,34 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo } from "../types";
+import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard } from "../types";
 import type { PlatformId } from "../lib/platforms";
-import { FileSearch, Upload, Copy, Check, FileJson } from "lucide-react";
+import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { convertCardFrom } from "../lib/platforms/converters";
 import FieldCompatibility from "./FieldCompatibility";
 
+const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
+
+type NonCharType = "lorebook" | "script" | "scenario";
+const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {
+  lorebook: { label: "Lorebook",     icon: <BookOpen  size={14} />, color: "text-blue-400" },
+  script:   { label: "Script Card",  icon: <FileCode2 size={14} />, color: "text-orange-400" },
+  scenario: { label: "Scenario Card",icon: <Map       size={14} />, color: "text-green-400" },
+};
+
 interface DecodePNGProps {
   onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
+  onLoadLorebook?: (book: LoreBook, imageSrc: string | null) => void;
+  onLoadScript?: (card: ScriptCard, imageSrc: string | null) => void;
+  onLoadScenario?: (card: ScenarioCard, imageSrc: string | null) => void;
 }
 
-export default function DecodePNG({ onLoad }: DecodePNGProps) {
+export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoadScenario }: DecodePNGProps) {
   const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<{
     json: string;
-    sourcePlatform: PlatformId;
+    key: string;
+    sourcePlatform: PlatformId | null;
     meta: MetadataInfo;
     imageSrc: string;
   } | null>(null);
@@ -42,27 +55,35 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
       };
       const imageSrc = uint8ToDataUrl(bytes);
 
-      if (!json) {
-        setResult(null);
-        setError("No character metadata found in this PNG.");
+      if (!json || !key) {
+        setError("No card metadata found in this PNG.");
         return;
       }
 
       const parsed = JSON.parse(json);
-      const sourcePlatform = detectPlatform(parsed);
-      const platform = PLATFORMS[sourcePlatform];
+
+      // Determine detected type
+      let sourcePlatform: PlatformId | null = null;
+      let formatLabel = "Unknown";
+
+      if (CHARACTER_KEYS.has(key)) {
+        sourcePlatform = detectPlatform(parsed);
+        formatLabel = PLATFORMS[sourcePlatform].name;
+      } else if (key in NON_CHAR_META) {
+        formatLabel = NON_CHAR_META[key as NonCharType].label;
+      }
 
       const meta: MetadataInfo = {
-        format: platform.name,
+        format: formatLabel,
         encoding: "Base64 + PNG tEXt chunk",
         dataSize: json.length,
         imageWidth: dims?.width ?? 0,
         imageHeight: dims?.height ?? 0,
         chunks,
-        rawKey: key ?? undefined,
+        rawKey: key,
       };
 
-      setResult({ json, sourcePlatform, meta, imageSrc });
+      setResult({ json, key, sourcePlatform, meta, imageSrc });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -78,8 +99,16 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
   const handleLoadToEditor = () => {
     if (!result) return;
     const parsed = JSON.parse(result.json);
-    const card = convertCardFrom(parsed, result.sourcePlatform);
-    onLoad(card, result.imageSrc, result.meta, result.sourcePlatform);
+
+    if (CHARACTER_KEYS.has(result.key) && result.sourcePlatform) {
+      const card = convertCardFrom(parsed, result.sourcePlatform);
+      onLoad(card, result.imageSrc, result.meta, result.sourcePlatform);
+      return;
+    }
+
+    if (result.key === "lorebook") { onLoadLorebook?.(parsed as LoreBook, result.imageSrc); return; }
+    if (result.key === "script")   { onLoadScript?.(parsed as ScriptCard, result.imageSrc); return; }
+    if (result.key === "scenario") { onLoadScenario?.(parsed as ScenarioCard, result.imageSrc); return; }
   };
 
   const handleCopy = async () => {
@@ -89,7 +118,8 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const platform = result ? PLATFORMS[result.sourcePlatform] : null;
+  const isCharCard = result && result.sourcePlatform !== null && CHARACTER_KEYS.has(result.key);
+  const platform = isCharCard && result.sourcePlatform ? PLATFORMS[result.sourcePlatform] : null;
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -97,8 +127,8 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
         <div>
           <h1 className="text-xl font-bold text-text-primary mb-1">Decode PNG</h1>
           <p className="text-sm text-text-secondary">
-            Inspect any PNG's embedded metadata. Source platform is auto-detected and
-            field compatibility shown before you load into the editor.
+            Inspect any card PNG's embedded metadata. All card types are detected —
+            character cards, lorebooks, scripts, and scenario cards.
           </p>
         </div>
 
@@ -113,7 +143,7 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
           onClick={() => fileInputRef.current?.click()}
         >
           <FileSearch size={28} className="text-text-muted" />
-          <p className="text-sm text-text-secondary">Drop a PNG here to inspect its metadata</p>
+          <p className="text-sm text-text-secondary">Drop any card PNG here to inspect its metadata</p>
           <input ref={fileInputRef} type="file" accept=".png,image/png" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }} />
         </div>
@@ -122,7 +152,7 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
           <div className="bg-red-900/20 border border-red-700/40 text-red-400 text-sm rounded-xl p-3">{error}</div>
         )}
 
-        {result && platform && (
+        {result && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               {/* Image */}
@@ -135,12 +165,24 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
               <div className="card-panel space-y-3">
                 <p className="section-title">Detection Result</p>
 
-                {/* Detected platform badge */}
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${platform.color} ${platform.borderColor}`}>
-                  <div className={`w-2 h-2 rounded-full bg-accent-green`} />
-                  <span className={`text-sm font-semibold ${platform.textColor}`}>{platform.name}</span>
-                  <span className="text-xs text-text-muted ml-auto">detected</span>
-                </div>
+                {/* Type badge */}
+                {platform ? (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${platform.color} ${platform.borderColor}`}>
+                    <div className="w-2 h-2 rounded-full bg-accent-green" />
+                    <span className={`text-sm font-semibold ${platform.textColor}`}>{platform.name}</span>
+                    <span className="text-xs text-text-muted ml-auto">detected</span>
+                  </div>
+                ) : result.key in NON_CHAR_META ? (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-accent-purple/30 bg-accent-purple/5">
+                    <span className={NON_CHAR_META[result.key as NonCharType].color}>
+                      {NON_CHAR_META[result.key as NonCharType].icon}
+                    </span>
+                    <span className="text-sm font-semibold text-text-primary">
+                      {NON_CHAR_META[result.key as NonCharType].label}
+                    </span>
+                    <span className="text-xs text-text-muted ml-auto">detected</span>
+                  </div>
+                ) : null}
 
                 <table className="w-full text-xs">
                   <tbody>
@@ -151,19 +193,21 @@ export default function DecodePNG({ onLoad }: DecodePNGProps) {
                   </tbody>
                 </table>
 
-                {/* Compatibility summary */}
-                <div>
-                  <button
-                    onClick={() => setShowFullCompat(!showFullCompat)}
-                    className="text-xs text-accent-purple-light hover:underline mb-1"
-                  >
-                    {showFullCompat ? "Hide" : "Show"} field compatibility
-                  </button>
-                  {showFullCompat
-                    ? <FieldCompatibility platformId={result.sourcePlatform} />
-                    : <FieldCompatibility platformId={result.sourcePlatform} compact />
-                  }
-                </div>
+                {/* Field compatibility only for character cards */}
+                {isCharCard && result.sourcePlatform && (
+                  <div>
+                    <button
+                      onClick={() => setShowFullCompat(!showFullCompat)}
+                      className="text-xs text-accent-purple-light hover:underline mb-1"
+                    >
+                      {showFullCompat ? "Hide" : "Show"} field compatibility
+                    </button>
+                    {showFullCompat
+                      ? <FieldCompatibility platformId={result.sourcePlatform} />
+                      : <FieldCompatibility platformId={result.sourcePlatform} compact />
+                    }
+                  </div>
+                )}
 
                 <button onClick={handleLoadToEditor} className="btn-primary w-full justify-center text-xs py-2">
                   <Upload size={13} /> Load into Editor

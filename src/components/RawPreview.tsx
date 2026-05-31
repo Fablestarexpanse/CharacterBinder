@@ -6,6 +6,7 @@ interface RawPreviewProps {
 
 export default function RawPreview({ card }: RawPreviewProps) {
   const jsonStr = JSON.stringify(card);
+  // Same encoding path as pngMetadata/encodeCharaToPng — preview matches what gets embedded
   const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
 
   return (

@@ -167,7 +167,7 @@ export function encodeCharaToPng(
 
   const base64Data = btoa(unescape(encodeURIComponent(jsonData)));
   const chunks = readChunks(pngBytes);
-  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2"];
+  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario"];
 
   const keepChunks: PngChunk[] = [];
   let ihdChunk: PngChunk | null = null;

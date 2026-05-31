@@ -86,7 +86,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         pngBytes = MINIMAL_PNG;
       }
       const json = JSON.stringify(card);
-      const result = encodeCharaToPng(pngBytes, json, "script" as never, false);
+      const result = encodeCharaToPng(pngBytes, json, "script", false);
       const blob = new Blob([result.buffer as ArrayBuffer], { type: "image/png" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -220,17 +220,17 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
           {!confirmClear ? (
             <button
               onClick={() => setConfirmClear(true)}
-              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-950/20 transition-colors"
             >
               <span className="text-base leading-none">+</span> New Script Card
             </button>
           ) : (
-            <div className="rounded-lg border border-red-300/50 bg-red-50 px-3 py-2.5 space-y-2">
-              <p className="text-xs font-medium text-red-700">Clear this script and start fresh?</p>
-              <p className="text-[11px] text-red-500">Library saves are not affected.</p>
+            <div className="rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2.5 space-y-2">
+              <p className="text-xs font-medium text-red-400">Clear this script and start fresh?</p>
+              <p className="text-[11px] text-red-400/70">Library saves are not affected.</p>
               <div className="flex gap-2">
                 <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">Yes, clear it</button>
-                <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-300/60 text-red-600 hover:bg-red-100 transition-colors">Cancel</button>
+                <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-950/50 transition-colors">Cancel</button>
               </div>
             </div>
           )}

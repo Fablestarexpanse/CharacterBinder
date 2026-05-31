@@ -218,7 +218,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
         pngBytes = MINIMAL_PNG;
       }
       const json = JSON.stringify(buildExportData());
-      const result = encodeCharaToPng(pngBytes, json, "lorebook" as never, false);
+      const result = encodeCharaToPng(pngBytes, json, "lorebook", false);
       const blob = new Blob([result.buffer as ArrayBuffer], { type: "image/png" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -483,19 +483,19 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           {!confirmClear ? (
             <button
               onClick={() => setConfirmClear(true)}
-              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-950/20 transition-colors"
             >
               <Plus size={12} /> New Lorebook
             </button>
           ) : (
-            <div className="rounded-lg border border-red-300/50 bg-red-50 px-3 py-2.5 space-y-2">
-              <p className="text-xs font-medium text-red-700">Clear this lorebook and start fresh?</p>
-              <p className="text-[11px] text-red-500">Library saves are not affected.</p>
+            <div className="rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2.5 space-y-2">
+              <p className="text-xs font-medium text-red-400">Clear this lorebook and start fresh?</p>
+              <p className="text-[11px] text-red-400/70">Library saves are not affected.</p>
               <div className="flex gap-2">
                 <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors font-medium">
                   Yes, clear it
                 </button>
-                <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-300 text-red-600 hover:bg-red-100 transition-colors">
+                <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-950/50 transition-colors">
                   Cancel
                 </button>
               </div>
@@ -534,11 +534,23 @@ function EntryEditor({ entry, onChange }: {
   const entryLevel = getTokenBudgetLevel(tokens);
   const [copied, setCopied] = useState(false);
   const [hint, setHint] = useState(false);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   function copy() { navigator.clipboard.writeText(entry.content); setCopied(true); setTimeout(() => setCopied(false), 1500); }
   async function paste() {
-    try { const t = await navigator.clipboard.readText(); onChange({ content: entry.content + t }); }
-    catch { setHint(true); setTimeout(() => setHint(false), 2500); }
+    try {
+      const t = await navigator.clipboard.readText();
+      if (!t) return;
+      const el = contentRef.current;
+      const start = el?.selectionStart ?? entry.content.length;
+      const end = el?.selectionEnd ?? entry.content.length;
+      const next = entry.content.slice(0, start) + t + entry.content.slice(end);
+      onChange({ content: next });
+      requestAnimationFrame(() => {
+        el?.focus();
+        el?.setSelectionRange(start + t.length, start + t.length);
+      });
+    } catch { setHint(true); setTimeout(() => setHint(false), 2500); }
   }
 
   return (
@@ -564,7 +576,7 @@ function EntryEditor({ entry, onChange }: {
         />
         {entry.keys.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {entry.keys.map((k) => <span key={k} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{k}</span>)}
+            {entry.keys.map((k) => <span key={k} className="text-xs bg-blue-900/40 text-blue-300 px-2 py-0.5 rounded-full">{k}</span>)}
           </div>
         )}
       </div>
@@ -600,6 +612,7 @@ function EntryEditor({ entry, onChange }: {
           </div>
         </div>
         <textarea
+          ref={contentRef}
           className="input-base resize-none"
           rows={9}
           placeholder="Dragons are ancient creatures of immense power..."
