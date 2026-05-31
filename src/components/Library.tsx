@@ -255,6 +255,7 @@ function CardTile({
       className={`relative rounded-xl border transition-all cursor-pointer group ${
         selected ? "border-accent-purple ring-2 ring-accent-purple/20" : "border-border hover:border-border-light"
       } bg-bg-card overflow-hidden`}
+      onClick={onEdit}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
