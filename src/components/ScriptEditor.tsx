@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Download, FileJson, Copy, Check, ClipboardPaste, FileCode2, Save } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Download, FileJson, FileCode2, Save } from "lucide-react";
 import type { ScriptCard } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
@@ -90,14 +90,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
   async function handleSaveToLibrary() {
     setSaving(true);
     try {
-      const saved = await saveAnyCard(
-        "script",
-        card.name || "Unnamed Script",
-        card,
-        imageSrc,
-        card.tags,
-        libraryId
-      );
+      const saved = await saveAnyCard("script", card.name || "Unnamed Script", card, imageSrc, card.tags, libraryId);
       setLibraryId(saved.id);
       setMsg(libraryId ? "Library updated!" : "Saved to library!", true);
     } catch {
@@ -112,16 +105,19 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
 
   return (
     <div className="h-full flex overflow-hidden">
-      {/* Editor */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+      {/* ── Main editor area ── */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 min-w-0">
+
+        {/* Page title */}
         <div>
           <h1 className="text-lg font-bold text-text-primary flex items-center gap-2">
             <FileCode2 size={20} className="text-accent-purple" /> Script Card
           </h1>
-          <p className="text-sm text-text-secondary mt-0.5">Package a system prompt or instruction set as a portable card.</p>
+          <p className="text-sm text-text-secondary mt-0.5">Write JavaScript for SillyTavern extensions or automation scripts.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* Compact meta row */}
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="label-base">Script Name</label>
             <input className="input-base" placeholder="My Script..." value={card.name} onChange={(e) => update({ name: e.target.value })} />
@@ -130,37 +126,18 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
             <label className="label-base">Author</label>
             <input className="input-base" placeholder="Your name..." value={card.author} onChange={(e) => update({ author: e.target.value })} />
           </div>
-        </div>
-
-        <div>
-          <label className="label-base">Description</label>
-          <textarea className="input-base resize-none" rows={2} placeholder="What does this script do?" value={card.description} onChange={(e) => update({ description: e.target.value })} />
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="label-base mb-0">Script Content</label>
-            <div className="flex items-center gap-2">
-              {tokens > 0 && <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[level]}`}>{tokens} tokens</span>}
-              <CopyPasteButtons value={card.content} onChange={(v) => update({ content: v })} />
-            </div>
+          <div>
+            <label className="label-base">Description</label>
+            <input className="input-base" placeholder="What does this script do?" value={card.description} onChange={(e) => update({ description: e.target.value })} />
           </div>
-          <textarea
-            className="input-base resize-none font-mono text-sm"
-            rows={16}
-            placeholder={"You are a helpful assistant...\n\nWrite your full system prompt or instruction set here."}
-            value={card.content}
-            onChange={(e) => update({ content: e.target.value })}
-          />
-          {tokens > 0 && (
-            <div className="mt-1.5">
-              <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${barPct}%` }} />
-              </div>
-            </div>
-          )}
         </div>
 
+        {/* Code editor — fills remaining vertical space */}
+        <div className="flex-1 min-h-0">
+          <CodeEditor value={card.content} onChange={(v) => update({ content: v })} />
+        </div>
+
+        {/* Tags */}
         <div>
           <label className="label-base">Tags (comma-separated)</label>
           <input className="input-base" placeholder="roleplay, assistant, narration..." value={card.tags.join(", ")} onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />
@@ -172,7 +149,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         </div>
       </div>
 
-      {/* Export panel */}
+      {/* ── Export panel ── */}
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
         <p className="section-title">Export</p>
 
@@ -199,12 +176,13 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         <div className="space-y-1 text-xs">
           <div className="flex justify-between"><span className="text-text-muted">Tokens</span><span className={`font-bold ${TOKEN_BUDGET_COLORS[level]}`}>{tokens}</span></div>
           <div className="flex justify-between items-center"><span className="text-text-muted">Version</span><input className="input-base py-0.5 text-xs w-20 text-right" value={card.version} onChange={(e) => update({ version: e.target.value })} /></div>
-          <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
-            <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${barPct}%` }} />
-          </div>
+          {tokens > 0 && (
+            <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
+              <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${barPct}%` }} />
+            </div>
+          )}
         </div>
 
-        {/* Save to Library */}
         <div className="border-t border-border pt-3">
           <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
             <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
@@ -225,7 +203,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
-          <p><strong className="text-text-secondary">JSON</strong> — import directly in any compatible tool.</p>
+          <p><strong className="text-text-secondary">JSON</strong> — portable card format.</p>
           <p><strong className="text-text-secondary">PNG</strong> — embeds the script using the <code className="bg-bg-tertiary px-1 rounded">script</code> chunk.</p>
         </div>
       </aside>
@@ -233,36 +211,110 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
   );
 }
 
-function CopyPasteButtons({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [copied, setCopied] = useState(false);
-  const [hint, setHint] = useState(false);
+// ─────────────────────────────────────────────
+// Dark code editor with line numbers
+// ─────────────────────────────────────────────
+function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const gutterRef   = useRef<HTMLDivElement>(null);
 
-  function copy() {
-    navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
+  const lineCount = Math.max(1, value.split("\n").length);
 
-  async function paste() {
-    try {
-      const text = await navigator.clipboard.readText();
-      onChange(value + text);
-    } catch {
-      setHint(true);
-      setTimeout(() => setHint(false), 2500);
+  const syncScroll = useCallback(() => {
+    if (gutterRef.current && textareaRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, []);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const ta = e.currentTarget;
+      const start = ta.selectionStart;
+      const end   = ta.selectionEnd;
+      const next  = value.substring(0, start) + "  " + value.substring(end);
+      onChange(next);
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = start + 2;
+      });
     }
   }
 
   return (
-    <div className="flex items-center gap-1">
-      <button type="button" onClick={copy} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
-        {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-      </button>
-      <div className="relative">
-        <button type="button" onClick={paste} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
-          <ClipboardPaste size={12} />
-        </button>
-        {hint && <div className="absolute right-0 top-6 z-10 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg">Press Ctrl+V</div>}
+    <div
+      className="flex flex-col h-full rounded-lg overflow-hidden"
+      style={{ background: "#1a1d2e", border: "1px solid rgba(100,110,160,0.2)" }}
+    >
+      {/* Header bar */}
+      <div
+        className="flex items-center gap-2 px-4 py-2 shrink-0"
+        style={{
+          borderBottom: "1px solid rgba(100,110,160,0.15)",
+          color: "#7a8aaa",
+          fontSize: "11px",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          fontFamily: "ui-monospace, monospace",
+        }}
+      >
+        <span>Script Code</span>
+        <span style={{ color: "#a78bfa" }}>◆</span>
+        <span>JavaScript</span>
+      </div>
+
+      {/* Editor body: gutter + textarea side-by-side */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Line-number gutter */}
+        <div
+          ref={gutterRef}
+          className="overflow-hidden shrink-0 select-none"
+          style={{
+            paddingTop: "14px",
+            paddingBottom: "14px",
+            paddingLeft: "12px",
+            paddingRight: "12px",
+            minWidth: "3.5rem",
+            textAlign: "right",
+            background: "#1a1d2e",
+            color: "#3d4a6b",
+            fontFamily: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
+            fontSize: "13px",
+            lineHeight: "1.65",
+            borderRight: "1px solid rgba(100,110,160,0.12)",
+          }}
+        >
+          {Array.from({ length: lineCount }, (_, i) => (
+            <div key={i} style={{ height: "1.65em" }}>{i + 1}</div>
+          ))}
+        </div>
+
+        {/* Code textarea */}
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onScroll={syncScroll}
+          onKeyDown={handleKeyDown}
+          spellCheck={false}
+          autoCapitalize="none"
+          autoCorrect="off"
+          placeholder="// Start writing your JavaScript here...&#10;&#10;// Example:&#10;// const greeting = (name) => `Hello, ${name}!`;"
+          style={{
+            flex: 1,
+            background: "transparent",
+            color: "#c8d3f5",
+            caretColor: "#c8d3f5",
+            fontFamily: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
+            fontSize: "13px",
+            lineHeight: "1.65",
+            padding: "14px 16px",
+            outline: "none",
+            resize: "none",
+            border: "none",
+            overflowY: "auto",
+          }}
+        />
       </div>
     </div>
   );
