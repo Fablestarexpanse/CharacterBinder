@@ -164,23 +164,7 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
 
       {/* Export panel */}
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
-        <div className="flex items-center justify-between">
-          <p className="section-title mb-0">Export</p>
-          <button onClick={() => setConfirmClear(true)} className="text-xs text-text-muted hover:text-red-400 transition-colors">
-            + New
-          </button>
-        </div>
-
-        {confirmClear && (
-          <div className="rounded-lg border border-red-300/40 bg-red-50 px-3 py-2.5 space-y-2">
-            <p className="text-xs text-red-700 font-medium">Clear this scenario?</p>
-            <p className="text-[11px] text-red-600">Unsaved changes will be lost. Library saves are not affected.</p>
-            <div className="flex gap-2 pt-0.5">
-              <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">Yes, clear it</button>
-              <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-300/60 text-red-600 hover:bg-red-100 transition-colors">Cancel</button>
-            </div>
-          </div>
-        )}
+        <p className="section-title">Export</p>
 
         {/* Scene image */}
         <div>
@@ -215,10 +199,27 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
         </div>
 
         {/* Save to Library */}
-        <div className="border-t border-border pt-3">
+        <div className="border-t border-border pt-3 space-y-2">
           <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
             <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
           </button>
+          {!confirmClear ? (
+            <button
+              onClick={() => setConfirmClear(true)}
+              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <span className="text-base leading-none">+</span> New Scenario Card
+            </button>
+          ) : (
+            <div className="rounded-lg border border-red-300/50 bg-red-50 px-3 py-2.5 space-y-2">
+              <p className="text-xs font-medium text-red-700">Clear this scenario and start fresh?</p>
+              <p className="text-[11px] text-red-500">Library saves are not affected.</p>
+              <div className="flex gap-2">
+                <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">Yes, clear it</button>
+                <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-300/60 text-red-600 hover:bg-red-100 transition-colors">Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
