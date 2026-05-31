@@ -1,12 +1,13 @@
 import { useState, useRef } from "react";
 import {
-  Plus, Trash2, BookOpen, FileJson, Download,
+  Plus, Trash2, BookOpen, FileJson, Download, Save,
   ChevronDown, ChevronUp,
   ToggleLeft, ToggleRight, Copy, Check, ClipboardPaste,
 } from "lucide-react";
 import type { LoreBook, LoreEntry } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
+import { saveAnyCard } from "../lib/library";
 
 const DEFAULT_ENTRY = (): LoreEntry => ({
   id: crypto.randomUUID(),
@@ -33,7 +34,6 @@ const DEFAULT_BOOK: LoreBook = {
   entries: [],
 };
 
-// Minimal 1×1 transparent PNG fallback
 const MINIMAL_PNG = new Uint8Array([
   137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
   0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
@@ -41,12 +41,20 @@ const MINIMAL_PNG = new Uint8Array([
   226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
 ]);
 
-export default function LoreBookEditor() {
-  const [book, setBook] = useState<LoreBook>(DEFAULT_BOOK);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+interface LoreBookEditorProps {
+  initialBook?: LoreBook;
+  initialImageSrc?: string | null;
+  initialLibraryId?: string;
+}
+
+export default function LoreBookEditor({ initialBook, initialImageSrc, initialLibraryId }: LoreBookEditorProps) {
+  const [book, setBook] = useState<LoreBook>(initialBook ?? DEFAULT_BOOK);
+  const [selectedId, setSelectedId] = useState<string | null>(initialBook?.entries[0]?.id ?? null);
   const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
+  const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
+  const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   function updateBook(patch: Partial<LoreBook>) {
@@ -150,6 +158,26 @@ export default function LoreBookEditor() {
     }
   }
 
+  async function handleSaveToLibrary() {
+    setSaving(true);
+    try {
+      const allKeys = book.entries.flatMap((e) => e.keys);
+      const saved = await saveAnyCard(
+        "lorebook",
+        book.name || "Unnamed Lorebook",
+        buildExportData(),
+        imageSrc,
+        allKeys.slice(0, 10),
+        libraryId
+      );
+      setLibraryId(saved.id);
+      setMsg(libraryId ? "Library updated!" : "Saved to library!", true);
+    } catch {
+      setMsg("Failed to save to library.", false);
+    }
+    setSaving(false);
+  }
+
   const selected = book.entries.find((e) => e.id === selectedId) ?? null;
   const totalTokens = book.entries.reduce((sum, e) => sum + countTokens(e.content), 0);
   const level = getTokenBudgetLevel(totalTokens);
@@ -160,7 +188,6 @@ export default function LoreBookEditor() {
 
       {/* ── Entry list sidebar ── */}
       <div className="w-60 border-r border-border bg-bg-secondary flex flex-col shrink-0">
-        {/* Book name */}
         <div className="p-3 border-b border-border space-y-2">
           <div className="flex items-center gap-2">
             <BookOpen size={15} className="text-accent-purple shrink-0" />
@@ -180,7 +207,6 @@ export default function LoreBookEditor() {
           />
         </div>
 
-        {/* Entry list */}
         <div className="flex-1 overflow-y-auto py-2">
           {book.entries.length === 0 ? (
             <div className="px-4 py-6 text-center text-xs text-text-muted">
@@ -225,7 +251,6 @@ export default function LoreBookEditor() {
           )}
         </div>
 
-        {/* Add entry button */}
         <div className="border-t border-border p-3">
           <button onClick={addEntry} className="btn-primary w-full justify-center py-2 text-sm">
             <Plus size={14} /> Add Entry
@@ -247,7 +272,7 @@ export default function LoreBookEditor() {
             <p className="text-xs mt-1">Add an entry or click one in the list to edit it.</p>
           </div>
           <div className="mt-4 text-xs text-text-muted text-center max-w-xs space-y-1.5">
-            <p>Each entry has <strong className="text-text-secondary">trigger keys</strong> and <strong className="text-text-secondary">content</strong> that gets injected into context when those keywords appear in conversation.</p>
+            <p>Each entry has <strong className="text-text-secondary">trigger keys</strong> and <strong className="text-text-secondary">content</strong> that gets injected when those keywords appear in conversation.</p>
           </div>
         </div>
       )}
@@ -267,7 +292,7 @@ export default function LoreBookEditor() {
           >
             {imageSrc
               ? <img src={imageSrc} alt="cover" className="w-full h-full object-cover" />
-              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional, for PNG embed)</span></span>
+              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional)</span></span>
             }
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <span className="text-xs text-white">Change</span>
@@ -315,9 +340,16 @@ export default function LoreBookEditor() {
           )}
         </div>
 
+        {/* Save to Library */}
+        <div className="border-t border-border pt-3">
+          <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
+            <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
+          </button>
+        </div>
+
         {/* Export buttons */}
-        <div className="border-t border-border pt-3 space-y-2">
-          <button onClick={exportJson} className="btn-primary w-full justify-center py-2.5">
+        <div className="space-y-2">
+          <button onClick={exportJson} className="btn-secondary w-full justify-center py-2">
             <FileJson size={14} /> Export JSON
           </button>
           <button onClick={exportPng} className="btn-secondary w-full justify-center py-2">
@@ -331,7 +363,7 @@ export default function LoreBookEditor() {
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
           <p><strong className="text-text-secondary">JSON</strong> — SillyTavern-compatible lorebook format.</p>
-          <p><strong className="text-text-secondary">PNG</strong> — embeds the lorebook using the <code className="bg-bg-tertiary px-1 rounded">lorebook</code> chunk.</p>
+          <p><strong className="text-text-secondary">PNG</strong> — embeds lorebook in a <code className="bg-bg-tertiary px-1 rounded">lorebook</code> chunk.</p>
         </div>
       </aside>
     </div>
@@ -393,7 +425,6 @@ function EntryEditor({ entry, onChange }: {
         </div>
       )}
 
-      {/* Content */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="label-base mb-0">Content</label>
@@ -421,7 +452,6 @@ function EntryEditor({ entry, onChange }: {
         />
       </div>
 
-      {/* Options row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <ToggleField label="Enabled"        value={entry.enabled}        onChange={(v) => onChange({ enabled: v })} />
         <ToggleField label="Constant"       value={entry.constant}       onChange={(v) => onChange({ constant: v })}       description="Always inject" />

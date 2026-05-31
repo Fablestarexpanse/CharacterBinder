@@ -30,9 +30,9 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Card Types",
     items: [
       { page: "create",   label: "Create Character", icon: PlusSquare },
-      { page: "lorebook", label: "Lorebook",          icon: BookOpen },
-      { page: "script",   label: "Script Card",       icon: FileCode2 },
-      { page: "scenario", label: "Scenario Card",     icon: Map },
+      { page: "lorebook", label: "Create Lorebook",       icon: BookOpen },
+      { page: "script",   label: "Create Script Card",  icon: FileCode2 },
+      { page: "scenario", label: "Create Scenario Card", icon: Map },
     ],
   },
   {

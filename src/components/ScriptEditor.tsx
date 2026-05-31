@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
-import { Download, FileJson, Copy, Check, ClipboardPaste, FileCode2 } from "lucide-react";
+import { Download, FileJson, Copy, Check, ClipboardPaste, FileCode2, Save } from "lucide-react";
 import type { ScriptCard } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
+import { saveAnyCard } from "../lib/library";
 
 const DEFAULT: ScriptCard = {
   spec: "script_card_v1",
@@ -14,7 +15,6 @@ const DEFAULT: ScriptCard = {
   version: "1.0",
 };
 
-// Minimal 1×1 transparent PNG fallback
 const MINIMAL_PNG = new Uint8Array([
   137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
   0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
@@ -22,10 +22,18 @@ const MINIMAL_PNG = new Uint8Array([
   226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
 ]);
 
-export default function ScriptEditor() {
-  const [card, setCard] = useState<ScriptCard>(DEFAULT);
+interface ScriptEditorProps {
+  initialCard?: ScriptCard;
+  initialImageSrc?: string | null;
+  initialLibraryId?: string;
+}
+
+export default function ScriptEditor({ initialCard, initialImageSrc, initialLibraryId }: ScriptEditorProps) {
+  const [card, setCard] = useState<ScriptCard>(initialCard ?? DEFAULT);
   const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
+  const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
+  const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   function update(patch: Partial<ScriptCard>) {
@@ -79,6 +87,25 @@ export default function ScriptEditor() {
     }
   }
 
+  async function handleSaveToLibrary() {
+    setSaving(true);
+    try {
+      const saved = await saveAnyCard(
+        "script",
+        card.name || "Unnamed Script",
+        card,
+        imageSrc,
+        card.tags,
+        libraryId
+      );
+      setLibraryId(saved.id);
+      setMsg(libraryId ? "Library updated!" : "Saved to library!", true);
+    } catch {
+      setMsg("Failed to save to library.", false);
+    }
+    setSaving(false);
+  }
+
   const tokens = countTokens(card.content);
   const level = getTokenBudgetLevel(tokens);
   const barPct = Math.min((tokens / 3000) * 100, 100);
@@ -94,7 +121,6 @@ export default function ScriptEditor() {
           <p className="text-sm text-text-secondary mt-0.5">Package a system prompt or instruction set as a portable card.</p>
         </div>
 
-        {/* Meta */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-base">Script Name</label>
@@ -111,14 +137,11 @@ export default function ScriptEditor() {
           <textarea className="input-base resize-none" rows={2} placeholder="What does this script do?" value={card.description} onChange={(e) => update({ description: e.target.value })} />
         </div>
 
-        {/* Content */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="label-base mb-0">Script Content</label>
             <div className="flex items-center gap-2">
-              {tokens > 0 && (
-                <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[level]}`}>{tokens} tokens</span>
-              )}
+              {tokens > 0 && <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[level]}`}>{tokens} tokens</span>}
               <CopyPasteButtons value={card.content} onChange={(v) => update({ content: v })} />
             </div>
           </div>
@@ -138,7 +161,6 @@ export default function ScriptEditor() {
           )}
         </div>
 
-        {/* Tags */}
         <div>
           <label className="label-base">Tags (comma-separated)</label>
           <input className="input-base" placeholder="roleplay, assistant, narration..." value={card.tags.join(", ")} onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />
@@ -165,7 +187,7 @@ export default function ScriptEditor() {
           >
             {imageSrc
               ? <img src={imageSrc} alt="cover" className="w-full h-full object-cover" />
-              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional, for PNG embed)</span></span>
+              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional)</span></span>
             }
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <span className="text-xs text-white">Change</span>
@@ -182,8 +204,15 @@ export default function ScriptEditor() {
           </div>
         </div>
 
-        <div className="border-t border-border pt-3 space-y-2">
-          <button onClick={exportJson} className="btn-primary w-full justify-center py-2.5">
+        {/* Save to Library */}
+        <div className="border-t border-border pt-3">
+          <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
+            <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <button onClick={exportJson} className="btn-secondary w-full justify-center py-2">
             <FileJson size={14} /> Export JSON
           </button>
           <button onClick={exportPng} className="btn-secondary w-full justify-center py-2">

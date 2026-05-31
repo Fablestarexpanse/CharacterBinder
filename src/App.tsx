@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject } from "./types";
+import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject, LoreBook, ScriptCard, ScenarioCard } from "./types";
 import type { PlatformId } from "./lib/platforms";
 import { ronanVossTemplate } from "./data/templates/ronalVoss";
 import { blankTemplate } from "./data/templates/ronalVoss";
@@ -29,6 +29,8 @@ function App() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // ── Character card state ──
   const [project, setProject] = useState<CardProject>({
     id: "default",
     name: "Ronan Voss",
@@ -39,6 +41,25 @@ function App() {
     lastModified: new Date().toISOString(),
   });
 
+  // ── Lorebook editor library-load state ──
+  const [lorebookKey, setLorebookKey] = useState(0);
+  const [lorebookInit, setLorebookInit] = useState<{
+    book: LoreBook; imageSrc: string | null; id: string;
+  } | null>(null);
+
+  // ── Script editor library-load state ──
+  const [scriptKey, setScriptKey] = useState(0);
+  const [scriptInit, setScriptInit] = useState<{
+    card: ScriptCard; imageSrc: string | null; id: string;
+  } | null>(null);
+
+  // ── Scenario editor library-load state ──
+  const [scenarioKey, setScenarioKey] = useState(0);
+  const [scenarioInit, setScenarioInit] = useState<{
+    card: ScenarioCard; imageSrc: string | null; id: string;
+  } | null>(null);
+
+  // ── Character card handlers ──
   const updateCard = useCallback((updates: Partial<TavernCardV2["data"]>) => {
     setProject((p) => ({
       ...p,
@@ -107,6 +128,25 @@ function App() {
     setShowClearConfirm(false);
   }, []);
 
+  // ── Non-character library-load handlers ──
+  const handleEditLorebook = useCallback((book: LoreBook, imageSrc: string | null, id: string) => {
+    setLorebookInit({ book, imageSrc, id });
+    setLorebookKey((k) => k + 1);
+    setActivePage("lorebook");
+  }, []);
+
+  const handleEditScript = useCallback((card: ScriptCard, imageSrc: string | null, id: string) => {
+    setScriptInit({ card, imageSrc, id });
+    setScriptKey((k) => k + 1);
+    setActivePage("script");
+  }, []);
+
+  const handleEditScenario = useCallback((card: ScenarioCard, imageSrc: string | null, id: string) => {
+    setScenarioInit({ card, imageSrc, id });
+    setScenarioKey((k) => k + 1);
+    setActivePage("scenario");
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
       {showClearConfirm && (
@@ -119,7 +159,9 @@ function App() {
           onCancel={() => setShowClearConfirm(false)}
         />
       )}
+
       <Sidebar activePage={activePage} onNavigate={setActivePage} onNewCard={() => setShowClearConfirm(true)} />
+
       <main className="flex-1 overflow-hidden">
         {activePage === "create" && (
           <CreateCard
@@ -132,24 +174,42 @@ function App() {
             onPlatformChange={setTargetPlatform}
           />
         )}
-        {activePage === "import" && (
-          <ImportPNG onLoad={loadCard} />
+        {activePage === "lorebook" && (
+          <LoreBookEditor
+            key={lorebookKey}
+            initialBook={lorebookInit?.book}
+            initialImageSrc={lorebookInit?.imageSrc}
+            initialLibraryId={lorebookInit?.id}
+          />
         )}
-        {activePage === "decode" && (
-          <DecodePNG onLoad={loadCard} />
+        {activePage === "script" && (
+          <ScriptEditor
+            key={scriptKey}
+            initialCard={scriptInit?.card}
+            initialImageSrc={scriptInit?.imageSrc}
+            initialLibraryId={scriptInit?.id}
+          />
         )}
-        {activePage === "templates" && (
-          <Templates onLoad={loadCard} />
+        {activePage === "scenario" && (
+          <ScenarioEditor
+            key={scenarioKey}
+            initialCard={scenarioInit?.card}
+            initialImageSrc={scenarioInit?.imageSrc}
+            initialLibraryId={scenarioInit?.id}
+          />
         )}
+        {activePage === "import" && <ImportPNG onLoad={loadCard} />}
+        {activePage === "decode" && <DecodePNG onLoad={loadCard} />}
+        {activePage === "templates" && <Templates onLoad={loadCard} />}
         {activePage === "library" && (
-          <Library onEditCard={loadFromLibrary} />
+          <Library
+            onEditCard={loadFromLibrary}
+            onEditLorebook={handleEditLorebook}
+            onEditScript={handleEditScript}
+            onEditScenario={handleEditScenario}
+          />
         )}
-        {activePage === "settings" && (
-          <Settings settings={settings} onSave={setSettings} />
-        )}
-        {activePage === "lorebook" && <LoreBookEditor />}
-        {activePage === "script" && <ScriptEditor />}
-        {activePage === "scenario" && <ScenarioEditor />}
+        {activePage === "settings" && <Settings settings={settings} onSave={setSettings} />}
         {activePage === "help" && <HelpAbout />}
       </main>
     </div>

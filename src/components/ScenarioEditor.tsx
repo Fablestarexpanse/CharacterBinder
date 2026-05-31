@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
-import { Download, FileJson, Copy, Check, ClipboardPaste, Map } from "lucide-react";
+import { Download, FileJson, Copy, Check, ClipboardPaste, Map, Save } from "lucide-react";
 import type { ScenarioCard } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
+import { saveAnyCard } from "../lib/library";
 
 const DEFAULT: ScenarioCard = {
   spec: "scenario_card_v1",
@@ -15,7 +16,6 @@ const DEFAULT: ScenarioCard = {
   version: "1.0",
 };
 
-// Minimal 1×1 transparent PNG fallback
 const MINIMAL_PNG = new Uint8Array([
   137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
   0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
@@ -23,10 +23,18 @@ const MINIMAL_PNG = new Uint8Array([
   226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
 ]);
 
-export default function ScenarioEditor() {
-  const [card, setCard] = useState<ScenarioCard>(DEFAULT);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+interface ScenarioEditorProps {
+  initialCard?: ScenarioCard;
+  initialImageSrc?: string | null;
+  initialLibraryId?: string;
+}
+
+export default function ScenarioEditor({ initialCard, initialImageSrc, initialLibraryId }: ScenarioEditorProps) {
+  const [card, setCard] = useState<ScenarioCard>(initialCard ?? DEFAULT);
+  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
   const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
+  const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   function update(patch: Partial<ScenarioCard>) {
@@ -80,6 +88,25 @@ export default function ScenarioEditor() {
     }
   }
 
+  async function handleSaveToLibrary() {
+    setSaving(true);
+    try {
+      const saved = await saveAnyCard(
+        "scenario",
+        card.name || "Unnamed Scenario",
+        card,
+        imageSrc,
+        card.tags,
+        libraryId
+      );
+      setLibraryId(saved.id);
+      setMsg(libraryId ? "Library updated!" : "Saved to library!", true);
+    } catch {
+      setMsg("Failed to save to library.", false);
+    }
+    setSaving(false);
+  }
+
   const scenarioTokens = countTokens(card.scenario);
   const firstMesTokens = countTokens(card.first_mes);
   const totalTokens = scenarioTokens + firstMesTokens;
@@ -96,7 +123,6 @@ export default function ScenarioEditor() {
           <p className="text-sm text-text-secondary mt-0.5">A standalone situation or setting card that can be dropped into any conversation.</p>
         </div>
 
-        {/* Meta */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-base">Scenario Name</label>
@@ -113,13 +139,9 @@ export default function ScenarioEditor() {
           <textarea className="input-base resize-none" rows={2} placeholder="Brief overview of this scenario..." value={card.description} onChange={(e) => update({ description: e.target.value })} />
         </div>
 
-        {/* Scenario */}
         <TextAreaField label="Scenario" value={card.scenario} placeholder={"You find yourself in a dimly lit laboratory. The air smells of ozone and old chemicals..."} onChange={(v) => update({ scenario: v })} rows={6} />
-
-        {/* First message */}
         <TextAreaField label="Opening Message (optional)" value={card.first_mes} placeholder={"The door creaks open as you step inside. Something shifts in the shadows ahead..."} onChange={(v) => update({ first_mes: v })} rows={5} />
 
-        {/* Tags */}
         <div>
           <label className="label-base">Tags</label>
           <input className="input-base" placeholder="horror, sci-fi, mystery..." value={card.tags.join(", ")} onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />
@@ -146,7 +168,7 @@ export default function ScenarioEditor() {
           >
             {imageSrc
               ? <img src={imageSrc} alt="scene" className="w-full h-full object-cover" />
-              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional, for PNG embed)</span></span>
+              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional)</span></span>
             }
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <span className="text-xs text-white">Change</span>
@@ -167,8 +189,15 @@ export default function ScenarioEditor() {
           </div>
         </div>
 
-        <div className="border-t border-border pt-3 space-y-2">
-          <button onClick={exportJson} className="btn-primary w-full justify-center py-2.5">
+        {/* Save to Library */}
+        <div className="border-t border-border pt-3">
+          <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
+            <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <button onClick={exportJson} className="btn-secondary w-full justify-center py-2">
             <FileJson size={14} /> Export JSON
           </button>
           <button onClick={exportPng} className="btn-secondary w-full justify-center py-2">

@@ -216,10 +216,15 @@ export interface ScenarioCard {
   version: string;
 }
 
+export type LibraryCardType = "character" | "lorebook" | "script" | "scenario";
+
 export interface LibraryCard {
   id: string;
   name: string;
-  cardData: TavernCardV2;
+  /** Defaults to "character" for legacy records that pre-date this field. */
+  cardType: LibraryCardType;
+  cardData?: TavernCardV2;   // present when cardType === "character"
+  rawData?: unknown;          // present when cardType is lorebook | script | scenario
   pngData: Uint8Array | null;
   imageSrc: string | null;
   platform: string;
