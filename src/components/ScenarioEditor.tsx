@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Download, FileJson, Copy, Check, ClipboardPaste, Map, Save } from "lucide-react";
 import type { ScenarioCard } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
@@ -14,6 +14,7 @@ const DEFAULT: ScenarioCard = {
   tags: [],
   creator: "",
   version: "1.0",
+  creator_notes: "",
 };
 
 const MINIMAL_PNG = new Uint8Array([
@@ -35,11 +36,18 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
   const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
+  const [savedVersion, setSavedVersion] = useState<string>(initialCard?.version ?? "1.0");
   const [confirmClear, setConfirmClear] = useState(false);
   const [outputFileName, setOutputFileName] = useState(
     ((initialCard?.name || "scenario").replace(/\s+/g, "_")) + "_scenario.png"
   );
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-sync filename to scenario name
+  useEffect(() => {
+    const name = card.name.trim();
+    setOutputFileName(name ? name.replace(/\s+/g, "_") + "_scenario.png" : "scenario.png");
+  }, [card.name]);
 
   function update(patch: Partial<ScenarioCard>) {
     setCard((c) => ({ ...c, ...patch }));
@@ -54,6 +62,7 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
     setCard(DEFAULT);
     setImageSrc(null);
     setLibraryId(undefined);
+    setSavedVersion("1.0");
     setOutputFileName("scenario.png");
     setConfirmClear(false);
     setStatus(null);
@@ -104,16 +113,11 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
   async function handleSaveToLibrary() {
     setSaving(true);
     try {
-      const saved = await saveAnyCard(
-        "scenario",
-        card.name || "Unnamed Scenario",
-        card,
-        imageSrc,
-        card.tags,
-        libraryId
-      );
+      const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
+      const saved = await saveAnyCard("scenario", card.name || "Unnamed Scenario", card, imageSrc, card.tags, versionChanged ? undefined : libraryId);
       setLibraryId(saved.id);
-      setMsg(libraryId ? "Library updated!" : "Saved to library!", true);
+      setSavedVersion(card.version);
+      setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
     } catch {
       setMsg("Failed to save to library.", false);
     }
@@ -154,6 +158,8 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
 
         <TextAreaField label="Scenario" value={card.scenario} placeholder={"You find yourself in a dimly lit laboratory. The air smells of ozone and old chemicals..."} onChange={(v) => update({ scenario: v })} rows={6} />
         <TextAreaField label="Opening Message (optional)" value={card.first_mes} placeholder={"The door creaks open as you step inside. Something shifts in the shadows ahead..."} onChange={(v) => update({ first_mes: v })} rows={5} />
+
+        <TextAreaField label="Creator Notes" value={card.creator_notes} placeholder={"Notes for users — recommended characters, content warnings, usage tips..."} onChange={(v) => update({ creator_notes: v })} rows={3} />
 
         <div>
           <label className="label-base">Tags</label>
@@ -216,6 +222,14 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
           <div className="flex items-center justify-between text-xs">
             <span className="text-text-muted">Metadata key</span>
             <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">scenario</code>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-muted">Version</span>
+            <input
+              className="input-base py-0.5 text-xs w-20 text-right"
+              value={card.version}
+              onChange={(e) => update({ version: e.target.value })}
+            />
           </div>
         </div>
 

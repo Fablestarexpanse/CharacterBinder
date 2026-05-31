@@ -41,6 +41,7 @@ export default function CardPreviewPanel({
   const [exportStatus, setExportStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [compatOpen, setCompatOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savedCharVersion, setSavedCharVersion] = useState<string>(project.card.data.character_version ?? "1.0");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [tokenOpen, setTokenOpen] = useState(false);
 
@@ -136,6 +137,9 @@ export default function CardPreviewPanel({
 
   const handleSaveToLibrary = useCallback(async () => {
     setSaving(true);
+    const currentVersion = project.card.data.character_version ?? "";
+    const hasExistingId = project.id !== "default";
+    const versionChanged = hasExistingId && currentVersion.trim() !== savedCharVersion;
     try {
       let pngData: Uint8Array | null = null;
       if (project.imageSrc?.startsWith("data:image/png")) {
@@ -144,14 +148,16 @@ export default function CardPreviewPanel({
       } else if (project.imageSrc?.startsWith("data:image/")) {
         pngData = await imageSrcToPngBytes(project.imageSrc);
       }
-      await saveCard(project.card, pngData, project.imageSrc ?? null, targetPlatform, project.id !== "default" ? project.id : undefined);
-      setStatus("Saved to library!", true);
+      const existingId = hasExistingId && !versionChanged ? project.id : undefined;
+      await saveCard(project.card, pngData, project.imageSrc ?? null, targetPlatform, existingId);
+      setSavedCharVersion(currentVersion);
+      setStatus(versionChanged ? "Saved as new version!" : hasExistingId ? "Library updated!" : "Saved to library!", true);
     } catch {
       setStatus("Failed to save to library.", false);
     } finally {
       setSaving(false);
     }
-  }, [project, targetPlatform]);
+  }, [project, targetPlatform, savedCharVersion]);
 
   const handleSaveAsTemplate = useCallback(() => {
     setSavingTemplate(true);

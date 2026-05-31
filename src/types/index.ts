@@ -118,7 +118,8 @@ export type MetadataKey =
   | "tavern_card_v2"
   | "lorebook"
   | "script"
-  | "scenario";
+  | "scenario"
+  | "persona";
 
 export interface AppSettings {
   defaultExportFormat: ExportFormat;
@@ -167,6 +168,7 @@ export type NavPage =
   | "lorebook"
   | "script"
   | "scenario"
+  | "persona"
   | "import"
   | "decode"
   | "templates"
@@ -192,6 +194,9 @@ export interface LoreEntry {
 export interface LoreBook {
   name: string;
   description: string;
+  creator: string;
+  version: string;
+  creator_notes: string;
   scan_depth: number;
   token_budget: number;
   recursive_scanning: boolean;
@@ -206,6 +211,7 @@ export interface ScriptCard {
   tags: string[];
   author: string;
   version: string;
+  creator_notes: string;
 }
 
 export interface ScenarioCard {
@@ -217,9 +223,23 @@ export interface ScenarioCard {
   tags: string[];
   creator: string;
   version: string;
+  creator_notes: string;
 }
 
-export type LibraryCardType = "character" | "lorebook" | "script" | "scenario";
+export type LibraryCardType = "character" | "lorebook" | "script" | "scenario" | "persona";
+
+export interface PersonaCard {
+  spec: "persona_card_v1";
+  name: string;
+  description: string;
+  personality: string;
+  appearance: string;
+  background: string;
+  tags: string[];
+  creator: string;
+  version: string;
+  creator_notes: string;
+}
 
 export interface LibraryCard {
   id: string;

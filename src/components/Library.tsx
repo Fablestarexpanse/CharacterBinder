@@ -1,34 +1,46 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Search, Archive, Trash2, Edit3, Download,
-  User, BookOpen, FileCode2, Map,
+  User, BookOpen, FileCode2, Map, UserCircle,
   SortAsc, SortDesc, CheckSquare, Square,
   type LucideIcon,
 } from "lucide-react";
-import type { LibraryCard, LibraryCardType, TavernCardV2, LoreBook, ScriptCard, ScenarioCard } from "../types";
+import type { LibraryCard, LibraryCardType, TavernCardV2, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
 import { getAllCards, deleteCard } from "../lib/library";
 import { exportCardsAsZip } from "../lib/archive";
 
 type SortKey = "updatedAt" | "createdAt" | "name";
+
+function getCardVersion(card: LibraryCard): string | null {
+  if (card.cardType === "character") {
+    const v = card.cardData?.data.character_version?.trim();
+    return v || null;
+  }
+  const raw = card.rawData as { version?: string } | null;
+  const v = raw?.version?.trim();
+  return v || null;
+}
 type SortDir = "asc" | "desc";
 
 const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; color: string }> = {
-  character: { label: "Character Cards",  icon: User,      color: "text-accent-purple" },
-  lorebook:  { label: "Lorebooks",        icon: BookOpen,  color: "text-blue-500" },
-  script:    { label: "Script Cards",     icon: FileCode2, color: "text-orange-500" },
-  scenario:  { label: "Scenario Cards",   icon: Map,       color: "text-green-600" },
+  character: { label: "Character Cards",  icon: User,        color: "text-accent-purple" },
+  lorebook:  { label: "Lorebooks",        icon: BookOpen,    color: "text-blue-500" },
+  script:    { label: "Script Cards",     icon: FileCode2,   color: "text-orange-500" },
+  scenario:  { label: "Scenario Cards",   icon: Map,         color: "text-green-600" },
+  persona:   { label: "Personas",         icon: UserCircle,  color: "text-pink-500" },
 };
 
-const TYPE_ORDER: LibraryCardType[] = ["character", "lorebook", "script", "scenario"];
+const TYPE_ORDER: LibraryCardType[] = ["character", "lorebook", "script", "scenario", "persona"];
 
 interface LibraryProps {
   onEditCard:     (card: TavernCardV2,  pngData: Uint8Array | null, imageSrc: string | null, id: string) => void;
   onEditLorebook: (data: LoreBook,      imageSrc: string | null,    id: string) => void;
   onEditScript:   (data: ScriptCard,    imageSrc: string | null,    id: string) => void;
   onEditScenario: (data: ScenarioCard,  imageSrc: string | null,    id: string) => void;
+  onEditPersona:  (data: PersonaCard,   imageSrc: string | null,    id: string) => void;
 }
 
-export default function Library({ onEditCard, onEditLorebook, onEditScript, onEditScenario }: LibraryProps) {
+export default function Library({ onEditCard, onEditLorebook, onEditScript, onEditScenario, onEditPersona }: LibraryProps) {
   const [cards, setCards] = useState<LibraryCard[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
@@ -116,6 +128,8 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
       onEditScript(card.rawData as ScriptCard, card.imageSrc, card.id);
     } else if (type === "scenario" && card.rawData) {
       onEditScenario(card.rawData as ScenarioCard, card.imageSrc, card.id);
+    } else if (type === "persona" && card.rawData) {
+      onEditPersona(card.rawData as PersonaCard, card.imageSrc, card.id);
     }
   }
 
@@ -139,10 +153,16 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
             className="input-base pl-8 py-1.5 text-xs"
-            placeholder="Search by name, type, tag…"
+            placeholder="Search name, type, tag…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs px-1"
+            >✕</button>
+          )}
         </div>
 
         <div className="flex items-center gap-1 ml-2">
@@ -218,6 +238,7 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
                       onEdit={() => handleEdit(card)}
                       onDelete={() => handleDelete(card.id)}
                       onExport={() => handleArchive([card.id])}
+                      onTagClick={(tag) => setSearch(tag)}
                     />
                   ))}
                 </div>
@@ -231,7 +252,7 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
 }
 
 function CardTile({
-  card, selected, deleting, onToggle, onEdit, onDelete, onExport,
+  card, selected, deleting, onToggle, onEdit, onDelete, onExport, onTagClick,
 }: {
   card: LibraryCard;
   selected: boolean;
@@ -240,12 +261,14 @@ function CardTile({
   onEdit: () => void;
   onDelete: () => void;
   onExport: () => void;
+  onTagClick: (tag: string) => void;
 }) {
   const [hover, setHover] = useState(false);
   const updated = new Date(card.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   const type = card.cardType ?? "character";
   const meta = SECTION_META[type];
   const PlaceholderIcon = meta.icon;
+  const version = getCardVersion(card);
 
   // Badge label: platform for characters, type name for others
   const badge = type === "character" ? card.platform : meta.label.replace(" Cards", "").replace("books", "book");
@@ -292,10 +315,17 @@ function CardTile({
             : <Square size={18} className="text-white/70 drop-shadow opacity-0 group-hover:opacity-100 transition-opacity" />}
         </button>
 
-        {/* Type/platform badge */}
-        <span className="absolute top-2 right-2 text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded-full capitalize">
-          {badge}
-        </span>
+        {/* Badges: type + version */}
+        <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+          <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded-full capitalize">
+            {badge}
+          </span>
+          {version && (
+            <span className="text-[10px] bg-black/40 text-white/80 px-1.5 py-0.5 rounded-full font-mono">
+              v{version}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Info */}
@@ -305,7 +335,12 @@ function CardTile({
         {card.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {card.tags.slice(0, 3).map((t) => (
-              <span key={t} className="text-[10px] bg-bg-tertiary text-text-muted px-1.5 py-0.5 rounded-full">{t}</span>
+              <button
+                key={t}
+                onClick={(e) => { e.stopPropagation(); onTagClick(t); }}
+                className="text-[10px] bg-bg-tertiary text-text-muted hover:bg-accent-purple/20 hover:text-accent-purple-light px-1.5 py-0.5 rounded-full transition-colors"
+                title={`Filter by "${t}"`}
+              >{t}</button>
             ))}
             {card.tags.length > 3 && <span className="text-[10px] text-text-muted">+{card.tags.length - 3}</span>}
           </div>

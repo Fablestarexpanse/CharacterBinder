@@ -1,20 +1,21 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard } from "../types";
+import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
 import type { PlatformId } from "../lib/platforms";
-import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map } from "lucide-react";
+import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
 import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 
 const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
 
-type DetectedType = "character" | "lorebook" | "script" | "scenario" | null;
+type DetectedType = "character" | "lorebook" | "script" | "scenario" | "persona" | null;
 
 interface ImportPNGProps {
   onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
   onLoadLorebook?: (book: LoreBook, imageSrc: string | null) => void;
   onLoadScript?: (card: ScriptCard, imageSrc: string | null) => void;
   onLoadScenario?: (card: ScenarioCard, imageSrc: string | null) => void;
+  onLoadPersona?: (card: PersonaCard, imageSrc: string | null) => void;
 }
 
 const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
@@ -22,6 +23,7 @@ const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
   lorebook: "Lorebook",
   script: "Script Card",
   scenario: "Scenario Card",
+  persona: "Persona",
 };
 
 const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
@@ -29,6 +31,7 @@ const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
   lorebook: "lorebook",
   script: "script",
   scenario: "scenario",
+  persona: "persona",
 };
 
 function uint8ToDataUrl(b: Uint8Array): string {
@@ -37,7 +40,7 @@ function uint8ToDataUrl(b: Uint8Array): string {
   return "data:image/png;base64," + btoa(bin);
 }
 
-export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoadScenario }: ImportPNGProps) {
+export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoadScenario, onLoadPersona }: ImportPNGProps) {
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -132,13 +135,22 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         return;
       }
 
+      // ── Persona card ─────────────────────────────────────────────────
+      if (key === "persona") {
+        setDetectedType("persona");
+        setStatus("success");
+        setMessage(`Loaded persona "${parsed.name || "Unnamed"}". Opening in editor…`);
+        onLoadPersona?.(parsed as PersonaCard, imageSrc);
+        return;
+      }
+
       setStatus("error");
       setMessage(`Unrecognised metadata key "${key}". Cannot load this card.`);
     } catch (err) {
       setStatus("error");
       setMessage(`Error: ${(err as Error).message}`);
     }
-  }, [onLoad, onLoadLorebook, onLoadScript, onLoadScenario]);
+  }, [onLoad, onLoadLorebook, onLoadScript, onLoadScenario, onLoadPersona]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -243,11 +255,12 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           {/* Other card types */}
           <div>
             <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">Other Card Types</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { icon: <BookOpen size={11} />, label: "Lorebook", key: "lorebook" },
                 { icon: <FileCode2 size={11} />, label: "Script", key: "script" },
                 { icon: <Map size={11} />, label: "Scenario", key: "scenario" },
+                { icon: <UserCircle size={11} />, label: "Persona", key: "persona" },
               ].map(({ icon, label, key }) => (
                 <div key={key} className="flex items-center gap-1.5 text-xs text-text-secondary">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent-purple shrink-0" />

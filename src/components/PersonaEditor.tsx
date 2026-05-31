@@ -1,16 +1,18 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Download, FileJson, FileCode2, Save } from "lucide-react";
-import type { ScriptCard } from "../types";
+import { useState, useRef, useEffect } from "react";
+import { Download, FileJson, Copy, Check, ClipboardPaste, UserCircle, Save, Plus } from "lucide-react";
+import type { PersonaCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
 
-const DEFAULT: ScriptCard = {
-  spec: "script_card_v1",
+const DEFAULT: PersonaCard = {
+  spec: "persona_card_v1",
   name: "",
   description: "",
-  content: "",
+  personality: "",
+  appearance: "",
+  background: "",
   tags: [],
-  author: "",
+  creator: "",
   version: "1.0",
   creator_notes: "",
 };
@@ -22,32 +24,32 @@ const MINIMAL_PNG = new Uint8Array([
   226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
 ]);
 
-interface ScriptEditorProps {
-  initialCard?: ScriptCard;
+interface PersonaEditorProps {
+  initialCard?: PersonaCard;
   initialImageSrc?: string | null;
   initialLibraryId?: string;
 }
 
-export default function ScriptEditor({ initialCard, initialImageSrc, initialLibraryId }: ScriptEditorProps) {
-  const [card, setCard] = useState<ScriptCard>(initialCard ?? DEFAULT);
-  const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+export default function PersonaEditor({ initialCard, initialImageSrc, initialLibraryId }: PersonaEditorProps) {
+  const [card, setCard] = useState<PersonaCard>(initialCard ?? DEFAULT);
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
+  const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
   const [savedVersion, setSavedVersion] = useState<string>(initialCard?.version ?? "1.0");
   const [confirmClear, setConfirmClear] = useState(false);
   const [outputFileName, setOutputFileName] = useState(
-    ((initialCard?.name || "script").replace(/\s+/g, "_")) + "_script.png"
+    ((initialCard?.name || "persona").replace(/\s+/g, "_")) + "_persona.png"
   );
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-sync filename to script name
+  // Auto-sync filename to persona name
   useEffect(() => {
     const name = card.name.trim();
-    setOutputFileName(name ? name.replace(/\s+/g, "_") + "_script.png" : "script.png");
+    setOutputFileName(name ? name.replace(/\s+/g, "_") + "_persona.png" : "persona.png");
   }, [card.name]);
 
-  function update(patch: Partial<ScriptCard>) {
+  function update(patch: Partial<PersonaCard>) {
     setCard((c) => ({ ...c, ...patch }));
   }
 
@@ -61,7 +63,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
     setImageSrc(null);
     setLibraryId(undefined);
     setSavedVersion("1.0");
-    setOutputFileName("script.png");
+    setOutputFileName("persona.png");
     setConfirmClear(false);
     setStatus(null);
   }
@@ -84,7 +86,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
     setMsg("JSON exported!", true);
   }
 
-  function exportPng() {
+  async function exportPng() {
     try {
       let pngBytes: Uint8Array;
       if (imageSrc?.startsWith("data:image/")) {
@@ -94,7 +96,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         pngBytes = MINIMAL_PNG;
       }
       const json = JSON.stringify(card);
-      const result = encodeCharaToPng(pngBytes, json, "script", false);
+      const result = encodeCharaToPng(pngBytes, json, "persona", false);
       const blob = new Blob([result.buffer as ArrayBuffer], { type: "image/png" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -112,7 +114,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
     setSaving(true);
     try {
       const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
-      const saved = await saveAnyCard("script", card.name || "Unnamed Script", card, imageSrc, card.tags, versionChanged ? undefined : libraryId);
+      const saved = await saveAnyCard("persona", card.name || "Unnamed Persona", card, imageSrc, card.tags, versionChanged ? undefined : libraryId);
       setLibraryId(saved.id);
       setSavedVersion(card.version);
       setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
@@ -124,54 +126,76 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
 
   return (
     <div className="h-full flex overflow-hidden">
-      {/* ── Main editor area ── */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 min-w-0">
-
-        {/* Page title */}
+      {/* ── Main editor ── */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
         <div>
           <h1 className="text-lg font-bold text-text-primary flex items-center gap-2">
-            <FileCode2 size={20} className="text-accent-purple" /> Script Card
+            <UserCircle size={20} className="text-accent-purple" /> Persona Card
           </h1>
-          <p className="text-sm text-text-secondary mt-0.5">Write JavaScript for SillyTavern extensions or automation scripts.</p>
+          <p className="text-sm text-text-secondary mt-0.5">
+            Define a user persona — who <em>you</em> are in the conversation. Used as the <code className="text-accent-purple-light bg-bg-tertiary px-1 rounded text-xs">{"{{user}}"}</code> identity.
+          </p>
         </div>
 
-        {/* Compact meta row */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label-base">Script Name</label>
-            <input className="input-base" placeholder="My Script..." value={card.name} onChange={(e) => update({ name: e.target.value })} />
+            <label className="label-base">Persona Name</label>
+            <input className="input-base" placeholder="Your character name..." value={card.name} onChange={(e) => update({ name: e.target.value })} />
           </div>
           <div>
-            <label className="label-base">Author</label>
-            <input className="input-base" placeholder="Your name..." value={card.author} onChange={(e) => update({ author: e.target.value })} />
-          </div>
-          <div>
-            <label className="label-base">Description</label>
-            <input className="input-base" placeholder="What does this script do?" value={card.description} onChange={(e) => update({ description: e.target.value })} />
+            <label className="label-base">Creator</label>
+            <input className="input-base" placeholder="Your name..." value={card.creator} onChange={(e) => update({ creator: e.target.value })} />
           </div>
         </div>
 
-        {/* Code editor — fills remaining vertical space */}
-        <div className="flex-1 min-h-0">
-          <CodeEditor value={card.content} onChange={(v) => update({ content: v })} />
-        </div>
+        <TextAreaField
+          label="Description"
+          value={card.description}
+          rows={3}
+          onChange={(v) => update({ description: v })}
+          placeholder="A brief overview of who this persona is..."
+        />
 
-        {/* Creator Notes */}
+        <TextAreaField
+          label="Personality"
+          value={card.personality}
+          rows={3}
+          onChange={(v) => update({ personality: v })}
+          placeholder="Personality traits, mannerisms, how this person acts..."
+        />
+
+        <TextAreaField
+          label="Appearance"
+          value={card.appearance}
+          rows={3}
+          onChange={(v) => update({ appearance: v })}
+          placeholder="Physical description — height, build, hair, distinctive features..."
+        />
+
+        <TextAreaField
+          label="Background"
+          value={card.background}
+          rows={4}
+          onChange={(v) => update({ background: v })}
+          placeholder="Backstory, occupation, history, relationships..."
+        />
+
+        <TextAreaField
+          label="Creator Notes"
+          value={card.creator_notes}
+          rows={3}
+          onChange={(v) => update({ creator_notes: v })}
+          placeholder="Notes for users of this persona — usage tips, compatibility, changelog..."
+        />
+
         <div>
-          <label className="label-base">Creator Notes</label>
-          <textarea
-            className="input-base resize-none"
-            rows={3}
-            placeholder="Notes for users of this script — usage instructions, requirements, changelog..."
-            value={card.creator_notes}
-            onChange={(e) => update({ creator_notes: e.target.value })}
+          <label className="label-base">Tags</label>
+          <input
+            className="input-base"
+            placeholder="human, mage, noble..."
+            value={card.tags.join(", ")}
+            onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })}
           />
-        </div>
-
-        {/* Tags */}
-        <div>
-          <label className="label-base">Tags (comma-separated)</label>
-          <input className="input-base" placeholder="roleplay, assistant, narration..." value={card.tags.join(", ")} onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />
           {card.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {card.tags.map((t) => <span key={t} className="badge-purple">{t}</span>)}
@@ -184,9 +208,9 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
         <p className="section-title">Export</p>
 
-        {/* Cover image */}
+        {/* Avatar image */}
         <div>
-          <label className="label-base">Cover Image</label>
+          <label className="label-base">Avatar Image</label>
           <div
             className="w-full h-28 rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center"
             onClick={() => imageInputRef.current?.click()}
@@ -194,7 +218,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
             onDragOver={(e) => e.preventDefault()}
           >
             {imageSrc
-              ? <img src={imageSrc} alt="cover" className="w-full h-full object-cover" />
+              ? <img src={imageSrc} alt="avatar" className="w-full h-full object-cover" />
               : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional)</span></span>
             }
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -217,14 +241,19 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-text-muted">Metadata key</span>
-            <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">script</code>
+            <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">persona</code>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-text-muted">Version</span>
-            <input className="input-base py-0.5 text-xs w-20 text-right" value={card.version} onChange={(e) => update({ version: e.target.value })} />
+            <input
+              className="input-base py-0.5 text-xs w-20 text-right"
+              value={card.version}
+              onChange={(e) => update({ version: e.target.value })}
+            />
           </div>
         </div>
 
+        {/* Save / New */}
         <div className="border-t border-border pt-3 space-y-2">
           <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
             <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
@@ -234,11 +263,11 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
               onClick={() => setConfirmClear(true)}
               className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-950/20 transition-colors"
             >
-              <span className="text-base leading-none">+</span> New Script Card
+              <Plus size={12} /> New Persona
             </button>
           ) : (
             <div className="rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2.5 space-y-2">
-              <p className="text-xs font-medium text-red-400">Clear this script and start fresh?</p>
+              <p className="text-xs font-medium text-red-400">Clear this persona and start fresh?</p>
               <p className="text-[11px] text-red-400/70">Library saves are not affected.</p>
               <div className="flex gap-2">
                 <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">Yes, clear it</button>
@@ -248,6 +277,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
           )}
         </div>
 
+        {/* Export buttons */}
         <div className="space-y-2">
           <button onClick={exportJson} className="btn-secondary w-full justify-center py-2">
             <FileJson size={14} /> Export JSON
@@ -262,119 +292,50 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
-          <p><strong className="text-text-secondary">JSON</strong> — portable card format.</p>
-          <p><strong className="text-text-secondary">PNG</strong> — embeds the script using the <code className="bg-bg-tertiary px-1 rounded">script</code> chunk.</p>
+          <p><strong className="text-text-secondary">JSON</strong> — portable persona format.</p>
+          <p><strong className="text-text-secondary">PNG</strong> — embeds persona using the <code className="bg-bg-tertiary px-1 rounded">persona</code> chunk.</p>
         </div>
       </aside>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────
-// Dark code editor with line numbers
-// ─────────────────────────────────────────────
-function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TextAreaField({ label, value, rows, onChange, placeholder }: {
+  label: string; value: string; rows: number; onChange: (v: string) => void; placeholder?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [hint, setHint] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const gutterRef   = useRef<HTMLDivElement>(null);
 
-  const lineCount = Math.max(1, value.split("\n").length);
-
-  const syncScroll = useCallback(() => {
-    if (gutterRef.current && textareaRef.current) {
-      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
-    }
-  }, []);
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const ta = e.currentTarget;
-      const start = ta.selectionStart;
-      const end   = ta.selectionEnd;
-      const next  = value.substring(0, start) + "  " + value.substring(end);
+  function copy() { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+  async function paste() {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (!t) return;
+      const el = textareaRef.current;
+      const start = el?.selectionStart ?? value.length;
+      const end = el?.selectionEnd ?? value.length;
+      const next = value.slice(0, start) + t + value.slice(end);
       onChange(next);
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 2;
-      });
-    }
+      requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(start + t.length, start + t.length); });
+    } catch { setHint(true); setTimeout(() => setHint(false), 2500); }
   }
 
   return (
-    <div
-      className="flex flex-col h-full rounded-lg overflow-hidden"
-      style={{ background: "#1a1d2e", border: "1px solid rgba(100,110,160,0.2)" }}
-    >
-      {/* Header bar */}
-      <div
-        className="flex items-center gap-2 px-4 py-2 shrink-0"
-        style={{
-          borderBottom: "1px solid rgba(100,110,160,0.15)",
-          color: "#7a8aaa",
-          fontSize: "11px",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          fontFamily: "ui-monospace, monospace",
-        }}
-      >
-        <span>Script Code</span>
-        <span style={{ color: "#a78bfa" }}>◆</span>
-        <span>JavaScript</span>
-      </div>
-
-      {/* Editor body: gutter + textarea side-by-side */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* Line-number gutter */}
-        <div
-          ref={gutterRef}
-          className="overflow-hidden shrink-0 select-none"
-          style={{
-            paddingTop: "14px",
-            paddingBottom: "14px",
-            paddingLeft: "12px",
-            paddingRight: "12px",
-            minWidth: "3.5rem",
-            textAlign: "right",
-            background: "#1a1d2e",
-            color: "#3d4a6b",
-            fontFamily: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
-            fontSize: "13px",
-            lineHeight: "1.65",
-            borderRight: "1px solid rgba(100,110,160,0.12)",
-          }}
-        >
-          {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i} style={{ height: "1.65em" }}>{i + 1}</div>
-          ))}
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="label-base mb-0">{label}</label>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={copy} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
+            {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+          </button>
+          <div className="relative">
+            <button type="button" onClick={paste} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"><ClipboardPaste size={12} /></button>
+            {hint && <div className="absolute right-0 top-6 z-10 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg">Press Ctrl+V</div>}
+          </div>
         </div>
-
-        {/* Code textarea */}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={syncScroll}
-          onKeyDown={handleKeyDown}
-          spellCheck={false}
-          autoCapitalize="none"
-          autoCorrect="off"
-          placeholder="// Start writing your JavaScript here...&#10;&#10;// Example:&#10;// const greeting = (name) => `Hello, ${name}!`;"
-          style={{
-            flex: 1,
-            background: "transparent",
-            color: "#c8d3f5",
-            caretColor: "#c8d3f5",
-            fontFamily: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
-            fontSize: "13px",
-            lineHeight: "1.65",
-            padding: "14px 16px",
-            outline: "none",
-            resize: "none",
-            border: "none",
-            overflowY: "auto",
-          }}
-        />
       </div>
+      <textarea ref={textareaRef} className="input-base resize-none" rows={rows} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
     </div>
   );
 }

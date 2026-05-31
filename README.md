@@ -2,7 +2,7 @@
 
 > Create, embed, share — a local-first desktop tool for building and exporting AI roleplay character cards in the Tavern Card PNG format.
 
-![CharacterBinder — Main Editor](docs/preview-v1.2.0.png)
+![CharacterBinder — Main Editor](docs/preview-v1.4.0.png)
 
 ---
 
@@ -55,65 +55,71 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 ## Features
 
 ### Character Editor
-- Fill in all Tavern Card v2 fields: name, description, personality, scenario, first message, example dialogs, system prompt, and more
+- Fill in all Tavern Card v2 fields: name, description, personality, scenario, first message, example dialogs, system prompt, post-history instructions, and more
 - Live character image preview with drag-and-drop support
 - Alternate greetings — add multiple opening messages
-- Tags, creator fields, and character version support
-- Copy / Paste buttons on every text field
+- Tags, creator fields, character version, and creator notes
+- Copy / Paste buttons on every text field with cursor-aware insertion
 - JSON View and Raw Preview tabs for direct inspection
+- Live token counter (cl100k / GPT-4 standard) with per-field breakdown
 
-### Token Counter *(v1.2)*
-- Live per-field token counts using the **cl100k** tokenizer (GPT-4 standard — the most widely used reference)
-- Total budget bar colour-coded: Lightweight / Moderate / Heavy / Very Large
-- Expandable per-field breakdown in the export sidebar
-- Warning shown when card exceeds 3,000 tokens
-
-### Save as Template *(v1.2)*
-- Save any card as a reusable template directly from the export panel
-- Custom templates appear in the Templates page under "Your Templates"
-- Delete custom templates anytime with the hover trash icon
-
-### Card Library *(v1.1)*
-- Save cards locally in your browser's IndexedDB — no files to manage
-- Browse your collection in a thumbnail grid
-- Search by name, platform, or tag
-- Sort by last modified, created date, or name
-- Click any card to reopen it in the editor
-- Multi-select for bulk operations
-
-### Archive & Export *(v1.1)*
-- **Export ZIP** — download selected cards (or your entire library) as a single `.zip` file
-- Each card exports as a `.png` (with embedded metadata) or `.json` (if no image)
-- A `manifest.json` is included listing all cards, platforms, and timestamps
-- Perfect for backing up your collection or moving it to another machine
-
-### Multi-Platform Export
-- Switch target platforms and see live field compatibility warnings before you export
-- Automatic field mapping and renaming per platform
-- PNG export or JSON export depending on platform support
-
-### Lorebook Editor *(v1.3)*
+### Lorebook Editor
 - Build SillyTavern-compatible world info / knowledge books
 - Add and manage entries with keyword triggers (primary + secondary), priority, insertion order, and position
 - Per-entry toggles: enabled, constant, selective, case-sensitive
-- Live token count per entry and total vs. configured budget
-- Export as SillyTavern-compatible JSON
+- Import existing SillyTavern lorebook JSON via drag-and-drop or file picker
+- Creator, version, and creator notes fields
+- Export as SillyTavern-compatible JSON or embed in a PNG (`lorebook` chunk)
 
-### Script Card Editor *(v1.3)*
-- Package a full system prompt or instruction set as a portable card
-- Monospace content editor with live token counter and colour-coded budget bar
-- Export as JSON or embed in a PNG using a `script` tEXt chunk
+### Script Card Editor
+- Package JavaScript snippets or system prompts as portable, shareable cards
+- Full-height code editor with line numbers, syntax highlighting colours, and Tab key support
+- Author, version, creator notes, and tags
+- Export as JSON or embed in a PNG (`script` chunk)
 
-### Scenario Card Editor *(v1.3)*
+### Scenario Card Editor
 - Create a standalone situation or setting card that can be dropped into any conversation
-- Optional scene image (drag-and-drop), opening message, and tags
-- Per-field token counts and export as JSON or PNG (`scenario` chunk)
+- Fields: scenario text, opening message, creator, version, creator notes, and tags
+- Optional scene image with drag-and-drop support
+- Export as JSON or embed in a PNG (`scenario` chunk)
+
+### Persona Card Editor *(v1.4)*
+- Define a user persona — who *you* are in the conversation, used as the `{{user}}` identity
+- Fields: name, description, personality, appearance, background, creator, version, creator notes, and tags
+- Avatar image with drag-and-drop support
+- Export as JSON or embed in a PNG (`persona` chunk)
+
+### Card Library
+- Save all card types locally in your browser's IndexedDB — no files to manage
+- Browse your collection in a thumbnail grid organised by type (Characters, Lorebooks, Scripts, Scenarios, Personas)
+- **Version badges** — each card tile shows its version number
+- **Clickable tags** — click any tag on a card to instantly filter the library by that tag
+- Search by name, type, or tag with a one-click clear button
+- Sort by last modified, created date, or name
+- Multi-select for bulk delete or export
+
+### Version Control in Library *(v1.4)*
+- Changing a card's version number and pressing **Save to Library** creates a **new entry** instead of overwriting the existing one
+- Previous versions stay in your library side-by-side
+- Works across all card types
+
+### Archive & Export
+- **Export ZIP** — download selected cards (or your entire library) as a single `.zip` file
+- Each card exports as a `.png` (with embedded metadata) or `.json` (if no image)
+- A `manifest.json` is included listing all cards, types, and timestamps
+- Perfect for backing up your collection or moving it to another machine
+
+### Multi-Platform Export (Character Cards)
+- Switch target platforms and see live field compatibility warnings before you export
+- Automatic field mapping and renaming per platform
+- PNG export or JSON export depending on platform support
+- Save as Template directly from the export panel
 
 ### Tools
-- **PNG Import** — load an existing Tavern Card PNG and edit it
-- **PNG Decode** — inspect the raw embedded metadata of any Tavern Card PNG
-- **Templates** — start from a pre-built character or a blank slate
-- **Validate** — check your card against the Tavern Card v2 spec before exporting
+- **Import PNG** — load any card PNG (character, lorebook, script, scenario, or persona) and open it in the correct editor automatically
+- **Decode PNG** — inspect the raw embedded metadata of any card PNG, with full chunk listing and decoded JSON
+- **Templates** — start from a built-in character or a blank slate
+- **Validate** — check your character card against the Tavern Card v2 spec before exporting
 
 ---
 
@@ -134,17 +140,31 @@ Field compatibility is shown live in the editor when you switch target platforms
 
 ---
 
+## PNG Metadata Keys
+
+Each card type uses a dedicated `tEXt` chunk keyword so apps can identify the content:
+
+| Card Type | Metadata Key |
+|-----------|-------------|
+| Character Card | `chara` |
+| Lorebook | `lorebook` |
+| Script Card | `script` |
+| Scenario Card | `scenario` |
+| Persona | `persona` |
+
+---
+
 ## How PNG Embedding Works
 
-1. Your character data is serialized as a JSON object following the **Tavern Card v2** spec
+1. Your card data is serialized as a JSON object
 2. The JSON string is Base64-encoded (Unicode-safe)
-3. A PNG `tEXt` chunk is inserted into the image with the keyword `chara` and the Base64 value
-4. The resulting PNG is visually identical to the original but carries the character data invisibly
+3. A PNG `tEXt` chunk is inserted into the image with the appropriate keyword
+4. The resulting PNG is visually identical to the original but carries the full card data invisibly
 
 ```
 PNG Signature (8 bytes)
 → IHDR chunk
-→ tEXt chunk: "chara" = Base64(JSON)   ← character data lives here
+→ tEXt chunk: "chara" = Base64(JSON)   ← card data lives here
 → IDAT chunks (pixel data)
 → IEND chunk
 ```
@@ -171,7 +191,7 @@ PNG Signature (8 bytes)
 ```
 CharacterBinder/
 ├── src/
-│   ├── components/       # UI components (editor, sidebar, library, modals)
+│   ├── components/       # UI components (editors, sidebar, library, modals)
 │   ├── lib/
 │   │   ├── pngMetadata/  # PNG tEXt chunk encoder/decoder
 │   │   ├── platforms/    # Platform definitions + format converters
@@ -193,11 +213,23 @@ CharacterBinder/
 
 ## Changelog
 
+### v1.4.0
+- Added **Persona Card Editor** — define a user persona (`{{user}}` identity) with name, description, personality, appearance, background, avatar image, and PNG/JSON export
+- All card types now include **Creator / Author**, **Version**, and **Creator Notes** fields
+- **Version-as-new-record** — changing a card's version and saving to library creates a new entry instead of overwriting, preserving all previous versions
+- **Library version badges** — each card tile now shows its version number
+- **Clickable tag search** — click any tag on a library card to filter by it instantly
+- **Auto-filename sync** — output filename updates live as you type the card name across all editors
+- **Import PNG** and **Decode PNG** now detect and load all card types (lorebook, script, scenario, persona)
+- Removed sidebar token counts from Script and Lorebook editors (cleaner export panel)
+- Starts blank by default — no pre-loaded example character
+
 ### v1.3.0
 - Added **Lorebook Editor** — build SillyTavern-compatible world info books with keyword-triggered entries, priority/insertion order controls, and JSON export
 - Added **Script Card Editor** — package system prompts and instruction sets as portable cards (JSON + optional PNG embed)
 - Added **Scenario Card Editor** — create standalone scenario cards with optional scene image, opening message, and JSON + PNG export
-- Navigation sidebar reorganised into grouped sections: Character Cards, Card Types, Tools
+- Multi-type support in Import PNG and Decode PNG
+- Navigation sidebar reorganised into grouped sections: Card Types, Collection, Tools
 
 ### v1.2.0
 - Added **Token Counter** — live per-field token counts (cl100k / GPT-4 standard) with a total budget bar and breakdown panel
@@ -206,10 +238,9 @@ CharacterBinder/
 - Removed character limits on all text fields
 
 ### v1.1.0
-- Added **Card Library** — save, browse, search, and manage your characters locally
+- Added **Card Library** — save, browse, search, and manage your cards locally
 - Added **ZIP Archive** — export selected or all cards as a portable `.zip` with manifest
-- White / light theme
-- Wider sidebar with full logo display
+- Multi-select bulk operations
 
 ### v1.0.0
 - Initial release — character editor, multi-platform export, PNG encoding/decoding, templates

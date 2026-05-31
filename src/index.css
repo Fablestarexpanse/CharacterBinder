@@ -25,8 +25,14 @@
   }
 
   textarea,
-  input {
-    user-select: text;
+  input,
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  input:not([type]) {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: auto;
   }
 
   ::-webkit-scrollbar {

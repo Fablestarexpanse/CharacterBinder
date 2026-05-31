@@ -7,7 +7,7 @@ export default function HelpAbout() {
         <div>
           <h1 className="text-xl font-bold text-text-primary mb-1">Help & About</h1>
           <p className="text-sm text-text-secondary">
-            CharacterBinder v1.3.0 — A local-only tool for creating and editing Tavern Card PNGs.
+            CharacterBinder v1.4.0 — A local-only tool for creating and editing Tavern Card PNGs.
           </p>
         </div>
 

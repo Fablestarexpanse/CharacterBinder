@@ -1,11 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
   ChevronDown, ChevronUp,
   ToggleLeft, ToggleRight, Copy, Check, ClipboardPaste,
 } from "lucide-react";
 import type { LoreBook, LoreEntry } from "../types";
-import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
+import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
 
@@ -28,6 +28,9 @@ const DEFAULT_ENTRY = (): LoreEntry => ({
 const DEFAULT_BOOK: LoreBook = {
   name: "",
   description: "",
+  creator: "",
+  version: "1.0",
+  creator_notes: "",
   scan_depth: 50,
   token_budget: 512,
   recursive_scanning: false,
@@ -47,6 +50,9 @@ const MINIMAL_PNG = new Uint8Array([
 function parseSillyTavernLorebook(raw: any): LoreBook {
   const name: string               = raw.name              ?? "";
   const description: string        = raw.description       ?? "";
+  const creator: string            = raw.creator           ?? raw.author ?? "";
+  const version: string            = raw.version           ?? "1.0";
+  const creator_notes: string      = raw.creator_notes     ?? "";
   const scan_depth: number         = raw.scan_depth        ?? 50;
   const token_budget: number       = raw.token_budget      ?? 512;
   const recursive_scanning: boolean = raw.recursive_scanning ?? false;
@@ -78,7 +84,7 @@ function parseSillyTavernLorebook(raw: any): LoreBook {
     position:         (e.position === "after_char" ? "after_char" : "before_char") as LoreEntry["position"],
   }));
 
-  return { name, description, scan_depth, token_budget, recursive_scanning, entries };
+  return { name, description, creator, version, creator_notes, scan_depth, token_budget, recursive_scanning, entries };
 }
 
 interface LoreBookEditorProps {
@@ -95,6 +101,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
+  const [savedVersion, setSavedVersion] = useState<string>(initialBook?.version ?? "1.0");
   const [draggingJson, setDraggingJson] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [outputFileName, setOutputFileName] = useState(
@@ -102,6 +109,12 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   );
   const imageInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef  = useRef<HTMLInputElement>(null);
+
+  // Auto-sync filename to lorebook name
+  useEffect(() => {
+    const name = book.name.trim();
+    setOutputFileName(name ? name.replace(/\s+/g, "_") + "_lorebook.png" : "lorebook.png");
+  }, [book.name]);
 
   function updateBook(patch: Partial<LoreBook>) {
     setBook((b) => ({ ...b, ...patch }));
@@ -164,6 +177,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     setSelectedId(null);
     setImageSrc(null);
     setLibraryId(undefined);
+    setSavedVersion("1.0");
     setOutputFileName("lorebook.png");
     setConfirmClear(false);
     setStatus(null);
@@ -173,6 +187,9 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     return {
       name: book.name,
       description: book.description,
+      creator: book.creator,
+      version: book.version,
+      creator_notes: book.creator_notes,
       scan_depth: book.scan_depth,
       token_budget: book.token_budget,
       recursive_scanning: book.recursive_scanning,
@@ -236,16 +253,11 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     setSaving(true);
     try {
       const allKeys = book.entries.flatMap((e) => e.keys);
-      const saved = await saveAnyCard(
-        "lorebook",
-        book.name || "Unnamed Lorebook",
-        buildExportData(),
-        imageSrc,
-        allKeys.slice(0, 10),
-        libraryId
-      );
+      const versionChanged = !!libraryId && book.version.trim() !== savedVersion;
+      const saved = await saveAnyCard("lorebook", book.name || "Unnamed Lorebook", buildExportData(), imageSrc, allKeys.slice(0, 10), versionChanged ? undefined : libraryId);
       setLibraryId(saved.id);
-      setMsg(libraryId ? "Library updated!" : "Saved to library!", true);
+      setSavedVersion(book.version);
+      setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
     } catch {
       setMsg("Failed to save to library.", false);
     }
@@ -253,9 +265,6 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   }
 
   const selected = book.entries.find((e) => e.id === selectedId) ?? null;
-  const totalTokens = book.entries.reduce((sum, e) => sum + countTokens(e.content), 0);
-  const level = getTokenBudgetLevel(totalTokens);
-  const budgetPct = Math.min((totalTokens / Math.max(book.token_budget, 1)) * 100, 100);
 
   return (
     <div
@@ -312,6 +321,19 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
             placeholder="Brief description..."
             value={book.description}
             onChange={(e) => updateBook({ description: e.target.value })}
+          />
+          <input
+            className="input-base text-xs"
+            placeholder="Creator name..."
+            value={book.creator}
+            onChange={(e) => updateBook({ creator: e.target.value })}
+          />
+          <textarea
+            className="input-base resize-none text-xs"
+            rows={2}
+            placeholder="Creator notes — usage tips, content warnings, changelog..."
+            value={book.creator_notes}
+            onChange={(e) => updateBook({ creator_notes: e.target.value })}
           />
         </div>
 
@@ -418,16 +440,6 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
         </div>
 
-        {/* Token stats */}
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between"><span className="text-text-muted">Entries</span><span className="font-medium text-text-primary">{book.entries.length}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Total tokens</span><span className={`font-bold ${TOKEN_BUDGET_COLORS[level]}`}>{totalTokens} tk</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Budget</span><span className="font-medium text-text-primary">{book.token_budget} tk</span></div>
-          <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
-            <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${budgetPct}%` }} />
-          </div>
-        </div>
-
         {/* Output Settings */}
         <div className="border-t border-border pt-3 space-y-2">
           <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Output Settings</p>
@@ -442,6 +454,18 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           <div className="flex items-center justify-between text-xs">
             <span className="text-text-muted">Metadata key</span>
             <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">lorebook</code>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-muted">Version</span>
+            <input
+              className="input-base py-0.5 text-xs w-20 text-right"
+              value={book.version}
+              onChange={(e) => updateBook({ version: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-muted">Entries</span>
+            <span className="font-medium text-text-primary">{book.entries.length}</span>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import type { NavPage } from "../types";
 import {
   PlusSquare,
@@ -11,7 +11,7 @@ import {
   BookOpen,
   FileCode2,
   Map,
-  FileJson,
+  UserCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,7 +19,6 @@ interface SidebarProps {
   activePage: NavPage;
   onNavigate: (page: NavPage) => void;
   onNewCard: () => void;
-  onLoadJson?: (file: File) => void;
 }
 
 interface NavSection {
@@ -31,10 +30,11 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Card Types",
     items: [
-      { page: "create",   label: "Create Character", icon: PlusSquare },
-      { page: "lorebook", label: "Create Lorebook",       icon: BookOpen },
-      { page: "script",   label: "Create Script Card",  icon: FileCode2 },
+      { page: "create",   label: "Create Character",    icon: PlusSquare },
+      { page: "lorebook", label: "Create Lorebook",      icon: BookOpen },
+      { page: "script",   label: "Create Script Card",   icon: FileCode2 },
       { page: "scenario", label: "Create Scenario Card", icon: Map },
+      { page: "persona",  label: "Create Persona",       icon: UserCircle },
     ],
   },
   {
@@ -55,9 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export default function Sidebar({ activePage, onNavigate, onNewCard, onLoadJson }: SidebarProps) {
-  const jsonInputRef = useRef<HTMLInputElement>(null);
-
+export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
   return (
     <aside className="w-80 bg-bg-secondary border-r border-border flex flex-col shrink-0">
       {/* Logo */}
@@ -90,38 +88,11 @@ export default function Sidebar({ activePage, onNavigate, onNewCard, onLoadJson 
         ))}
       </nav>
 
-      {/* Quick Actions */}
-      <div className="border-t border-border px-3 py-3 space-y-1.5">
-        <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2 px-1">Quick Actions</p>
-        <QuickBtn label="New Character" onClick={onNewCard} danger />
-        <QuickBtn
-          label="Load JSON"
-          icon={<FileJson size={12} />}
-          onClick={() => jsonInputRef.current?.click()}
-        />
-        <QuickBtn
-          label="Library"
-          icon={<Library size={12} />}
-          onClick={() => onNavigate("library")}
-        />
-        <input
-          ref={jsonInputRef}
-          type="file"
-          accept=".json,application/json"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f && onLoadJson) onLoadJson(f);
-            e.target.value = "";
-          }}
-        />
-      </div>
-
       {/* Status */}
       <div className="border-t border-border px-4 py-2.5 flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-accent-green shrink-0" />
         <span className="text-xs text-text-muted">Ready</span>
-        <span className="ml-auto text-xs text-text-muted">v1.3.0</span>
+        <span className="ml-auto text-xs text-text-muted">v1.4.0</span>
       </div>
     </aside>
   );
@@ -148,25 +119,5 @@ function LogoImage() {
       <div className="w-7 h-7 rounded-lg bg-accent-purple flex items-center justify-center shrink-0 text-white text-xs font-bold">CB</div>
       <span className="text-sm font-bold text-text-primary">CharacterBinder</span>
     </div>
-  );
-}
-
-function QuickBtn({ label, onClick, danger, icon }: { label: string; onClick?: () => void; danger?: boolean; icon?: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
-        danger
-          ? "text-text-secondary hover:bg-red-900/20 hover:text-red-400"
-          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-      }`}
-    >
-      <span className={`w-4 h-4 rounded border flex items-center justify-center ${
-        danger ? "border-red-800/50 text-red-500/70" : "border-border text-text-muted"
-      }`}>
-        {icon ?? "+"}
-      </span>
-      {label}
-    </button>
   );
 }

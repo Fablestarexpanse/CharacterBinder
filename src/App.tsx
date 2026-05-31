@@ -1,7 +1,6 @@
-import { useState, useCallback } from "react";
-import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject, LoreBook, ScriptCard, ScenarioCard } from "./types";
+import { useState, useCallback, useEffect } from "react";
+import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "./types";
 import type { PlatformId } from "./lib/platforms";
-import { ronanVossTemplate } from "./data/templates/ronalVoss";
 import { blankTemplate } from "./data/templates/ronalVoss";
 import Sidebar from "./components/Sidebar";
 import CreateCard from "./components/CreateCard";
@@ -14,6 +13,7 @@ import Library from "./components/Library";
 import LoreBookEditor from "./components/LoreBookEditor";
 import ScriptEditor from "./components/ScriptEditor";
 import ScenarioEditor from "./components/ScenarioEditor";
+import PersonaEditor from "./components/PersonaEditor";
 import ConfirmModal from "./components/ConfirmModal";
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -45,11 +45,11 @@ function App() {
   // ── Character card state ──
   const [project, setProject] = useState<CardProject>({
     id: "default",
-    name: "Ronan Voss",
-    card: ronanVossTemplate,
+    name: "",
+    card: blankTemplate,
     imageSrc: undefined,
     templateImageSrc: undefined,
-    outputFileName: "Ronan_Voss_Tavern_Card.png",
+    outputFileName: "New_Character_Tavern_Card.png",
     lastModified: new Date().toISOString(),
   });
 
@@ -70,6 +70,21 @@ function App() {
   const [scenarioInit, setScenarioInit] = useState<{
     card: ScenarioCard; imageSrc: string | null; id?: string;
   } | null>(null);
+
+  // ── Persona editor library-load state ──
+  const [personaKey, setPersonaKey] = useState(0);
+  const [personaInit, setPersonaInit] = useState<{
+    card: PersonaCard; imageSrc: string | null; id?: string;
+  } | null>(null);
+
+  // Auto-sync character card output filename to character name
+  useEffect(() => {
+    const name = project.card.data.name.trim();
+    setProject((p) => ({
+      ...p,
+      outputFileName: name ? name.replace(/\s+/g, "_") + "_Tavern_Card.png" : "New_Character_Tavern_Card.png",
+    }));
+  }, [project.card.data.name]);
 
   // ── Character card handlers ──
   const updateCard = useCallback((updates: Partial<TavernCardV2["data"]>) => {
@@ -159,6 +174,12 @@ function App() {
     setActivePage("scenario");
   }, []);
 
+  const handleEditPersona = useCallback((card: PersonaCard, imageSrc: string | null, id: string) => {
+    setPersonaInit({ card, imageSrc, id });
+    setPersonaKey((k) => k + 1);
+    setActivePage("persona");
+  }, []);
+
   // ── Import-from-PNG handlers (no library id yet) ──
   const handleImportLorebook = useCallback((book: LoreBook, imageSrc: string | null) => {
     setLorebookInit({ book, imageSrc });
@@ -178,36 +199,11 @@ function App() {
     setActivePage("scenario");
   }, []);
 
-  // ── Load JSON from sidebar quick action ──
-  const handleLoadJson = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const raw = JSON.parse(e.target?.result as string);
-        if (raw.spec === "chara_card_v2" || raw.spec_version === "2.0" || raw.data?.name !== undefined) {
-          loadCard(raw as TavernCardV2);
-          return;
-        }
-        if (raw.spec === "lorebook_v1" || (raw.entries !== undefined && raw.scan_depth !== undefined)) {
-          handleImportLorebook(raw as LoreBook, null);
-          return;
-        }
-        if (raw.spec === "script_card_v1" || (raw.content !== undefined && raw.author !== undefined)) {
-          handleImportScript(raw as ScriptCard, null);
-          return;
-        }
-        if (raw.spec === "scenario_card_v1" || (raw.scenario !== undefined && raw.first_mes !== undefined)) {
-          handleImportScenario(raw as ScenarioCard, null);
-          return;
-        }
-        // Fallback: treat as character card
-        loadCard(raw as TavernCardV2);
-      } catch {
-        // silently ignore — user sees nothing happen on bad JSON
-      }
-    };
-    reader.readAsText(file);
-  }, [loadCard, handleImportLorebook, handleImportScript, handleImportScenario]);
+  const handleImportPersona = useCallback((card: PersonaCard, imageSrc: string | null) => {
+    setPersonaInit({ card, imageSrc });
+    setPersonaKey((k) => k + 1);
+    setActivePage("persona");
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
@@ -222,7 +218,7 @@ function App() {
         />
       )}
 
-      <Sidebar activePage={activePage} onNavigate={setActivePage} onNewCard={() => setShowClearConfirm(true)} onLoadJson={handleLoadJson} />
+      <Sidebar activePage={activePage} onNavigate={setActivePage} onNewCard={() => setShowClearConfirm(true)} />
 
       <main className="flex-1 overflow-hidden">
         {activePage === "create" && (
@@ -261,12 +257,21 @@ function App() {
             initialLibraryId={scenarioInit?.id}
           />
         )}
+        {activePage === "persona" && (
+          <PersonaEditor
+            key={personaKey}
+            initialCard={personaInit?.card}
+            initialImageSrc={personaInit?.imageSrc}
+            initialLibraryId={personaInit?.id}
+          />
+        )}
         {activePage === "import" && (
           <ImportPNG
             onLoad={loadCard}
             onLoadLorebook={handleImportLorebook}
             onLoadScript={handleImportScript}
             onLoadScenario={handleImportScenario}
+            onLoadPersona={handleImportPersona}
           />
         )}
         {activePage === "decode" && (
@@ -275,6 +280,7 @@ function App() {
             onLoadLorebook={handleImportLorebook}
             onLoadScript={handleImportScript}
             onLoadScenario={handleImportScenario}
+            onLoadPersona={handleImportPersona}
           />
         )}
         {activePage === "templates" && <Templates onLoad={loadCard} />}
@@ -284,6 +290,7 @@ function App() {
             onEditLorebook={handleEditLorebook}
             onEditScript={handleEditScript}
             onEditScenario={handleEditScenario}
+            onEditPersona={handleEditPersona}
           />
         )}
         {activePage === "settings" && <Settings settings={settings} onSave={(s) => { setSettings(s); localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }} />}

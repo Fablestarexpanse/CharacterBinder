@@ -101,7 +101,7 @@ export function decodeCharaFromPng(bytes: Uint8Array): {
 
   const chunks = readChunks(bytes);
   const chunkInfos: PngChunkInfo[] = [];
-  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario"];
+  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario", "persona"];
   let foundJson: string | null = null;
   let foundKey: string | null = null;
 
@@ -167,7 +167,7 @@ export function encodeCharaToPng(
 
   const base64Data = btoa(unescape(encodeURIComponent(jsonData)));
   const chunks = readChunks(pngBytes);
-  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario"];
+  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario", "persona"];
 
   const keepChunks: PngChunk[] = [];
   let ihdChunk: PngChunk | null = null;
