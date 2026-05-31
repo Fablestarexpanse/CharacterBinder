@@ -172,6 +172,7 @@ function App() {
             onUpdateImage={updateImage}
             onUpdateOutputFileName={updateOutputFileName}
             onPlatformChange={setTargetPlatform}
+            onNewCard={() => setShowClearConfirm(true)}
           />
         )}
         {activePage === "lorebook" && (

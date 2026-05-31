@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import type { AppSettings, CardProject } from "../types";
-import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate } from "lucide-react";
+import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus } from "lucide-react";
 import { saveCard } from "../lib/library";
 import { saveCustomTemplate } from "../lib/customTemplates";
 import {
@@ -25,6 +25,7 @@ interface CardPreviewPanelProps {
   onPlatformChange: (id: PlatformId) => void;
   onUpdateOutputFileName: (name: string) => void;
   onNavigateLibrary?: () => void;
+  onNewCard?: () => void;
 }
 
 export default function CardPreviewPanel({
@@ -34,6 +35,7 @@ export default function CardPreviewPanel({
   onPlatformChange,
   onUpdateOutputFileName,
   onNavigateLibrary: _onNavigateLibrary,
+  onNewCard,
 }: CardPreviewPanelProps) {
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -393,14 +395,14 @@ export default function CardPreviewPanel({
           </p>
         )}
 
-        {/* Save to Library */}
+        {/* Save to Library / Update in Library */}
         <button
           onClick={handleSaveToLibrary}
           disabled={saving}
           className="w-full btn-secondary justify-center py-2 text-sm"
         >
           <BookMarked size={14} />
-          {saving ? "Saving…" : "Save to Library"}
+          {saving ? "Saving…" : project.id !== "default" ? "Update in Library" : "Save to Library"}
         </button>
 
         <button
@@ -424,6 +426,18 @@ export default function CardPreviewPanel({
             </button>
           </div>
         </div>
+
+        {/* New Character */}
+        {onNewCard && (
+          <div className="border-t border-border pt-3 mt-1">
+            <button
+              onClick={onNewCard}
+              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-muted hover:border-red-400/50 hover:text-red-400 transition-colors"
+            >
+              <FilePlus size={13} /> New Character
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

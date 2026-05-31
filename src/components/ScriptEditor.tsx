@@ -34,6 +34,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   function update(patch: Partial<ScriptCard>) {
@@ -43,6 +44,14 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
   function setMsg(msg: string, ok: boolean) {
     setStatus({ msg, ok });
     setTimeout(() => setStatus(null), 3000);
+  }
+
+  function clearForNew() {
+    setCard(DEFAULT);
+    setImageSrc(null);
+    setLibraryId(undefined);
+    setConfirmClear(false);
+    setStatus(null);
   }
 
   function handleImageFile(file: File) {
@@ -151,7 +160,23 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
 
       {/* ── Export panel ── */}
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
-        <p className="section-title">Export</p>
+        <div className="flex items-center justify-between">
+          <p className="section-title mb-0">Export</p>
+          <button onClick={() => setConfirmClear(true)} className="text-xs text-text-muted hover:text-red-400 transition-colors">
+            + New
+          </button>
+        </div>
+
+        {confirmClear && (
+          <div className="rounded-lg border border-red-300/40 bg-red-50 px-3 py-2.5 space-y-2">
+            <p className="text-xs text-red-700 font-medium">Clear this script?</p>
+            <p className="text-[11px] text-red-600">Unsaved changes will be lost. Library saves are not affected.</p>
+            <div className="flex gap-2 pt-0.5">
+              <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">Yes, clear it</button>
+              <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-300/60 text-red-600 hover:bg-red-100 transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
 
         {/* Cover image */}
         <div>

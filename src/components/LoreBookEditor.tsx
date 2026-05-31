@@ -96,6 +96,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
   const [draggingJson, setDraggingJson] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef  = useRef<HTMLInputElement>(null);
 
@@ -153,6 +154,15 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   function setMsg(msg: string, ok: boolean) {
     setStatus({ msg, ok });
     setTimeout(() => setStatus(null), 3000);
+  }
+
+  function clearForNew() {
+    setBook(DEFAULT_BOOK);
+    setSelectedId(null);
+    setImageSrc(null);
+    setLibraryId(undefined);
+    setConfirmClear(false);
+    setStatus(null);
   }
 
   function buildExportData() {
@@ -382,7 +392,32 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
 
       {/* ── Export panel (right) ── */}
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
-        <p className="section-title">Export</p>
+        <div className="flex items-center justify-between">
+          <p className="section-title mb-0">Export</p>
+          <button
+            onClick={() => setConfirmClear(true)}
+            className="text-xs text-text-muted hover:text-red-400 transition-colors flex items-center gap-1"
+            title="Clear and start a new lorebook"
+          >
+            + New
+          </button>
+        </div>
+
+        {/* Inline confirm banner */}
+        {confirmClear && (
+          <div className="rounded-lg border border-red-300/40 bg-red-50 px-3 py-2.5 space-y-2">
+            <p className="text-xs text-red-700 font-medium">Clear this lorebook?</p>
+            <p className="text-[11px] text-red-600">Unsaved changes will be lost. Library saves are not affected.</p>
+            <div className="flex gap-2 pt-0.5">
+              <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">
+                Yes, clear it
+              </button>
+              <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-300/60 text-red-600 hover:bg-red-100 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Cover image */}
         <div>
