@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
-  Plus, Trash2, BookOpen, FileJson, ChevronDown, ChevronUp,
+  Plus, Trash2, BookOpen, FileJson, Download,
+  ChevronDown, ChevronUp,
   ToggleLeft, ToggleRight, Copy, Check, ClipboardPaste,
 } from "lucide-react";
 import type { LoreBook, LoreEntry } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
+import { encodeCharaToPng } from "../lib/pngMetadata";
 
 const DEFAULT_ENTRY = (): LoreEntry => ({
   id: crypto.randomUUID(),
@@ -31,11 +33,21 @@ const DEFAULT_BOOK: LoreBook = {
   entries: [],
 };
 
+// Minimal 1×1 transparent PNG fallback
+const MINIMAL_PNG = new Uint8Array([
+  137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
+  0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
+  0,0,0,12,73,68,65,84,8,215,99,248,207,0,0,0,2,0,1,
+  226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
+]);
+
 export default function LoreBookEditor() {
   const [book, setBook] = useState<LoreBook>(DEFAULT_BOOK);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   function updateBook(patch: Partial<LoreBook>) {
     setBook((b) => ({ ...b, ...patch }));
@@ -55,7 +67,7 @@ export default function LoreBookEditor() {
   function updateEntry(id: string, patch: Partial<LoreEntry>) {
     setBook((b) => ({
       ...b,
-      entries: b.entries.map((e) => e.id === id ? { ...e, ...patch } : e),
+      entries: b.entries.map((e) => (e.id === id ? { ...e, ...patch } : e)),
     }));
   }
 
@@ -64,9 +76,19 @@ export default function LoreBookEditor() {
     if (entry) updateEntry(id, { enabled: !entry.enabled });
   }
 
-  function exportJson() {
-    // Export in SillyTavern lorebook format
-    const exported = {
+  function handleImageFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => { if (e.target?.result) setImageSrc(e.target.result as string); };
+    reader.readAsDataURL(file);
+  }
+
+  function setMsg(msg: string, ok: boolean) {
+    setStatus({ msg, ok });
+    setTimeout(() => setStatus(null), 3000);
+  }
+
+  function buildExportData() {
+    return {
       name: book.name,
       description: book.description,
       scan_depth: book.scan_depth,
@@ -90,7 +112,10 @@ export default function LoreBookEditor() {
         extensions: {},
       })),
     };
-    const json = JSON.stringify(exported, null, 2);
+  }
+
+  function exportJson() {
+    const json = JSON.stringify(buildExportData(), null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -98,22 +123,47 @@ export default function LoreBookEditor() {
     a.download = (book.name || "lorebook").replace(/\s+/g, "_") + ".json";
     a.click();
     URL.revokeObjectURL(url);
-    setStatus({ msg: "Lorebook exported!", ok: true });
-    setTimeout(() => setStatus(null), 3000);
+    setMsg("Lorebook JSON exported!", true);
+  }
+
+  async function exportPng() {
+    try {
+      let pngBytes: Uint8Array;
+      if (imageSrc?.startsWith("data:image/")) {
+        const b64 = imageSrc.split(",")[1];
+        pngBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      } else {
+        pngBytes = MINIMAL_PNG;
+      }
+      const json = JSON.stringify(buildExportData());
+      const result = encodeCharaToPng(pngBytes, json, "lorebook" as never, false);
+      const blob = new Blob([result.buffer as ArrayBuffer], { type: "image/png" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = (book.name || "lorebook").replace(/\s+/g, "_") + "_lorebook.png";
+      a.click();
+      URL.revokeObjectURL(url);
+      setMsg("PNG exported!", true);
+    } catch {
+      setMsg("PNG export failed.", false);
+    }
   }
 
   const selected = book.entries.find((e) => e.id === selectedId) ?? null;
   const totalTokens = book.entries.reduce((sum, e) => sum + countTokens(e.content), 0);
   const level = getTokenBudgetLevel(totalTokens);
+  const budgetPct = Math.min((totalTokens / Math.max(book.token_budget, 1)) * 100, 100);
 
   return (
     <div className="h-full flex overflow-hidden">
-      {/* Entry list sidebar */}
-      <div className="w-64 border-r border-border bg-bg-secondary flex flex-col shrink-0">
-        {/* Book header */}
+
+      {/* ── Entry list sidebar ── */}
+      <div className="w-60 border-r border-border bg-bg-secondary flex flex-col shrink-0">
+        {/* Book name */}
         <div className="p-3 border-b border-border space-y-2">
           <div className="flex items-center gap-2">
-            <BookOpen size={16} className="text-accent-purple shrink-0" />
+            <BookOpen size={15} className="text-accent-purple shrink-0" />
             <input
               className="input-base py-1 text-sm font-semibold"
               placeholder="Lorebook name..."
@@ -121,34 +171,13 @@ export default function LoreBookEditor() {
               onChange={(e) => updateBook({ name: e.target.value })}
             />
           </div>
-
-          {/* Settings toggle */}
-          <button
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            className="w-full flex items-center justify-between text-xs text-text-muted hover:text-text-primary transition-colors px-1"
-          >
-            <span>Settings</span>
-            {settingsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-
-          {settingsOpen && (
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">Scan depth</span>
-                <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.scan_depth} onChange={(e) => updateBook({ scan_depth: Number(e.target.value) })} />
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">Token budget</span>
-                <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.token_budget} onChange={(e) => updateBook({ token_budget: Number(e.target.value) })} />
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">Recursive scan</span>
-                <button onClick={() => updateBook({ recursive_scanning: !book.recursive_scanning })} className="text-accent-purple">
-                  {book.recursive_scanning ? <ToggleRight size={18} /> : <ToggleLeft size={18} className="text-text-muted" />}
-                </button>
-              </div>
-            </div>
-          )}
+          <textarea
+            className="input-base resize-none text-xs"
+            rows={2}
+            placeholder="Brief description..."
+            value={book.description}
+            onChange={(e) => updateBook({ description: e.target.value })}
+          />
         </div>
 
         {/* Entry list */}
@@ -196,21 +225,15 @@ export default function LoreBookEditor() {
           )}
         </div>
 
-        {/* Add entry + export */}
-        <div className="border-t border-border p-3 space-y-2">
+        {/* Add entry button */}
+        <div className="border-t border-border p-3">
           <button onClick={addEntry} className="btn-primary w-full justify-center py-2 text-sm">
             <Plus size={14} /> Add Entry
           </button>
-          <button onClick={exportJson} className="btn-secondary w-full justify-center py-1.5 text-xs">
-            <FileJson size={13} /> Export Lorebook JSON
-          </button>
-          {status && (
-            <p className={`text-xs text-center ${status.ok ? "text-green-600" : "text-red-500"}`}>{status.msg}</p>
-          )}
         </div>
       </div>
 
-      {/* Entry editor */}
+      {/* ── Entry editor (center) ── */}
       {selected ? (
         <EntryEditor
           entry={selected}
@@ -221,30 +244,96 @@ export default function LoreBookEditor() {
           <BookOpen size={36} className="opacity-20" />
           <div className="text-center">
             <p className="text-sm font-medium text-text-secondary">No entry selected</p>
-            <p className="text-xs mt-1">Add an entry or click one to edit it.</p>
+            <p className="text-xs mt-1">Add an entry or click one in the list to edit it.</p>
           </div>
-          <div className="mt-4 text-xs text-text-muted text-center max-w-sm space-y-1.5">
-            <p>Lorebooks let you define world knowledge that triggers when keywords appear in conversation.</p>
-            <p>Each entry has <strong className="text-text-secondary">trigger keys</strong> and <strong className="text-text-secondary">content</strong> that gets injected into context.</p>
+          <div className="mt-4 text-xs text-text-muted text-center max-w-xs space-y-1.5">
+            <p>Each entry has <strong className="text-text-secondary">trigger keys</strong> and <strong className="text-text-secondary">content</strong> that gets injected into context when those keywords appear in conversation.</p>
           </div>
         </div>
       )}
 
-      {/* Token summary bar */}
-      {book.entries.length > 0 && (
-        <div className="absolute bottom-0 left-64 right-0 border-t border-border bg-bg-secondary px-4 py-2 flex items-center gap-3 text-xs">
-          <span className="text-text-muted">{book.entries.length} entries</span>
-          <span className="text-text-muted">·</span>
-          <span className={`font-medium ${TOKEN_BUDGET_COLORS[level]}`}>{totalTokens} tokens total</span>
-          <div className="flex-1 h-1 bg-bg-tertiary rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${TOKEN_BUDGET_BAR_COLORS[level]}`}
-              style={{ width: `${Math.min((totalTokens / book.token_budget) * 100, 100)}%` }}
-            />
+      {/* ── Export panel (right) ── */}
+      <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
+        <p className="section-title">Export</p>
+
+        {/* Cover image */}
+        <div>
+          <label className="label-base">Cover Image</label>
+          <div
+            className="w-full h-28 rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center"
+            onClick={() => imageInputRef.current?.click()}
+            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleImageFile(f); }}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            {imageSrc
+              ? <img src={imageSrc} alt="cover" className="w-full h-full object-cover" />
+              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional, for PNG embed)</span></span>
+            }
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="text-xs text-white">Change</span>
+            </div>
           </div>
-          <span className="text-text-muted">budget: {book.token_budget}</span>
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
         </div>
-      )}
+
+        {/* Token stats */}
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between"><span className="text-text-muted">Entries</span><span className="font-medium text-text-primary">{book.entries.length}</span></div>
+          <div className="flex justify-between"><span className="text-text-muted">Total tokens</span><span className={`font-bold ${TOKEN_BUDGET_COLORS[level]}`}>{totalTokens} tk</span></div>
+          <div className="flex justify-between"><span className="text-text-muted">Budget</span><span className="font-medium text-text-primary">{book.token_budget} tk</span></div>
+          <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
+            <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${budgetPct}%` }} />
+          </div>
+        </div>
+
+        {/* Book settings */}
+        <div className="border-t border-border pt-3">
+          <button
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary transition-colors mb-2"
+          >
+            <span className="font-medium">Book Settings</span>
+            {settingsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {settingsOpen && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-muted">Scan depth</span>
+                <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.scan_depth} onChange={(e) => updateBook({ scan_depth: Number(e.target.value) })} />
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-muted">Token budget</span>
+                <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.token_budget} onChange={(e) => updateBook({ token_budget: Number(e.target.value) })} />
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-muted">Recursive scan</span>
+                <button onClick={() => updateBook({ recursive_scanning: !book.recursive_scanning })} className="text-accent-purple">
+                  {book.recursive_scanning ? <ToggleRight size={18} /> : <ToggleLeft size={18} className="text-text-muted" />}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Export buttons */}
+        <div className="border-t border-border pt-3 space-y-2">
+          <button onClick={exportJson} className="btn-primary w-full justify-center py-2.5">
+            <FileJson size={14} /> Export JSON
+          </button>
+          <button onClick={exportPng} className="btn-secondary w-full justify-center py-2">
+            <Download size={14} /> Embed in PNG
+          </button>
+        </div>
+
+        {status && (
+          <p className={`text-xs text-center ${status.ok ? "text-green-600" : "text-red-500"}`}>{status.msg}</p>
+        )}
+
+        <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
+          <p><strong className="text-text-secondary">JSON</strong> — SillyTavern-compatible lorebook format.</p>
+          <p><strong className="text-text-secondary">PNG</strong> — embeds the lorebook using the <code className="bg-bg-tertiary px-1 rounded">lorebook</code> chunk.</p>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -265,7 +354,7 @@ function EntryEditor({ entry, onChange }: {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-5 pb-12 space-y-4">
+    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label-base">Entry Name</label>
@@ -315,7 +404,9 @@ function EntryEditor({ entry, onChange }: {
                 {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
               </button>
               <div className="relative">
-                <button type="button" onClick={paste} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"><ClipboardPaste size={12} /></button>
+                <button type="button" onClick={paste} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
+                  <ClipboardPaste size={12} />
+                </button>
                 {hint && <div className="absolute right-0 top-6 z-10 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg">Press Ctrl+V</div>}
               </div>
             </div>
@@ -323,18 +414,18 @@ function EntryEditor({ entry, onChange }: {
         </div>
         <textarea
           className="input-base resize-none"
-          rows={8}
-          placeholder="Dragons are ancient creatures of immense power. They are known for their ability to breathe fire..."
+          rows={9}
+          placeholder="Dragons are ancient creatures of immense power..."
           value={entry.content}
           onChange={(e) => onChange({ content: e.target.value })}
         />
       </div>
 
       {/* Options row */}
-      <div className="grid grid-cols-3 gap-3">
-        <ToggleField label="Enabled" value={entry.enabled} onChange={(v) => onChange({ enabled: v })} />
-        <ToggleField label="Constant" value={entry.constant} onChange={(v) => onChange({ constant: v })} description="Always inject" />
-        <ToggleField label="Selective" value={entry.selective} onChange={(v) => onChange({ selective: v })} description="Require secondary key" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <ToggleField label="Enabled"        value={entry.enabled}        onChange={(v) => onChange({ enabled: v })} />
+        <ToggleField label="Constant"       value={entry.constant}       onChange={(v) => onChange({ constant: v })}       description="Always inject" />
+        <ToggleField label="Selective"      value={entry.selective}      onChange={(v) => onChange({ selective: v })}      description="Require 2nd key" />
         <ToggleField label="Case Sensitive" value={entry.case_sensitive} onChange={(v) => onChange({ case_sensitive: v })} />
       </div>
 

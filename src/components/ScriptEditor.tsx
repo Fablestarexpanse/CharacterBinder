@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Download, FileJson, Copy, Check, ClipboardPaste, FileCode2 } from "lucide-react";
 import type { ScriptCard } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
@@ -14,9 +14,19 @@ const DEFAULT: ScriptCard = {
   version: "1.0",
 };
 
+// Minimal 1×1 transparent PNG fallback
+const MINIMAL_PNG = new Uint8Array([
+  137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
+  0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
+  0,0,0,12,73,68,65,84,8,215,99,248,207,0,0,0,2,0,1,
+  226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
+]);
+
 export default function ScriptEditor() {
   const [card, setCard] = useState<ScriptCard>(DEFAULT);
   const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   function update(patch: Partial<ScriptCard>) {
     setCard((c) => ({ ...c, ...patch }));
@@ -25,6 +35,12 @@ export default function ScriptEditor() {
   function setMsg(msg: string, ok: boolean) {
     setStatus({ msg, ok });
     setTimeout(() => setStatus(null), 3000);
+  }
+
+  function handleImageFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => { if (e.target?.result) setImageSrc(e.target.result as string); };
+    reader.readAsDataURL(file);
   }
 
   function exportJson() {
@@ -40,15 +56,16 @@ export default function ScriptEditor() {
   }
 
   function exportPng() {
-    const MINIMAL_PNG = new Uint8Array([
-      137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
-      0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
-      0,0,0,12,73,68,65,84,8,215,99,248,207,0,0,0,2,0,1,
-      226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
-    ]);
     try {
+      let pngBytes: Uint8Array;
+      if (imageSrc?.startsWith("data:image/")) {
+        const b64 = imageSrc.split(",")[1];
+        pngBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      } else {
+        pngBytes = MINIMAL_PNG;
+      }
       const json = JSON.stringify(card);
-      const result = encodeCharaToPng(MINIMAL_PNG, json, "script" as never, false);
+      const result = encodeCharaToPng(pngBytes, json, "script" as never, false);
       const blob = new Blob([result.buffer as ArrayBuffer], { type: "image/png" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -112,7 +129,6 @@ export default function ScriptEditor() {
             value={card.content}
             onChange={(e) => update({ content: e.target.value })}
           />
-          {/* Token bar */}
           {tokens > 0 && (
             <div className="mt-1.5">
               <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden">
@@ -138,9 +154,32 @@ export default function ScriptEditor() {
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
         <p className="section-title">Export</p>
 
-        <div className="space-y-1 text-xs text-text-secondary">
-          <div className="flex justify-between"><span className="text-text-muted">Tokens</span><span className={`font-medium ${TOKEN_BUDGET_COLORS[level]}`}>{tokens}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Version</span><input className="input-base py-0.5 text-xs w-20 text-right" value={card.version} onChange={(e) => update({ version: e.target.value })} /></div>
+        {/* Cover image */}
+        <div>
+          <label className="label-base">Cover Image</label>
+          <div
+            className="w-full h-28 rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center"
+            onClick={() => imageInputRef.current?.click()}
+            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleImageFile(f); }}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            {imageSrc
+              ? <img src={imageSrc} alt="cover" className="w-full h-full object-cover" />
+              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional, for PNG embed)</span></span>
+            }
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="text-xs text-white">Change</span>
+            </div>
+          </div>
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
+        </div>
+
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between"><span className="text-text-muted">Tokens</span><span className={`font-bold ${TOKEN_BUDGET_COLORS[level]}`}>{tokens}</span></div>
+          <div className="flex justify-between items-center"><span className="text-text-muted">Version</span><input className="input-base py-0.5 text-xs w-20 text-right" value={card.version} onChange={(e) => update({ version: e.target.value })} /></div>
+          <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
+            <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${barPct}%` }} />
+          </div>
         </div>
 
         <div className="border-t border-border pt-3 space-y-2">
@@ -158,7 +197,7 @@ export default function ScriptEditor() {
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
           <p><strong className="text-text-secondary">JSON</strong> — import directly in any compatible tool.</p>
-          <p><strong className="text-text-secondary">PNG</strong> — embeds the script in a PNG using the <code className="bg-bg-tertiary px-1 rounded">script</code> chunk.</p>
+          <p><strong className="text-text-secondary">PNG</strong> — embeds the script using the <code className="bg-bg-tertiary px-1 rounded">script</code> chunk.</p>
         </div>
       </aside>
     </div>

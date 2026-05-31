@@ -15,6 +15,14 @@ const DEFAULT: ScenarioCard = {
   version: "1.0",
 };
 
+// Minimal 1×1 transparent PNG fallback
+const MINIMAL_PNG = new Uint8Array([
+  137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
+  0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
+  0,0,0,12,73,68,65,84,8,215,99,248,207,0,0,0,2,0,1,
+  226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
+]);
+
 export default function ScenarioEditor() {
   const [card, setCard] = useState<ScenarioCard>(DEFAULT);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -55,12 +63,7 @@ export default function ScenarioEditor() {
         const b64 = imageSrc.split(",")[1];
         pngBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       } else {
-        pngBytes = new Uint8Array([
-          137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
-          0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
-          0,0,0,12,73,68,65,84,8,215,99,248,207,0,0,0,2,0,1,
-          226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
-        ]);
+        pngBytes = MINIMAL_PNG;
       }
       const json = JSON.stringify(card);
       const result = encodeCharaToPng(pngBytes, json, "scenario" as never, false);
@@ -93,45 +96,21 @@ export default function ScenarioEditor() {
           <p className="text-sm text-text-secondary mt-0.5">A standalone situation or setting card that can be dropped into any conversation.</p>
         </div>
 
-        {/* Meta row */}
-        <div className="flex gap-4">
-          <div className="flex-1 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label-base">Scenario Name</label>
-                <input className="input-base" placeholder="The Abandoned Lab..." value={card.name} onChange={(e) => update({ name: e.target.value })} />
-              </div>
-              <div>
-                <label className="label-base">Creator</label>
-                <input className="input-base" placeholder="Your name..." value={card.creator} onChange={(e) => update({ creator: e.target.value })} />
-              </div>
-            </div>
-
-            <div>
-              <label className="label-base">Description</label>
-              <textarea className="input-base resize-none" rows={2} placeholder="Brief overview of this scenario..." value={card.description} onChange={(e) => update({ description: e.target.value })} />
-            </div>
+        {/* Meta */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label-base">Scenario Name</label>
+            <input className="input-base" placeholder="The Abandoned Lab..." value={card.name} onChange={(e) => update({ name: e.target.value })} />
           </div>
-
-          {/* Image */}
-          <div className="shrink-0">
-            <label className="label-base">Scene Image</label>
-            <div
-              className="w-40 h-28 rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center"
-              onClick={() => imageInputRef.current?.click()}
-              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleImageFile(f); }}
-              onDragOver={(e) => e.preventDefault()}
-            >
-              {imageSrc
-                ? <img src={imageSrc} alt="scene" className="w-full h-full object-cover" />
-                : <span className="text-xs text-text-muted text-center px-2">Drop image or click</span>
-              }
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-xs text-white">Change</span>
-              </div>
-            </div>
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
+          <div>
+            <label className="label-base">Creator</label>
+            <input className="input-base" placeholder="Your name..." value={card.creator} onChange={(e) => update({ creator: e.target.value })} />
           </div>
+        </div>
+
+        <div>
+          <label className="label-base">Description</label>
+          <textarea className="input-base resize-none" rows={2} placeholder="Brief overview of this scenario..." value={card.description} onChange={(e) => update({ description: e.target.value })} />
         </div>
 
         {/* Scenario */}
@@ -155,6 +134,26 @@ export default function ScenarioEditor() {
       {/* Export panel */}
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
         <p className="section-title">Export</p>
+
+        {/* Scene image */}
+        <div>
+          <label className="label-base">Scene Image</label>
+          <div
+            className="w-full h-28 rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center"
+            onClick={() => imageInputRef.current?.click()}
+            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleImageFile(f); }}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            {imageSrc
+              ? <img src={imageSrc} alt="scene" className="w-full h-full object-cover" />
+              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional, for PNG embed)</span></span>
+            }
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="text-xs text-white">Change</span>
+            </div>
+          </div>
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
+        </div>
 
         <div className="space-y-1 text-xs">
           <div className="flex justify-between"><span className="text-text-muted">Scenario</span><span className="font-medium text-text-primary">{scenarioTokens} tk</span></div>
@@ -183,7 +182,7 @@ export default function ScenarioEditor() {
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
           <p><strong className="text-text-secondary">JSON</strong> — drop into SillyTavern or any compatible tool.</p>
-          <p><strong className="text-text-secondary">PNG</strong> — scenario embedded using the <code className="bg-bg-tertiary px-1 rounded">scenario</code> chunk.</p>
+          <p><strong className="text-text-secondary">PNG</strong> — embeds the scenario using the <code className="bg-bg-tertiary px-1 rounded">scenario</code> chunk.</p>
         </div>
       </aside>
     </div>

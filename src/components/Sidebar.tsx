@@ -27,28 +27,28 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Character Cards",
+    label: "Card Types",
     items: [
-      { page: "create", label: "Create Card", icon: PlusSquare },
-      { page: "library", label: "Library", icon: Library },
-      { page: "templates", label: "Templates", icon: LayoutTemplate },
+      { page: "create",   label: "Create Character", icon: PlusSquare },
+      { page: "lorebook", label: "Lorebook",          icon: BookOpen },
+      { page: "script",   label: "Script Card",       icon: FileCode2 },
+      { page: "scenario", label: "Scenario Card",     icon: Map },
     ],
   },
   {
-    label: "Card Types",
+    label: "Collection",
     items: [
-      { page: "lorebook", label: "Lorebook", icon: BookOpen },
-      { page: "script", label: "Script Card", icon: FileCode2 },
-      { page: "scenario", label: "Scenario Card", icon: Map },
+      { page: "library",   label: "Library",    icon: Library },
+      { page: "templates", label: "Templates",  icon: LayoutTemplate },
     ],
   },
   {
     label: "Tools",
     items: [
-      { page: "import", label: "Import PNG", icon: Upload },
-      { page: "decode", label: "Decode PNG", icon: FileSearch },
-      { page: "settings", label: "Settings", icon: Settings },
-      { page: "help", label: "Help / About", icon: HelpCircle },
+      { page: "import",   label: "Import PNG",   icon: Upload },
+      { page: "decode",   label: "Decode PNG",   icon: FileSearch },
+      { page: "settings", label: "Settings",     icon: Settings },
+      { page: "help",     label: "Help / About", icon: HelpCircle },
     ],
   },
 ];
