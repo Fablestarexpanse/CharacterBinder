@@ -44,19 +44,19 @@ function App() {
   // ── Lorebook editor library-load state ──
   const [lorebookKey, setLorebookKey] = useState(0);
   const [lorebookInit, setLorebookInit] = useState<{
-    book: LoreBook; imageSrc: string | null; id: string;
+    book: LoreBook; imageSrc: string | null; id?: string;
   } | null>(null);
 
   // ── Script editor library-load state ──
   const [scriptKey, setScriptKey] = useState(0);
   const [scriptInit, setScriptInit] = useState<{
-    card: ScriptCard; imageSrc: string | null; id: string;
+    card: ScriptCard; imageSrc: string | null; id?: string;
   } | null>(null);
 
   // ── Scenario editor library-load state ──
   const [scenarioKey, setScenarioKey] = useState(0);
   const [scenarioInit, setScenarioInit] = useState<{
-    card: ScenarioCard; imageSrc: string | null; id: string;
+    card: ScenarioCard; imageSrc: string | null; id?: string;
   } | null>(null);
 
   // ── Character card handlers ──
@@ -147,6 +147,25 @@ function App() {
     setActivePage("scenario");
   }, []);
 
+  // ── Import-from-PNG handlers (no library id yet) ──
+  const handleImportLorebook = useCallback((book: LoreBook, imageSrc: string | null) => {
+    setLorebookInit({ book, imageSrc });
+    setLorebookKey((k) => k + 1);
+    setActivePage("lorebook");
+  }, []);
+
+  const handleImportScript = useCallback((card: ScriptCard, imageSrc: string | null) => {
+    setScriptInit({ card, imageSrc });
+    setScriptKey((k) => k + 1);
+    setActivePage("script");
+  }, []);
+
+  const handleImportScenario = useCallback((card: ScenarioCard, imageSrc: string | null) => {
+    setScenarioInit({ card, imageSrc });
+    setScenarioKey((k) => k + 1);
+    setActivePage("scenario");
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
       {showClearConfirm && (
@@ -199,7 +218,14 @@ function App() {
             initialLibraryId={scenarioInit?.id}
           />
         )}
-        {activePage === "import" && <ImportPNG onLoad={loadCard} />}
+        {activePage === "import" && (
+          <ImportPNG
+            onLoad={loadCard}
+            onLoadLorebook={handleImportLorebook}
+            onLoadScript={handleImportScript}
+            onLoadScenario={handleImportScenario}
+          />
+        )}
         {activePage === "decode" && <DecodePNG onLoad={loadCard} />}
         {activePage === "templates" && <Templates onLoad={loadCard} />}
         {activePage === "library" && (

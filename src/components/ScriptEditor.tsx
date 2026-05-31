@@ -35,6 +35,9 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [outputFileName, setOutputFileName] = useState(
+    ((initialCard?.name || "script").replace(/\s+/g, "_")) + "_script.png"
+  );
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   function update(patch: Partial<ScriptCard>) {
@@ -50,6 +53,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
     setCard(DEFAULT);
     setImageSrc(null);
     setLibraryId(undefined);
+    setOutputFileName("script.png");
     setConfirmClear(false);
     setStatus(null);
   }
@@ -66,7 +70,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = (card.name || "script").replace(/\s+/g, "_") + "_script.json";
+    a.download = outputFileName.replace(/\.png$/, ".json");
     a.click();
     URL.revokeObjectURL(url);
     setMsg("JSON exported!", true);
@@ -87,7 +91,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = (card.name || "script").replace(/\s+/g, "_") + "_script.png";
+      a.download = outputFileName;
       a.click();
       URL.revokeObjectURL(url);
       setMsg("PNG exported!", true);
@@ -190,6 +194,23 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
               <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${barPct}%` }} />
             </div>
           )}
+        </div>
+
+        {/* Output Settings */}
+        <div className="border-t border-border pt-3 space-y-2">
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Output Settings</p>
+          <div>
+            <label className="label-base">Output File</label>
+            <input
+              className="input-base text-xs"
+              value={outputFileName}
+              onChange={(e) => setOutputFileName(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-muted">Metadata key</span>
+            <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">script</code>
+          </div>
         </div>
 
         <div className="border-t border-border pt-3 space-y-2">

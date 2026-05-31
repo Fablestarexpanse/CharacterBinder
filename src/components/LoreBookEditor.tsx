@@ -97,6 +97,9 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   const [saving, setSaving] = useState(false);
   const [draggingJson, setDraggingJson] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [outputFileName, setOutputFileName] = useState(
+    ((initialBook?.name || "lorebook").replace(/\s+/g, "_")) + "_lorebook.png"
+  );
   const imageInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef  = useRef<HTMLInputElement>(null);
 
@@ -161,6 +164,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     setSelectedId(null);
     setImageSrc(null);
     setLibraryId(undefined);
+    setOutputFileName("lorebook.png");
     setConfirmClear(false);
     setStatus(null);
   }
@@ -198,7 +202,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = (book.name || "lorebook").replace(/\s+/g, "_") + ".json";
+    a.download = outputFileName.replace(/\.png$/, ".json");
     a.click();
     URL.revokeObjectURL(url);
     setMsg("Lorebook JSON exported!", true);
@@ -219,7 +223,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = (book.name || "lorebook").replace(/\s+/g, "_") + "_lorebook.png";
+      a.download = outputFileName;
       a.click();
       URL.revokeObjectURL(url);
       setMsg("PNG exported!", true);
@@ -421,6 +425,23 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           <div className="flex justify-between"><span className="text-text-muted">Budget</span><span className="font-medium text-text-primary">{book.token_budget} tk</span></div>
           <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
             <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${budgetPct}%` }} />
+          </div>
+        </div>
+
+        {/* Output Settings */}
+        <div className="border-t border-border pt-3 space-y-2">
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Output Settings</p>
+          <div>
+            <label className="label-base">Output File</label>
+            <input
+              className="input-base text-xs"
+              value={outputFileName}
+              onChange={(e) => setOutputFileName(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-muted">Metadata key</span>
+            <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">lorebook</code>
           </div>
         </div>
 
