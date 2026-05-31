@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import {
-  Plus, Trash2, BookOpen, FileJson, Download, Save,
+  Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
   ChevronDown, ChevronUp,
   ToggleLeft, ToggleRight, Copy, Check, ClipboardPaste,
 } from "lucide-react";
@@ -41,6 +41,46 @@ const MINIMAL_PNG = new Uint8Array([
   226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
 ]);
 
+// ─── SillyTavern lorebook JSON parser ───────────────────────────────────────
+// ST entries can be an object keyed by numeric strings OR a plain array.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseSillyTavernLorebook(raw: any): LoreBook {
+  const name: string               = raw.name              ?? "";
+  const description: string        = raw.description       ?? "";
+  const scan_depth: number         = raw.scan_depth        ?? 50;
+  const token_budget: number       = raw.token_budget      ?? 512;
+  const recursive_scanning: boolean = raw.recursive_scanning ?? false;
+
+  // Entries: handle both object-map {"0": {...}, "1": {...}} and array [{...}]
+  let rawEntries: unknown[];
+  if (Array.isArray(raw.entries)) {
+    rawEntries = raw.entries;
+  } else if (raw.entries && typeof raw.entries === "object") {
+    rawEntries = Object.values(raw.entries);
+  } else {
+    rawEntries = [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entries: LoreEntry[] = rawEntries.map((e: any) => ({
+    id:               crypto.randomUUID(),
+    name:             e.name             ?? e.comment ?? "",
+    comment:          e.comment          ?? e.name    ?? "",
+    keys:             Array.isArray(e.keys)           ? e.keys           : [],
+    secondary_keys:   Array.isArray(e.secondary_keys) ? e.secondary_keys : [],
+    content:          e.content          ?? "",
+    enabled:          e.enabled          ?? true,
+    insertion_order:  e.insertion_order  ?? 100,
+    case_sensitive:   e.case_sensitive   ?? false,
+    priority:         e.priority         ?? 10,
+    selective:        e.selective        ?? false,
+    constant:         e.constant         ?? false,
+    position:         (e.position === "after_char" ? "after_char" : "before_char") as LoreEntry["position"],
+  }));
+
+  return { name, description, scan_depth, token_budget, recursive_scanning, entries };
+}
+
 interface LoreBookEditorProps {
   initialBook?: LoreBook;
   initialImageSrc?: string | null;
@@ -55,7 +95,9 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
+  const [draggingJson, setDraggingJson] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const jsonInputRef  = useRef<HTMLInputElement>(null);
 
   function updateBook(patch: Partial<LoreBook>) {
     setBook((b) => ({ ...b, ...patch }));
@@ -88,6 +130,24 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     const reader = new FileReader();
     reader.onload = (e) => { if (e.target?.result) setImageSrc(e.target.result as string); };
     reader.readAsDataURL(file);
+  }
+
+  function handleJsonFile(file: File) {
+    if (!file.name.endsWith(".json")) { setMsg("Please drop a .json file.", false); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const raw = JSON.parse(e.target?.result as string);
+        const parsed = parseSillyTavernLorebook(raw);
+        setBook(parsed);
+        setSelectedId(parsed.entries[0]?.id ?? null);
+        setLibraryId(undefined); // treat as a new unsaved book
+        setMsg(`Imported "${parsed.name || file.name}" — ${parsed.entries.length} entries`, true);
+      } catch {
+        setMsg("Failed to parse lorebook JSON.", false);
+      }
+    };
+    reader.readAsText(file);
   }
 
   function setMsg(msg: string, ok: boolean) {
@@ -184,7 +244,34 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   const budgetPct = Math.min((totalTokens / Math.max(book.token_budget, 1)) * 100, 100);
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div
+      className="h-full flex overflow-hidden relative"
+      onDragOver={(e) => { e.preventDefault(); if (e.dataTransfer.types.includes("Files")) setDraggingJson(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDraggingJson(false); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDraggingJson(false);
+        const file = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".json"));
+        if (file) handleJsonFile(file);
+      }}
+    >
+      {/* Full-screen JSON drop overlay */}
+      {draggingJson && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 pointer-events-none"
+          style={{ background: "rgba(139,92,246,0.12)", border: "2px dashed rgba(139,92,246,0.5)" }}>
+          <Upload size={36} className="text-accent-purple opacity-80" />
+          <p className="text-sm font-semibold text-accent-purple">Drop SillyTavern lorebook JSON</p>
+        </div>
+      )}
+
+      {/* Hidden JSON file input */}
+      <input
+        ref={jsonInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleJsonFile(f); e.target.value = ""; }}
+      />
 
       {/* ── Entry list sidebar ── */}
       <div className="w-60 border-r border-border bg-bg-secondary flex flex-col shrink-0">
@@ -192,11 +279,18 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           <div className="flex items-center gap-2">
             <BookOpen size={15} className="text-accent-purple shrink-0" />
             <input
-              className="input-base py-1 text-sm font-semibold"
+              className="input-base py-1 text-sm font-semibold flex-1 min-w-0"
               placeholder="Lorebook name..."
               value={book.name}
               onChange={(e) => updateBook({ name: e.target.value })}
             />
+            <button
+              onClick={() => jsonInputRef.current?.click()}
+              title="Import SillyTavern lorebook JSON"
+              className="shrink-0 p-1.5 rounded-lg text-text-muted hover:text-accent-purple hover:bg-accent-purple/10 transition-colors"
+            >
+              <Upload size={14} />
+            </button>
           </div>
           <textarea
             className="input-base resize-none text-xs"
@@ -274,6 +368,15 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           <div className="mt-4 text-xs text-text-muted text-center max-w-xs space-y-1.5">
             <p>Each entry has <strong className="text-text-secondary">trigger keys</strong> and <strong className="text-text-secondary">content</strong> that gets injected when those keywords appear in conversation.</p>
           </div>
+          {/* Import hint */}
+          <button
+            onClick={() => jsonInputRef.current?.click()}
+            className="mt-2 flex items-center gap-2 text-xs text-text-muted border border-dashed border-border rounded-lg px-4 py-2.5 hover:border-accent-purple/50 hover:text-accent-purple transition-colors"
+          >
+            <Upload size={13} />
+            Import SillyTavern lorebook JSON
+          </button>
+          <p className="text-[10px] text-text-muted">or drag &amp; drop a .json file anywhere</p>
         </div>
       )}
 
