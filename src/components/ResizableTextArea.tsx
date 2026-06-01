@@ -38,15 +38,16 @@ export default function ResizableTextArea({ className = "input-base", style, ...
         style={{ ...style, ...(height !== null ? { height: `${height}px` } : {}) }}
         {...props}
       />
-      {/* Resize handle bar — lives outside the textarea, no z-index needed */}
+      {/* Resize handle bar — distinct purple tint so it's always visible */}
       <div
         onMouseDown={startResize}
-        className="flex items-center justify-end px-2 h-4 rounded-b-lg border border-t-0 border-border cursor-s-resize select-none bg-bg-tertiary hover:bg-accent-purple/20 transition-colors group"
+        className="flex items-center justify-center h-3 rounded-b-lg cursor-s-resize select-none transition-colors"
+        style={{ background: "rgba(139,92,246,0.18)", borderTop: "1px solid rgba(139,92,246,0.25)" }}
         title="Drag to resize"
       >
-        <svg width="16" height="6" viewBox="0 0 16 6" fill="none">
-          <line x1="2" y1="1" x2="14" y2="1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-text-muted group-hover:text-accent-purple" />
-          <line x1="2" y1="5" x2="14" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-text-muted group-hover:text-accent-purple" />
+        <svg width="24" height="6" viewBox="0 0 24 6" fill="none">
+          <line x1="3" y1="1.5" x2="21" y2="1.5" stroke="rgba(139,92,246,0.6)" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="3" y1="4.5" x2="21" y2="4.5" stroke="rgba(139,92,246,0.6)" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
     </div>
