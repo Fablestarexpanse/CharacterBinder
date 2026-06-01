@@ -3,6 +3,7 @@ import { Download, FileJson, FileCode2, Save } from "lucide-react";
 import type { ScriptCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
+import TagInput from "./TagInput";
 
 const DEFAULT: ScriptCard = {
   spec: "script_card_v1",
@@ -169,15 +170,12 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         </div>
 
         {/* Tags */}
-        <div>
-          <label className="label-base">Tags (comma-separated)</label>
-          <input className="input-base" placeholder="roleplay, assistant, narration..." value={card.tags.join(", ")} onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />
-          {card.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {card.tags.map((t) => <span key={t} className="badge-purple">{t}</span>)}
-            </div>
-          )}
-        </div>
+        <TagInput
+          label="Tags (comma-separated)"
+          placeholder="roleplay, assistant, narration..."
+          tags={card.tags}
+          onChange={(tags) => update({ tags })}
+        />
       </div>
 
       {/* ── Export panel ── */}

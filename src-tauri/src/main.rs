@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tavern_card_studio_lib::run()
+    character_binder_lib::run()
 }

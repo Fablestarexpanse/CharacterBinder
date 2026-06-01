@@ -3,6 +3,7 @@ import { Download, FileJson, Copy, Check, ClipboardPaste, Map, Save } from "luci
 import type { ScenarioCard } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
+import TagInput from "./TagInput";
 import { saveAnyCard } from "../lib/library";
 
 const DEFAULT: ScenarioCard = {
@@ -161,15 +162,12 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
 
         <TextAreaField label="Creator Notes" value={card.creator_notes} placeholder={"Notes for users — recommended characters, content warnings, usage tips..."} onChange={(v) => update({ creator_notes: v })} rows={3} />
 
-        <div>
-          <label className="label-base">Tags</label>
-          <input className="input-base" placeholder="horror, sci-fi, mystery..." value={card.tags.join(", ")} onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />
-          {card.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {card.tags.map((t) => <span key={t} className="badge-purple">{t}</span>)}
-            </div>
-          )}
-        </div>
+        <TagInput
+          label="Tags (comma-separated)"
+          placeholder="horror, sci-fi, mystery..."
+          tags={card.tags}
+          onChange={(tags) => update({ tags })}
+        />
       </div>
 
       {/* Export panel */}

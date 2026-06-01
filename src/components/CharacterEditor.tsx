@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import type { TavernCardV2 } from "../types";
 import { Plus, Minus, ChevronDown, ChevronUp, Image, Copy, ClipboardPaste, Check } from "lucide-react";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
+import TagInput from "./TagInput";
 
 interface CharacterEditorProps {
   card: TavernCardV2;
@@ -291,26 +292,12 @@ export default function CharacterEditor({
               placeholder="Notes for users of this character card..."
             />
 
-            <div>
-              <label className="label-base">Tags (comma-separated)</label>
-              <input
-                className="input-base"
-                placeholder="fantasy, male, OC, ..."
-                value={data.tags.join(", ")}
-                onChange={(e) =>
-                  onUpdate({
-                    tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean),
-                  })
-                }
-              />
-              {data.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {data.tags.map((tag) => (
-                    <span key={tag} className="badge-purple">{tag}</span>
-                  ))}
-                </div>
-              )}
-            </div>
+            <TagInput
+              label="Tags (comma-separated)"
+              placeholder="fantasy, male, OC, ..."
+              tags={data.tags}
+              onChange={(tags) => onUpdate({ tags })}
+            />
 
             {/* Alternate Greetings */}
             <div>

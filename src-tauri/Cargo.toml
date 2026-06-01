@@ -1,6 +1,6 @@
 [package]
 name = "character-binder"
-version = "1.0.0"
+version = "1.4.0"
 description = "CharacterBinder - Create, edit, and export character cards for AI roleplay platforms"
 authors = []
 edition = "2021"

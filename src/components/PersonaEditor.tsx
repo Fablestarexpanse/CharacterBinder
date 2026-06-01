@@ -3,6 +3,7 @@ import { Download, FileJson, Copy, Check, ClipboardPaste, UserCircle, Save, Plus
 import type { PersonaCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
+import TagInput from "./TagInput";
 
 const DEFAULT: PersonaCard = {
   spec: "persona_card_v1",
@@ -188,20 +189,12 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
           placeholder="Notes for users of this persona — usage tips, compatibility, changelog..."
         />
 
-        <div>
-          <label className="label-base">Tags</label>
-          <input
-            className="input-base"
-            placeholder="human, mage, noble..."
-            value={card.tags.join(", ")}
-            onChange={(e) => update({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })}
-          />
-          {card.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {card.tags.map((t) => <span key={t} className="badge-purple">{t}</span>)}
-            </div>
-          )}
-        </div>
+        <TagInput
+          label="Tags (comma-separated)"
+          placeholder="human, mage, noble..."
+          tags={card.tags}
+          onChange={(tags) => update({ tags })}
+        />
       </div>
 
       {/* ── Export panel ── */}
