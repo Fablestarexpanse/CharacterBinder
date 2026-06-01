@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Download, FileJson, FileCode2, Save } from "lucide-react";
+import ResizableTextArea from "./ResizableTextArea";
 import type { ScriptCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
@@ -142,8 +143,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         {/* Creator Notes */}
         <div>
           <label className="label-base">Creator Notes</label>
-          <textarea
-            className="input-base"
+          <ResizableTextArea
             rows={3}
             placeholder="Notes for users of this script — usage instructions, requirements, changelog..."
             value={card.creator_notes}

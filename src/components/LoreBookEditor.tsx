@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import ResizableTextArea from "./ResizableTextArea";
 import {
   Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
   ChevronDown, ChevronUp,
@@ -300,7 +301,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
               <Upload size={14} />
             </button>
           </div>
-          <textarea
+          <ResizableTextArea
             className="input-base text-xs"
             rows={2}
             placeholder="Brief description..."
@@ -313,7 +314,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
             value={book.creator}
             onChange={(e) => updateBook({ creator: e.target.value })}
           />
-          <textarea
+          <ResizableTextArea
             className="input-base text-xs"
             rows={2}
             placeholder="Creator notes — usage tips, content warnings, changelog..."
@@ -539,8 +540,7 @@ function EntryEditor({ entry, onChange }: {
             {tokens > 0 && <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[entryLevel]}`}>{tokens} tk</span>}
           </div>
         </div>
-        <textarea
-          className="input-base"
+        <ResizableTextArea
           rows={9}
           placeholder="Dragons are ancient creatures of immense power..."
           value={entry.content}

@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Plain rules outside @layer sit above all Tailwind layers in the cascade,
+ * so this resize cannot be overridden by any utility class.
+ */
+textarea.input-base {
+  resize: vertical;
+  min-height: 4em; /* ensures a visible grab-corner even on short fields */
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -57,11 +66,6 @@
 @layer components {
   .input-base {
     @apply w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-purple focus:ring-1 focus:ring-accent-purple transition-colors text-sm;
-  }
-
-  /* Textareas are vertically resizable by default so users can drag them taller. */
-  textarea.input-base {
-    resize: vertical;
   }
 
   .label-base {

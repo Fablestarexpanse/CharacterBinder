@@ -4,6 +4,7 @@ import { Plus, Minus, ChevronDown, ChevronUp, Image } from "lucide-react";
 import { readImageFile } from "../lib/readImageFile";
 import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
+import ResizableTextArea from "./ResizableTextArea";
 
 interface CharacterEditorProps {
   card: TavernCardV2;
@@ -299,7 +300,7 @@ export default function CharacterEditor({
               </div>
               {data.alternate_greetings.map((greeting, i) => (
                 <div key={i} className="flex gap-2 mb-2">
-                  <textarea
+                  <ResizableTextArea
                     className="input-base flex-1"
                     rows={2}
                     value={greeting}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Download, FileJson, Map, Save } from "lucide-react";
 import type { ScenarioCard } from "../types";
+import ResizableTextArea from "./ResizableTextArea";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
@@ -137,7 +138,7 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
 
         <div>
           <label className="label-base">Description</label>
-          <textarea className="input-base" rows={2} placeholder="Brief overview of this scenario..." value={card.description} onChange={(e) => update({ description: e.target.value })} />
+          <ResizableTextArea rows={2} placeholder="Brief overview of this scenario..." value={card.description} onChange={(e) => update({ description: e.target.value })} />
         </div>
 
         <TextAreaField label="Scenario" value={card.scenario} placeholder={"You find yourself in a dimly lit laboratory. The air smells of ozone and old chemicals..."} onChange={(v) => update({ scenario: v })} rows={6} />
