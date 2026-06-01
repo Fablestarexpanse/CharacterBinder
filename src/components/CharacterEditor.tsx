@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import type { TavernCardV2 } from "../types";
-import { Plus, Minus, ChevronDown, ChevronUp, Image, Copy, ClipboardPaste, Check } from "lucide-react";
-import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
+import { Plus, Minus, ChevronDown, ChevronUp, Image } from "lucide-react";
+import { readImageFile } from "../lib/readImageFile";
 import TagInput from "./TagInput";
+import TextAreaField from "./TextAreaField";
 
 interface CharacterEditorProps {
   card: TavernCardV2;
@@ -30,19 +31,16 @@ export default function CharacterEditor({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const { data } = card;
 
-  const handleImageFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) onUpdateImage(e.target.result as string);
-    };
-    reader.readAsDataURL(file);
-  }, [onUpdateImage]);
+  async function handleImageFile(file: File) {
+    const src = await readImageFile(file);
+    onUpdateImage(src);
+  }
 
-  const handleImageDrop = useCallback((e: React.DragEvent) => {
+  function handleImageDrop(e: React.DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file?.type.startsWith("image/")) handleImageFile(file);
-  }, [handleImageFile]);
+  }
 
   const addAlternateGreeting = () => {
     onUpdate({ alternate_greetings: [...data.alternate_greetings, ""] });
@@ -80,7 +78,7 @@ export default function CharacterEditor({
                 <label className="label-base">Source</label>
                 <select
                   className="input-base"
-                  value={data.extensions?.source as string ?? SOURCES[0]}
+                  value={(data.extensions?.source as string | undefined) ?? SOURCES[0]}
                   onChange={(e) =>
                     onUpdate({ extensions: { ...data.extensions, source: e.target.value } })
                   }
@@ -95,7 +93,6 @@ export default function CharacterEditor({
             <TextAreaField
               label="Description"
               value={data.description}
-              
               rows={3}
               onChange={(v) => onUpdate({ description: v })}
               placeholder="Describe your character..."
@@ -104,7 +101,6 @@ export default function CharacterEditor({
             <TextAreaField
               label="Personality"
               value={data.personality}
-
               rows={3}
               onChange={(v) => onUpdate({ personality: v })}
               placeholder="Character personality traits..."
@@ -113,7 +109,6 @@ export default function CharacterEditor({
             <TextAreaField
               label="Scenario"
               value={data.scenario}
-
               rows={2}
               onChange={(v) => onUpdate({ scenario: v })}
               placeholder="The setting or situation the character exists in..."
@@ -122,7 +117,6 @@ export default function CharacterEditor({
             <TextAreaField
               label="First Message"
               value={data.first_mes}
-
               rows={3}
               onChange={(v) => onUpdate({ first_mes: v })}
               placeholder="The opening message the character sends to start a conversation..."
@@ -224,7 +218,6 @@ export default function CharacterEditor({
           <TextAreaField
             label="Raw Dialog Block"
             value={data.mes_example}
-
             rows={4}
             onChange={(v) => onUpdate({ mes_example: v })}
             placeholder={`{{user}}: Hello!\n{{char}}: Hi there.`}
@@ -268,7 +261,6 @@ export default function CharacterEditor({
             <TextAreaField
               label="System Prompt"
               value={data.system_prompt}
-
               rows={3}
               onChange={(v) => onUpdate({ system_prompt: v })}
               placeholder="Optional system prompt injected at the start of every conversation..."
@@ -277,7 +269,6 @@ export default function CharacterEditor({
             <TextAreaField
               label="Post-History Instructions"
               value={data.post_history_instructions}
-
               rows={2}
               onChange={(v) => onUpdate({ post_history_instructions: v })}
               placeholder="Instructions injected after chat history..."
@@ -286,7 +277,6 @@ export default function CharacterEditor({
             <TextAreaField
               label="Creator Notes"
               value={data.creator_notes}
-
               rows={2}
               onChange={(v) => onUpdate({ creator_notes: v })}
               placeholder="Notes for users of this character card..."
@@ -310,7 +300,7 @@ export default function CharacterEditor({
               {data.alternate_greetings.map((greeting, i) => (
                 <div key={i} className="flex gap-2 mb-2">
                   <textarea
-                    className="input-base resize-none flex-1"
+                    className="input-base flex-1"
                     rows={2}
                     value={greeting}
                     onChange={(e) => updateAlternateGreeting(i, e.target.value)}
@@ -328,96 +318,6 @@ export default function CharacterEditor({
           </div>
         )}
       </section>
-    </div>
-  );
-}
-
-interface TextAreaFieldProps {
-  label: string;
-  value: string;
-  rows: number;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}
-
-function TextAreaField({ label, value, rows, onChange, placeholder }: TextAreaFieldProps) {
-  const tokens = countTokens(value);
-  const [copied, setCopied] = useState(false);
-  const [pasteHint, setPasteHint] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  function handleCopy() {
-    navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
-  async function handlePaste() {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!textareaRef.current || !text) return;
-      const el = textareaRef.current;
-      const start = el.selectionStart ?? value.length;
-      const end = el.selectionEnd ?? value.length;
-      const next = value.slice(0, start) + text + value.slice(end);
-      onChange(next);
-      setTimeout(() => {
-        el.focus();
-        el.setSelectionRange(start + text.length, start + text.length);
-      }, 0);
-    } catch {
-      // Clipboard read permission denied — focus the field so Ctrl+V works
-      textareaRef.current?.focus();
-      setPasteHint(true);
-      setTimeout(() => setPasteHint(false), 2500);
-    }
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <label className="label-base mb-0">{label}</label>
-        <div className="flex items-center gap-2">
-          {value.length > 0 && (
-            <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[getTokenBudgetLevel(tokens)]}`}>
-              {tokens} tk
-            </span>
-          )}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handleCopy}
-              title="Copy"
-              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-            >
-              {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-            </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={handlePaste}
-                title="Paste from clipboard"
-                className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-              >
-                <ClipboardPaste size={12} />
-              </button>
-              {pasteHint && (
-                <div className="absolute right-0 top-6 z-10 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg">
-                  Press Ctrl+V to paste
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      <textarea
-        ref={textareaRef}
-        className="input-base resize-none"
-        rows={rows}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
     </div>
   );
 }

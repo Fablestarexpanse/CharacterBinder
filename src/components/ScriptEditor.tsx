@@ -1,8 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Download, FileJson, FileCode2, Save } from "lucide-react";
 import type { ScriptCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
+import { MINIMAL_PNG } from "../lib/minimalPng";
+import { useStatusMessage } from "../hooks/useStatusMessage";
+import ImageDropzone from "./ImageDropzone";
+import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
 
 const DEFAULT: ScriptCard = {
@@ -16,13 +20,6 @@ const DEFAULT: ScriptCard = {
   creator_notes: "",
 };
 
-const MINIMAL_PNG = new Uint8Array([
-  137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
-  0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
-  0,0,0,12,73,68,65,84,8,215,99,248,207,0,0,0,2,0,1,
-  226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
-]);
-
 interface ScriptEditorProps {
   initialCard?: ScriptCard;
   initialImageSrc?: string | null;
@@ -31,16 +28,14 @@ interface ScriptEditorProps {
 
 export default function ScriptEditor({ initialCard, initialImageSrc, initialLibraryId }: ScriptEditorProps) {
   const [card, setCard] = useState<ScriptCard>(initialCard ?? DEFAULT);
-  const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+  const { status, setMsg } = useStatusMessage();
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
   const [savedVersion, setSavedVersion] = useState<string>(initialCard?.version ?? "1.0");
-  const [confirmClear, setConfirmClear] = useState(false);
   const [outputFileName, setOutputFileName] = useState(
     ((initialCard?.name || "script").replace(/\s+/g, "_")) + "_script.png"
   );
-  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-sync filename to script name
   useEffect(() => {
@@ -52,25 +47,12 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
     setCard((c) => ({ ...c, ...patch }));
   }
 
-  function setMsg(msg: string, ok: boolean) {
-    setStatus({ msg, ok });
-    setTimeout(() => setStatus(null), 3000);
-  }
-
   function clearForNew() {
     setCard(DEFAULT);
     setImageSrc(null);
     setLibraryId(undefined);
     setSavedVersion("1.0");
     setOutputFileName("script.png");
-    setConfirmClear(false);
-    setStatus(null);
-  }
-
-  function handleImageFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = (e) => { if (e.target?.result) setImageSrc(e.target.result as string); };
-    reader.readAsDataURL(file);
   }
 
   function exportJson() {
@@ -161,7 +143,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         <div>
           <label className="label-base">Creator Notes</label>
           <textarea
-            className="input-base resize-none"
+            className="input-base"
             rows={3}
             placeholder="Notes for users of this script — usage instructions, requirements, changelog..."
             value={card.creator_notes}
@@ -182,25 +164,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
         <p className="section-title">Export</p>
 
-        {/* Cover image */}
-        <div>
-          <label className="label-base">Cover Image</label>
-          <div
-            className="w-full h-28 rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center"
-            onClick={() => imageInputRef.current?.click()}
-            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleImageFile(f); }}
-            onDragOver={(e) => e.preventDefault()}
-          >
-            {imageSrc
-              ? <img src={imageSrc} alt="cover" className="w-full h-full object-cover" />
-              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional)</span></span>
-            }
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-xs text-white">Change</span>
-            </div>
-          </div>
-          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
-        </div>
+        <ImageDropzone label="Cover Image" imageSrc={imageSrc} onFile={setImageSrc} />
 
         {/* Output Settings */}
         <div className="border-t border-border pt-3 space-y-2">
@@ -227,23 +191,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
           <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
             <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
           </button>
-          {!confirmClear ? (
-            <button
-              onClick={() => setConfirmClear(true)}
-              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-950/20 transition-colors"
-            >
-              <span className="text-base leading-none">+</span> New Script Card
-            </button>
-          ) : (
-            <div className="rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2.5 space-y-2">
-              <p className="text-xs font-medium text-red-400">Clear this script and start fresh?</p>
-              <p className="text-[11px] text-red-400/70">Library saves are not affected.</p>
-              <div className="flex gap-2">
-                <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">Yes, clear it</button>
-                <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-950/50 transition-colors">Cancel</button>
-              </div>
-            </div>
-          )}
+          <ConfirmClearPanel label="Script Card" onConfirm={clearForNew} />
         </div>
 
         <div className="space-y-2">
@@ -275,7 +223,19 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef   = useRef<HTMLDivElement>(null);
 
-  const lineCount = Math.max(1, value.split("\n").length);
+  // Count newlines with a regex instead of allocating a split array on every keystroke.
+  const lineCount = useMemo(
+    () => (value.match(/\n/g)?.length ?? 0) + 1,
+    [value]
+  );
+
+  // Memoize the gutter line-number divs so they only rebuild when count changes.
+  const gutterLines = useMemo(
+    () => Array.from({ length: lineCount }, (_, i) => (
+      <div key={i} style={{ height: "1.65em" }}>{i + 1}</div>
+    )),
+    [lineCount]
+  );
 
   const syncScroll = useCallback(() => {
     if (gutterRef.current && textareaRef.current) {
@@ -341,12 +301,10 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
             borderRight: "1px solid rgba(100,110,160,0.12)",
           }}
         >
-          {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i} style={{ height: "1.65em" }}>{i + 1}</div>
-          ))}
+          {gutterLines}
         </div>
 
-        {/* Code textarea */}
+        {/* Code textarea — resize disabled because the editor manages its own scroll */}
         <textarea
           ref={textareaRef}
           value={value}

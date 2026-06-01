@@ -59,6 +59,11 @@
     @apply w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-purple focus:ring-1 focus:ring-accent-purple transition-colors text-sm;
   }
 
+  /* Textareas are vertically resizable by default so users can drag them taller. */
+  textarea.input-base {
+    resize: vertical;
+  }
+
   .label-base {
     @apply block text-xs font-medium text-text-secondary uppercase tracking-wider mb-1.5;
   }

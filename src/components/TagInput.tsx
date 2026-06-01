@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 interface TagInputProps {
   tags: string[];
@@ -17,7 +17,7 @@ export default function TagInput({ tags, onChange, placeholder, label }: TagInpu
 
   // Sync display when the parent swaps in a completely different tag array
   // (e.g. loading a card from the library or resetting to blank).
-  const canonical = tags.join("\x00");
+  const canonical = useMemo(() => tags.join("\x00"), [tags]);
   useEffect(() => {
     setRaw(tags.join(", "));
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -2,12 +2,17 @@ import { useState, useRef, useEffect } from "react";
 import {
   Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
   ChevronDown, ChevronUp,
-  ToggleLeft, ToggleRight, Copy, Check, ClipboardPaste,
+  ToggleLeft, ToggleRight,
 } from "lucide-react";
 import type { LoreBook, LoreEntry } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
+import { MINIMAL_PNG } from "../lib/minimalPng";
+import { useStatusMessage } from "../hooks/useStatusMessage";
+import ImageDropzone from "./ImageDropzone";
+import ConfirmClearPanel from "./ConfirmClearPanel";
+import TagInput from "./TagInput";
 
 const DEFAULT_ENTRY = (): LoreEntry => ({
   id: crypto.randomUUID(),
@@ -37,27 +42,19 @@ const DEFAULT_BOOK: LoreBook = {
   entries: [],
 };
 
-const MINIMAL_PNG = new Uint8Array([
-  137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,
-  0,0,0,1,0,0,0,1,8,2,0,0,0,144,119,83,222,
-  0,0,0,12,73,68,65,84,8,215,99,248,207,0,0,0,2,0,1,
-  226,33,188,51,0,0,0,0,73,69,78,68,174,66,96,130,
-]);
-
 // ─── SillyTavern lorebook JSON parser ───────────────────────────────────────
 // ST entries can be an object keyed by numeric strings OR a plain array.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSillyTavernLorebook(raw: any): LoreBook {
-  const name: string               = raw.name              ?? "";
-  const description: string        = raw.description       ?? "";
-  const creator: string            = raw.creator           ?? raw.author ?? "";
-  const version: string            = raw.version           ?? "1.0";
-  const creator_notes: string      = raw.creator_notes     ?? "";
-  const scan_depth: number         = raw.scan_depth        ?? 50;
-  const token_budget: number       = raw.token_budget      ?? 512;
+  const name: string                = raw.name              ?? "";
+  const description: string         = raw.description       ?? "";
+  const creator: string             = raw.creator           ?? raw.author ?? "";
+  const version: string             = raw.version           ?? "1.0";
+  const creator_notes: string       = raw.creator_notes     ?? "";
+  const scan_depth: number          = raw.scan_depth        ?? 50;
+  const token_budget: number        = raw.token_budget      ?? 512;
   const recursive_scanning: boolean = raw.recursive_scanning ?? false;
 
-  // Entries: handle both object-map {"0": {...}, "1": {...}} and array [{...}]
   let rawEntries: unknown[];
   if (Array.isArray(raw.entries)) {
     rawEntries = raw.entries;
@@ -96,19 +93,17 @@ interface LoreBookEditorProps {
 export default function LoreBookEditor({ initialBook, initialImageSrc, initialLibraryId }: LoreBookEditorProps) {
   const [book, setBook] = useState<LoreBook>(initialBook ?? DEFAULT_BOOK);
   const [selectedId, setSelectedId] = useState<string | null>(initialBook?.entries[0]?.id ?? null);
-  const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+  const { status, setMsg } = useStatusMessage();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
   const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
   const [saving, setSaving] = useState(false);
   const [savedVersion, setSavedVersion] = useState<string>(initialBook?.version ?? "1.0");
   const [draggingJson, setDraggingJson] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
   const [outputFileName, setOutputFileName] = useState(
     ((initialBook?.name || "lorebook").replace(/\s+/g, "_")) + "_lorebook.png"
   );
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const jsonInputRef  = useRef<HTMLInputElement>(null);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-sync filename to lorebook name
   useEffect(() => {
@@ -138,15 +133,12 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     }));
   }
 
+  // Use functional updater to avoid stale-closure on book.entries
   function toggleEnabled(id: string) {
-    const entry = book.entries.find((e) => e.id === id);
-    if (entry) updateEntry(id, { enabled: !entry.enabled });
-  }
-
-  function handleImageFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = (e) => { if (e.target?.result) setImageSrc(e.target.result as string); };
-    reader.readAsDataURL(file);
+    setBook((b) => ({
+      ...b,
+      entries: b.entries.map((e) => e.id === id ? { ...e, enabled: !e.enabled } : e),
+    }));
   }
 
   function handleJsonFile(file: File) {
@@ -158,18 +150,13 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
         const parsed = parseSillyTavernLorebook(raw);
         setBook(parsed);
         setSelectedId(parsed.entries[0]?.id ?? null);
-        setLibraryId(undefined); // treat as a new unsaved book
+        setLibraryId(undefined);
         setMsg(`Imported "${parsed.name || file.name}" — ${parsed.entries.length} entries`, true);
       } catch {
         setMsg("Failed to parse lorebook JSON.", false);
       }
     };
     reader.readAsText(file);
-  }
-
-  function setMsg(msg: string, ok: boolean) {
-    setStatus({ msg, ok });
-    setTimeout(() => setStatus(null), 3000);
   }
 
   function clearForNew() {
@@ -179,8 +166,6 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     setLibraryId(undefined);
     setSavedVersion("1.0");
     setOutputFileName("lorebook.png");
-    setConfirmClear(false);
-    setStatus(null);
   }
 
   function buildExportData() {
@@ -316,7 +301,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
             </button>
           </div>
           <textarea
-            className="input-base resize-none text-xs"
+            className="input-base text-xs"
             rows={2}
             placeholder="Brief description..."
             value={book.description}
@@ -329,7 +314,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
             onChange={(e) => updateBook({ creator: e.target.value })}
           />
           <textarea
-            className="input-base resize-none text-xs"
+            className="input-base text-xs"
             rows={2}
             placeholder="Creator notes — usage tips, content warnings, changelog..."
             value={book.creator_notes}
@@ -404,7 +389,6 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           <div className="mt-4 text-xs text-text-muted text-center max-w-xs space-y-1.5">
             <p>Each entry has <strong className="text-text-secondary">trigger keys</strong> and <strong className="text-text-secondary">content</strong> that gets injected when those keywords appear in conversation.</p>
           </div>
-          {/* Import hint */}
           <button
             onClick={() => jsonInputRef.current?.click()}
             className="mt-2 flex items-center gap-2 text-xs text-text-muted border border-dashed border-border rounded-lg px-4 py-2.5 hover:border-accent-purple/50 hover:text-accent-purple transition-colors"
@@ -420,25 +404,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
       <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
         <p className="section-title">Export</p>
 
-        {/* Cover image */}
-        <div>
-          <label className="label-base">Cover Image</label>
-          <div
-            className="w-full h-28 rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center"
-            onClick={() => imageInputRef.current?.click()}
-            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleImageFile(f); }}
-            onDragOver={(e) => e.preventDefault()}
-          >
-            {imageSrc
-              ? <img src={imageSrc} alt="cover" className="w-full h-full object-cover" />
-              : <span className="text-xs text-text-muted text-center px-2">Drop image or click<br /><span className="text-[10px]">(optional)</span></span>
-            }
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-xs text-white">Change</span>
-            </div>
-          </div>
-          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
-        </div>
+        <ImageDropzone label="Cover Image" imageSrc={imageSrc} onFile={setImageSrc} />
 
         {/* Output Settings */}
         <div className="border-t border-border pt-3 space-y-2">
@@ -503,28 +469,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
           <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
             <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
           </button>
-
-          {!confirmClear ? (
-            <button
-              onClick={() => setConfirmClear(true)}
-              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-950/20 transition-colors"
-            >
-              <Plus size={12} /> New Lorebook
-            </button>
-          ) : (
-            <div className="rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2.5 space-y-2">
-              <p className="text-xs font-medium text-red-400">Clear this lorebook and start fresh?</p>
-              <p className="text-[11px] text-red-400/70">Library saves are not affected.</p>
-              <div className="flex gap-2">
-                <button onClick={clearForNew} className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors font-medium">
-                  Yes, clear it
-                </button>
-                <button onClick={() => setConfirmClear(false)} className="flex-1 text-xs py-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-950/50 transition-colors">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
+          <ConfirmClearPanel label="Lorebook" onConfirm={clearForNew} />
         </div>
 
         {/* Export buttons */}
@@ -556,26 +501,6 @@ function EntryEditor({ entry, onChange }: {
 }) {
   const tokens = countTokens(entry.content);
   const entryLevel = getTokenBudgetLevel(tokens);
-  const [copied, setCopied] = useState(false);
-  const [hint, setHint] = useState(false);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
-
-  function copy() { navigator.clipboard.writeText(entry.content); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-  async function paste() {
-    try {
-      const t = await navigator.clipboard.readText();
-      if (!t) return;
-      const el = contentRef.current;
-      const start = el?.selectionStart ?? entry.content.length;
-      const end = el?.selectionEnd ?? entry.content.length;
-      const next = entry.content.slice(0, start) + t + entry.content.slice(end);
-      onChange({ content: next });
-      requestAnimationFrame(() => {
-        el?.focus();
-        el?.setSelectionRange(start + t.length, start + t.length);
-      });
-    } catch { setHint(true); setTimeout(() => setHint(false), 2500); }
-  }
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
@@ -590,31 +515,21 @@ function EntryEditor({ entry, onChange }: {
         </div>
       </div>
 
-      <div>
-        <label className="label-base">Trigger Keys <span className="text-text-muted normal-case font-normal">(comma-separated)</span></label>
-        <input
-          className="input-base"
-          placeholder="dragon, wyrm, firebreather..."
-          value={entry.keys.join(", ")}
-          onChange={(e) => onChange({ keys: e.target.value.split(",").map((k) => k.trim()).filter(Boolean) })}
-        />
-        {entry.keys.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {entry.keys.map((k) => <span key={k} className="text-xs bg-blue-900/40 text-blue-300 px-2 py-0.5 rounded-full">{k}</span>)}
-          </div>
-        )}
-      </div>
+      {/* Trigger keys — uses TagInput to fix the split-on-comma bug */}
+      <TagInput
+        label="Trigger Keys (comma-separated)"
+        placeholder="dragon, wyrm, firebreather..."
+        tags={entry.keys}
+        onChange={(keys) => onChange({ keys })}
+      />
 
       {entry.selective && (
-        <div>
-          <label className="label-base">Secondary Keys <span className="text-text-muted normal-case font-normal">(requires one of these too)</span></label>
-          <input
-            className="input-base"
-            placeholder="fire, attack, breath..."
-            value={entry.secondary_keys.join(", ")}
-            onChange={(e) => onChange({ secondary_keys: e.target.value.split(",").map((k) => k.trim()).filter(Boolean) })}
-          />
-        </div>
+        <TagInput
+          label="Secondary Keys (requires one of these too)"
+          placeholder="fire, attack, breath..."
+          tags={entry.secondary_keys}
+          onChange={(secondary_keys) => onChange({ secondary_keys })}
+        />
       )}
 
       <div>
@@ -622,22 +537,10 @@ function EntryEditor({ entry, onChange }: {
           <label className="label-base mb-0">Content</label>
           <div className="flex items-center gap-2">
             {tokens > 0 && <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[entryLevel]}`}>{tokens} tk</span>}
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={copy} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
-                {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-              </button>
-              <div className="relative">
-                <button type="button" onClick={paste} className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
-                  <ClipboardPaste size={12} />
-                </button>
-                {hint && <div className="absolute right-0 top-6 z-10 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg">Press Ctrl+V</div>}
-              </div>
-            </div>
           </div>
         </div>
         <textarea
-          ref={contentRef}
-          className="input-base resize-none"
+          className="input-base"
           rows={9}
           placeholder="Dragons are ancient creatures of immense power..."
           value={entry.content}
