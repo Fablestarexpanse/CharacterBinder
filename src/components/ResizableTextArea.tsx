@@ -1,14 +1,26 @@
 import { useState, useRef } from "react";
 
 interface ResizableTextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  /** Override className — must include input-base or equivalent styling */
   className?: string;
 }
 
+/** Three-dot diagonal grip SVG — mirrors the OS resize handle */
+function ResizeGrip() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+      <circle cx="6"  cy="10" r="1.5" fill="currentColor" />
+      <circle cx="10" cy="6"  r="1.5" fill="currentColor" />
+      <circle cx="2"  cy="10" r="1.5" fill="currentColor" />
+      <circle cx="6"  cy="6"  r="1.5" fill="currentColor" />
+      <circle cx="10" cy="2"  r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
 /**
- * Drop-in replacement for <textarea> that adds a visible drag-to-resize
- * handle at the bottom. Use wherever a plain <textarea> is rendered
- * outside of the TextAreaField component.
+ * Drop-in <textarea> replacement with a visible bottom-right corner
+ * drag-to-resize handle. Drag down to make the field taller.
  */
 export default function ResizableTextArea({ className = "input-base", style, ...props }: ResizableTextAreaProps) {
   const [height, setHeight] = useState<number | null>(null);
@@ -16,11 +28,12 @@ export default function ResizableTextArea({ className = "input-base", style, ...
 
   function startResize(e: React.MouseEvent) {
     e.preventDefault();
+    e.stopPropagation();
     const startY = e.clientY;
     const startH = ref.current?.offsetHeight ?? 80;
 
     function onMove(ev: MouseEvent) {
-      setHeight(Math.max(48, startH + (ev.clientY - startY)));
+      setHeight(Math.max(52, startH + (ev.clientY - startY)));
     }
     function onUp() {
       document.removeEventListener("mousemove", onMove);
@@ -31,27 +44,21 @@ export default function ResizableTextArea({ className = "input-base", style, ...
   }
 
   return (
-    <div className="relative group/resize">
+    <div className="relative">
       <textarea
         ref={ref}
         className={`${className} resize-none block`}
         style={{ ...style, ...(height !== null ? { height: `${height}px` } : {}) }}
         {...props}
       />
+      {/* Corner resize grip — sits on top of the textarea (z-10) */}
       <div
         onMouseDown={startResize}
-        className="absolute bottom-0 left-0 right-0 h-3 flex items-center justify-center cursor-ns-resize rounded-b-lg select-none"
-        style={{ background: "rgba(139,92,246,0.08)" }}
+        className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center rounded-br-lg cursor-s-resize select-none z-10 text-accent-purple hover:text-white transition-colors"
+        style={{ background: "rgba(139,92,246,0.25)" }}
         title="Drag to resize"
       >
-        <div className="flex gap-0.5">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="w-3 h-0.5 rounded-full bg-accent-purple/30 group-hover/resize:bg-accent-purple/70 transition-colors"
-            />
-          ))}
-        </div>
+        <ResizeGrip />
       </div>
     </div>
   );

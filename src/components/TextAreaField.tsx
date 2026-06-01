@@ -8,15 +8,26 @@ interface TextAreaFieldProps {
   rows: number;
   onChange: (v: string) => void;
   placeholder?: string;
-  /** Show token count next to the label. Defaults to true. */
   showTokens?: boolean;
 }
 
-const ROW_HEIGHT_PX = 24; // approximate px per row for initial height
+/** Three-dot diagonal grip SVG — mirrors the OS resize handle */
+function ResizeGrip() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+      <circle cx="6"  cy="10" r="1.5" fill="currentColor" />
+      <circle cx="10" cy="6"  r="1.5" fill="currentColor" />
+      <circle cx="2"  cy="10" r="1.5" fill="currentColor" />
+      <circle cx="6"  cy="6"  r="1.5" fill="currentColor" />
+      <circle cx="10" cy="2"  r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
 
 /**
  * Labelled textarea with copy/paste buttons, optional token counter,
- * and a visible drag-to-resize handle at the bottom.
+ * and a visible bottom-right corner drag-to-resize handle.
  */
 export default function TextAreaField({
   label,
@@ -60,12 +71,12 @@ export default function TextAreaField({
 
   function startResize(e: React.MouseEvent) {
     e.preventDefault();
+    e.stopPropagation();
     const startY = e.clientY;
-    const startH = textareaRef.current?.offsetHeight ?? rows * ROW_HEIGHT_PX;
+    const startH = textareaRef.current?.offsetHeight ?? rows * 24;
 
     function onMove(ev: MouseEvent) {
-      const next = Math.max(60, startH + (ev.clientY - startY));
-      setHeight(next);
+      setHeight(Math.max(52, startH + (ev.clientY - startY)));
     }
     function onUp() {
       document.removeEventListener("mousemove", onMove);
@@ -113,8 +124,7 @@ export default function TextAreaField({
         </div>
       </div>
 
-      {/* Wrapper holds the textarea + drag handle as a unit */}
-      <div className="relative group/resize">
+      <div className="relative">
         <textarea
           ref={textareaRef}
           className="input-base resize-none block"
@@ -124,21 +134,14 @@ export default function TextAreaField({
           placeholder={placeholder}
           style={height !== null ? { height: `${height}px` } : undefined}
         />
-        {/* Drag-to-resize handle — always visible, brightens on hover */}
+        {/* Corner resize grip — sits on top of the textarea (z-10) */}
         <div
           onMouseDown={startResize}
-          className="absolute bottom-0 left-0 right-0 h-3 flex items-center justify-center cursor-ns-resize rounded-b-lg select-none"
-          style={{ background: "rgba(139,92,246,0.08)" }}
+          className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center rounded-br-lg cursor-s-resize select-none z-10 text-accent-purple hover:text-white transition-colors"
+          style={{ background: "rgba(139,92,246,0.25)" }}
           title="Drag to resize"
         >
-          <div className="flex gap-0.5">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="w-3 h-0.5 rounded-full bg-accent-purple/30 group-hover/resize:bg-accent-purple/70 transition-colors"
-              />
-            ))}
-          </div>
+          <ResizeGrip />
         </div>
       </div>
     </div>
