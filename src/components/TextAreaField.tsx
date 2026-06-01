@@ -11,23 +11,10 @@ interface TextAreaFieldProps {
   showTokens?: boolean;
 }
 
-/** Three-dot diagonal grip SVG — mirrors the OS resize handle */
-function ResizeGrip() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-      <circle cx="6"  cy="10" r="1.5" fill="currentColor" />
-      <circle cx="10" cy="6"  r="1.5" fill="currentColor" />
-      <circle cx="2"  cy="10" r="1.5" fill="currentColor" />
-      <circle cx="6"  cy="6"  r="1.5" fill="currentColor" />
-      <circle cx="10" cy="2"  r="1.5" fill="currentColor" />
-    </svg>
-  );
-}
-
 /**
- * Labelled textarea with copy/paste buttons, optional token counter,
- * and a visible bottom-right corner drag-to-resize handle.
+ * Labelled textarea with copy/paste buttons, token counter, and a
+ * drag-to-resize handle that sits BELOW the textarea (not over it),
+ * avoiding all z-index / native-form-control stacking issues.
  */
 export default function TextAreaField({
   label,
@@ -88,6 +75,7 @@ export default function TextAreaField({
 
   return (
     <div>
+      {/* Label row */}
       <div className="flex items-center justify-between mb-1.5">
         <label className="label-base mb-0">{label}</label>
         <div className="flex items-center gap-2">
@@ -97,21 +85,13 @@ export default function TextAreaField({
             </span>
           )}
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handleCopy}
-              title="Copy"
-              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-            >
+            <button type="button" onClick={handleCopy} title="Copy"
+              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
               {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
             </button>
             <div className="relative">
-              <button
-                type="button"
-                onClick={handlePaste}
-                title="Paste from clipboard"
-                className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-              >
+              <button type="button" onClick={handlePaste} title="Paste from clipboard"
+                className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
                 <ClipboardPaste size={12} />
               </button>
               {pasteHint && (
@@ -124,24 +104,27 @@ export default function TextAreaField({
         </div>
       </div>
 
-      <div className="relative">
+      {/* Textarea + resize handle as a flex column — handle lives BELOW textarea */}
+      <div className="flex flex-col">
         <textarea
           ref={textareaRef}
-          className="input-base resize-none block"
+          className="input-base resize-none rounded-b-none"
           rows={rows}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           style={height !== null ? { height: `${height}px` } : undefined}
         />
-        {/* Corner resize grip — sits on top of the textarea (z-10) */}
+        {/* Resize handle bar */}
         <div
           onMouseDown={startResize}
-          className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center rounded-br-lg cursor-s-resize select-none z-10 text-accent-purple hover:text-white transition-colors"
-          style={{ background: "rgba(139,92,246,0.25)" }}
+          className="flex items-center justify-end px-2 h-4 rounded-b-lg border border-t-0 border-border cursor-s-resize select-none bg-bg-tertiary hover:bg-accent-purple/20 transition-colors group"
           title="Drag to resize"
         >
-          <ResizeGrip />
+          <svg width="16" height="6" viewBox="0 0 16 6" fill="none">
+            <line x1="2" y1="1" x2="14" y2="1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-text-muted group-hover:text-accent-purple" />
+            <line x1="2" y1="5" x2="14" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-text-muted group-hover:text-accent-purple" />
+          </svg>
         </div>
       </div>
     </div>

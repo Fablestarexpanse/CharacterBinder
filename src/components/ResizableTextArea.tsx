@@ -4,23 +4,10 @@ interface ResizableTextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAr
   className?: string;
 }
 
-/** Three-dot diagonal grip SVG — mirrors the OS resize handle */
-function ResizeGrip() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-      <circle cx="6"  cy="10" r="1.5" fill="currentColor" />
-      <circle cx="10" cy="6"  r="1.5" fill="currentColor" />
-      <circle cx="2"  cy="10" r="1.5" fill="currentColor" />
-      <circle cx="6"  cy="6"  r="1.5" fill="currentColor" />
-      <circle cx="10" cy="2"  r="1.5" fill="currentColor" />
-    </svg>
-  );
-}
-
 /**
- * Drop-in <textarea> replacement with a visible bottom-right corner
- * drag-to-resize handle. Drag down to make the field taller.
+ * Drop-in <textarea> replacement with a drag-to-resize handle.
+ * The handle sits BELOW the textarea (not over it) to avoid z-index
+ * fights with native form controls.
  */
 export default function ResizableTextArea({ className = "input-base", style, ...props }: ResizableTextAreaProps) {
   const [height, setHeight] = useState<number | null>(null);
@@ -44,21 +31,23 @@ export default function ResizableTextArea({ className = "input-base", style, ...
   }
 
   return (
-    <div className="relative">
+    <div className="flex flex-col">
       <textarea
         ref={ref}
-        className={`${className} resize-none block`}
+        className={`${className} resize-none rounded-b-none`}
         style={{ ...style, ...(height !== null ? { height: `${height}px` } : {}) }}
         {...props}
       />
-      {/* Corner resize grip — sits on top of the textarea (z-10) */}
+      {/* Resize handle bar — lives outside the textarea, no z-index needed */}
       <div
         onMouseDown={startResize}
-        className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center rounded-br-lg cursor-s-resize select-none z-10 text-accent-purple hover:text-white transition-colors"
-        style={{ background: "rgba(139,92,246,0.25)" }}
+        className="flex items-center justify-end px-2 h-4 rounded-b-lg border border-t-0 border-border cursor-s-resize select-none bg-bg-tertiary hover:bg-accent-purple/20 transition-colors group"
         title="Drag to resize"
       >
-        <ResizeGrip />
+        <svg width="16" height="6" viewBox="0 0 16 6" fill="none">
+          <line x1="2" y1="1" x2="14" y2="1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-text-muted group-hover:text-accent-purple" />
+          <line x1="2" y1="5" x2="14" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-text-muted group-hover:text-accent-purple" />
+        </svg>
       </div>
     </div>
   );
