@@ -4,7 +4,8 @@ import ResizableTextArea from "./ResizableTextArea";
 import type { ScriptCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
-import { MINIMAL_PNG } from "../lib/minimalPng";
+import { getCarrierPng } from "../lib/carrierImage";
+import { downloadJson, downloadPng } from "../lib/download";
 import { useStatusMessage } from "../hooks/useStatusMessage";
 import ImageDropzone from "./ImageDropzone";
 import ConfirmClearPanel from "./ConfirmClearPanel";
@@ -57,38 +58,18 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
   }
 
   function exportJson() {
-    const json = JSON.stringify(card, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = outputFileName.replace(/\.png$/, ".json");
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJson(card, outputFileName);
     setMsg("JSON exported!", true);
   }
 
-  function exportPng() {
+  async function exportPng() {
     try {
-      let pngBytes: Uint8Array;
-      if (imageSrc?.startsWith("data:image/")) {
-        const b64 = imageSrc.split(",")[1];
-        pngBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-      } else {
-        pngBytes = MINIMAL_PNG;
-      }
+      const pngBytes = await getCarrierPng(imageSrc);
       const json = JSON.stringify(card);
-      const result = encodeCharaToPng(pngBytes, json, "script", false);
-      const blob = new Blob([result.buffer as ArrayBuffer], { type: "image/png" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = outputFileName;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadPng(encodeCharaToPng(pngBytes, json, "script", false), outputFileName);
       setMsg("PNG exported!", true);
-    } catch {
-      setMsg("PNG export failed.", false);
+    } catch (err) {
+      setMsg(`PNG export failed: ${(err as Error).message}`, false);
     }
   }
 
@@ -204,7 +185,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         </div>
 
         {status && (
-          <p className={`text-xs text-center ${status.ok ? "text-green-600" : "text-red-500"}`}>{status.msg}</p>
+          <p className={`text-xs text-center ${status.ok ? "text-green-600" : "text-status-danger"}`}>{status.msg}</p>
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
