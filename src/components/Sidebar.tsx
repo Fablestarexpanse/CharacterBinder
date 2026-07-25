@@ -90,7 +90,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
 
       {/* Status */}
       <div className="border-t border-border px-4 py-2.5 flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-accent-green shrink-0" />
+        <span className="w-2 h-2 rounded-full bg-status-ok shrink-0" />
         <span className="text-xs text-text-muted">Ready</span>
         <span className="ml-auto text-xs text-text-muted">v1.4.0</span>
       </div>

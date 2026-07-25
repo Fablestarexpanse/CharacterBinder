@@ -63,15 +63,15 @@ export default function JSONView({ card, onUpdate }: JSONViewProps) {
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-bg-secondary shrink-0">
         <span className="text-xs text-text-secondary font-medium">JSON Editor</span>
-        {isDirty && <span className="text-xs text-yellow-500 font-medium">• unsaved</span>}
+        {isDirty && <span className="text-xs text-status-warn font-medium">• unsaved</span>}
         <div className="flex-1" />
         {validationError ? (
-          <div className="flex items-center gap-1.5 text-red-400 text-xs">
+          <div className="flex items-center gap-1.5 text-status-danger text-xs">
             <AlertCircle size={13} />
             <span>{validationError}</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-accent-green text-xs">
+          <div className="flex items-center gap-1.5 text-status-ok text-xs">
             <Check size={13} />
             <span>Valid JSON</span>
           </div>

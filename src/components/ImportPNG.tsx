@@ -205,8 +205,8 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         {status !== "idle" && (
           <div className={`flex items-start gap-3 p-4 rounded-xl border ${
             status === "success"
-              ? "bg-green-900/20 border-green-700/40 text-accent-green"
-              : "bg-red-900/20 border-red-700/40 text-red-400"
+              ? "bg-status-ok-soft border-status-ok-border text-status-ok"
+              : "bg-status-danger-soft border-status-danger-border text-status-danger"
           }`}>
             {status === "success"
               ? <CheckCircle size={18} className="shrink-0 mt-0.5" />
@@ -245,7 +245,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               {Object.values(PLATFORMS).filter(p => p.pngSupport).map((p) => (
                 <div key={p.id} className="flex items-center gap-2 text-xs text-text-secondary">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-status-ok shrink-0" />
                   {p.name}
                 </div>
               ))}

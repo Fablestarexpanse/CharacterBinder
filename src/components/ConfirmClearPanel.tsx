@@ -18,7 +18,7 @@ export default function ConfirmClearPanel({ label, onConfirm }: ConfirmClearPane
     return (
       <button
         onClick={() => setConfirming(true)}
-        className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-red-400/60 hover:text-red-500 hover:bg-red-950/20 transition-colors"
+        className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-secondary hover:border-status-danger-border hover:text-status-danger hover:bg-status-danger-soft transition-colors"
       >
         <Plus size={12} /> New {label}
       </button>
@@ -26,19 +26,19 @@ export default function ConfirmClearPanel({ label, onConfirm }: ConfirmClearPane
   }
 
   return (
-    <div className="rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2.5 space-y-2">
-      <p className="text-xs font-medium text-red-400">Clear this {label.toLowerCase()} and start fresh?</p>
-      <p className="text-[11px] text-red-400/70">Library saves are not affected.</p>
+    <div className="rounded-lg border border-status-danger-border bg-status-danger-soft px-3 py-2.5 space-y-2">
+      <p className="text-xs font-medium text-status-danger">Clear this {label.toLowerCase()} and start fresh?</p>
+      <p className="text-[11px] text-status-danger/70">Library saves are not affected.</p>
       <div className="flex gap-2">
         <button
           onClick={() => { onConfirm(); setConfirming(false); }}
-          className="flex-1 text-xs py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors font-medium"
+          className="flex-1 text-xs py-1.5 rounded-md bg-status-danger text-white hover:brightness-110 transition-colors font-medium"
         >
           Yes, clear it
         </button>
         <button
           onClick={() => setConfirming(false)}
-          className="flex-1 text-xs py-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-950/50 transition-colors"
+          className="flex-1 text-xs py-1.5 rounded-md border border-status-danger-border text-status-danger hover:bg-status-danger-soft transition-colors"
         >
           Cancel
         </button>
