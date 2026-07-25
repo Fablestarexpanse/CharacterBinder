@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 export interface StatusMessage {
   msg: string;
@@ -19,14 +19,15 @@ export function useStatusMessage(delay = 3000) {
     };
   }, []);
 
-  function setMsg(msg: string, ok: boolean) {
+  // Stable identity so callers can safely list it in useCallback/useMemo deps.
+  const setMsg = useCallback((msg: string, ok: boolean) => {
     if (timerRef.current !== null) clearTimeout(timerRef.current);
     setStatus({ msg, ok });
     timerRef.current = setTimeout(() => {
       setStatus(null);
       timerRef.current = null;
     }, delay);
-  }
+  }, [delay]);
 
   return { status, setMsg };
 }

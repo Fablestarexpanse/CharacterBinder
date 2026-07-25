@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "./types";
 import type { PlatformId } from "./lib/platforms";
+import { loadStoredSettings, saveSettings } from "./lib/settings";
 import { blankTemplate } from "./data/templates/ronalVoss";
 import Sidebar from "./components/Sidebar";
 import CreateCard from "./components/CreateCard";
@@ -16,24 +17,10 @@ import ScenarioEditor from "./components/ScenarioEditor";
 import PersonaEditor from "./components/PersonaEditor";
 import ConfirmModal from "./components/ConfirmModal";
 
-const DEFAULT_SETTINGS: AppSettings = {
-  defaultExportFormat: "tavern_v2",
-  defaultMetadataKey: "chara",
-  autoValidateBeforeExport: true,
-  preserveUnknownChunks: true,
-  prettyPrintJson: true,
-};
-
-const SETTINGS_KEY = "cb_settings_v1";
-
-function loadStoredSettings(): AppSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+/** Output filename derived from the character name, e.g. "Mira Vale" → "Mira_Vale_Tavern_Card.png". */
+function defaultFileName(name: string): string {
+  const trimmed = name.trim();
+  return trimmed ? `${trimmed.replace(/\s+/g, "_")}_Tavern_Card.png` : "New_Character_Tavern_Card.png";
 }
 
 function App() {
@@ -45,11 +32,9 @@ function App() {
   // ── Character card state ──
   const [project, setProject] = useState<CardProject>({
     id: "default",
-    name: "",
     card: blankTemplate,
     imageSrc: undefined,
-    templateImageSrc: undefined,
-    outputFileName: "New_Character_Tavern_Card.png",
+    outputFileName: defaultFileName(""),
     lastModified: new Date().toISOString(),
   });
 
@@ -77,14 +62,15 @@ function App() {
     card: PersonaCard; imageSrc: string | null; id?: string;
   } | null>(null);
 
-  // Auto-sync character card output filename to character name
+  // Once the user edits the output filename themselves, stop deriving it from
+  // the character name — otherwise the next keystroke in the Name field would
+  // silently throw their filename away.
+  const [fileNameTouched, setFileNameTouched] = useState(false);
+
   useEffect(() => {
-    const name = project.card.data.name.trim();
-    setProject((p) => ({
-      ...p,
-      outputFileName: name ? name.replace(/\s+/g, "_") + "_Tavern_Card.png" : "New_Character_Tavern_Card.png",
-    }));
-  }, [project.card.data.name]);
+    if (fileNameTouched) return;
+    setProject((p) => ({ ...p, outputFileName: defaultFileName(p.card.data.name) }));
+  }, [project.card.data.name, fileNameTouched]);
 
   // ── Character card handlers ──
   const updateCard = useCallback((updates: Partial<TavernCardV2["data"]>) => {
@@ -105,10 +91,11 @@ function App() {
       ...p,
       card,
       imageSrc,
-      outputFileName: card.data.name.replace(/\s+/g, "_") + "_Tavern_Card.png",
+      outputFileName: defaultFileName(card.data.name),
       lastModified: new Date().toISOString(),
       metadataInfo: meta,
     }));
+    setFileNameTouched(false);
     if (sourcePlatform) setTargetPlatform(sourcePlatform);
     setActivePage("create");
   }, []);
@@ -124,10 +111,11 @@ function App() {
       id: libraryId,
       card,
       imageSrc: imageSrc ?? undefined,
-      outputFileName: card.data.name.replace(/\s+/g, "_") + "_Tavern_Card.png",
+      outputFileName: defaultFileName(card.data.name),
       lastModified: new Date().toISOString(),
       metadataInfo: undefined,
     }));
+    setFileNameTouched(false);
     setActivePage("create");
   }, []);
 
@@ -136,20 +124,20 @@ function App() {
   }, []);
 
   const updateOutputFileName = useCallback((name: string) => {
+    setFileNameTouched(true);
     setProject((p) => ({ ...p, outputFileName: name }));
   }, []);
 
   const clearCard = useCallback(() => {
     setProject({
       id: "default",
-      name: "",
       card: blankTemplate,
       imageSrc: undefined,
-      templateImageSrc: undefined,
-      outputFileName: "New_Character_Tavern_Card.png",
+      outputFileName: defaultFileName(""),
       lastModified: new Date().toISOString(),
       metadataInfo: undefined,
     });
+    setFileNameTouched(false);
     setTargetPlatform("sillytavern");
     setActivePage("create");
     setShowClearConfirm(false);
@@ -293,7 +281,7 @@ function App() {
             onEditPersona={handleEditPersona}
           />
         )}
-        {activePage === "settings" && <Settings settings={settings} onSave={(s) => { setSettings(s); localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }} />}
+        {activePage === "settings" && <Settings settings={settings} onSave={(s) => { setSettings(s); saveSettings(s); }} />}
         {activePage === "help" && <HelpAbout />}
       </main>
     </div>
