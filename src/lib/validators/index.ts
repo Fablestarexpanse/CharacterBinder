@@ -25,15 +25,3 @@ export function validateJson(jsonStr: string): { valid: boolean; error?: string 
   }
 }
 
-export function detectCardFormat(json: unknown): string {
-  if (!json || typeof json !== "object") return "Unknown";
-  const obj = json as Record<string, unknown>;
-
-  if (obj.spec === "chara_card_v2") return "Tavern Card v2 (chara)";
-  if (obj.spec === "chara_card_v1") return "Tavern Card v1";
-  if (obj.kind === "character" && obj.persona) return "Agnai";
-  if (obj.persona && !obj.spec) return "JanitorAI";
-  if (obj.description && obj.greeting && !obj.spec) return "RPBuddy";
-  if (obj.name && obj.description) return "Generic";
-  return "Unknown";
-}
