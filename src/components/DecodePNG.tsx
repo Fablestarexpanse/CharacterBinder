@@ -12,7 +12,7 @@ const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"
 type NonCharType = "lorebook" | "script" | "scenario" | "persona";
 const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {
   lorebook: { label: "Lorebook",     icon: <BookOpen    size={14} />, color: "text-blue-400" },
-  script:   { label: "Script Card",  icon: <FileCode2   size={14} />, color: "text-orange-400" },
+  script:   { label: "Script Card",  icon: <FileCode2   size={14} />, color: "text-status-warn" },
   scenario: { label: "Scenario Card",icon: <Map         size={14} />, color: "text-green-400" },
   persona:  { label: "Persona",      icon: <UserCircle  size={14} />, color: "text-pink-400" },
 };
@@ -152,7 +152,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         </div>
 
         {error && (
-          <div className="bg-red-900/20 border border-red-700/40 text-red-400 text-sm rounded-xl p-3">{error}</div>
+          <div className="bg-status-danger-soft border border-status-danger-border text-status-danger text-sm rounded-xl p-3">{error}</div>
         )}
 
         {result && (
@@ -171,7 +171,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
                 {/* Type badge */}
                 {platform ? (
                   <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${platform.color} ${platform.borderColor}`}>
-                    <div className="w-2 h-2 rounded-full bg-accent-green" />
+                    <div className="w-2 h-2 rounded-full bg-status-ok" />
                     <span className={`text-sm font-semibold ${platform.textColor}`}>{platform.name}</span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>

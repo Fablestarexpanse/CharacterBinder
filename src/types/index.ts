@@ -49,68 +49,6 @@ export interface TavernCardV2 {
   data: TavernCardV2Data;
 }
 
-export interface JanitorAICharacter {
-  name: string;
-  persona: string;
-  world?: string;
-  scenario?: string;
-  greeting?: string;
-  example_dialogs?: string;
-  visibility?: "public" | "private" | "unlisted";
-  tags?: string[];
-  nsfw?: boolean;
-}
-
-export interface RPBuddyCharacter {
-  name: string;
-  description: string;
-  personality?: string;
-  scenario?: string;
-  greeting?: string;
-  example_dialogs?: string;
-  system_prompt?: string;
-  tags?: string[];
-  version?: string;
-}
-
-export interface AgnaiCharacter {
-  kind: "character";
-  name: string;
-  description: string;
-  persona: {
-    kind: "text";
-    attributes: Record<string, string[]>;
-  };
-  sampleChat: string;
-  scenario: string;
-  greeting: string;
-  systemPrompt?: string;
-  postHistoryInstructions?: string;
-  tags?: string[];
-  creator?: string;
-  characterVersion?: string;
-}
-
-export interface GenericCharacterCard {
-  name: string;
-  description: string;
-  personality?: string;
-  scenario?: string;
-  first_message?: string;
-  example_dialogs?: string;
-  system_prompt?: string;
-  tags?: string[];
-  creator?: string;
-  version?: string;
-}
-
-export type ExportFormat =
-  | "tavern_v2"
-  | "janitor_ai"
-  | "rpbuddy"
-  | "agnai"
-  | "generic";
-
 export type MetadataKey =
   | "chara"
   | "character"
@@ -122,8 +60,6 @@ export type MetadataKey =
   | "persona";
 
 export interface AppSettings {
-  defaultExportFormat: ExportFormat;
-  defaultMetadataKey: MetadataKey;
   autoValidateBeforeExport: boolean;
   preserveUnknownChunks: boolean;
   prettyPrintJson: boolean;
@@ -147,10 +83,8 @@ export interface MetadataInfo {
 
 export interface CardProject {
   id: string;
-  name: string;
   card: TavernCardV2;
   imageSrc?: string;
-  templateImageSrc?: string;
   outputFileName: string;
   lastModified: string;
   metadataInfo?: MetadataInfo;

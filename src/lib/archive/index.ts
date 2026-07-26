@@ -5,8 +5,15 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
   const zip = new JSZip();
   const manifest: object[] = [];
 
+  // Card names are not unique, and JSZip silently overwrites on collision —
+  // disambiguate so an archive can never drop a card it claims to contain.
+  const usedNames = new Set<string>();
+
   for (const card of cards) {
-    const safeName = card.name.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim() || card.id;
+    const base = card.name.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim() || card.id;
+    let safeName = base;
+    for (let n = 2; usedNames.has(safeName); n++) safeName = `${base} (${n})`;
+    usedNames.add(safeName);
 
     if (card.pngData) {
       zip.file(`cards/${safeName}.png`, card.pngData);

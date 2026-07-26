@@ -8,6 +8,7 @@ import {
 import type { LibraryCard, LibraryCardType, TavernCardV2, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
 import { getAllCards, deleteCard } from "../lib/library";
 import { exportCardsAsZip } from "../lib/archive";
+import ConfirmModal from "./ConfirmModal";
 
 type SortKey = "updatedAt" | "createdAt" | "name";
 
@@ -25,7 +26,7 @@ type SortDir = "asc" | "desc";
 const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; color: string }> = {
   character: { label: "Character Cards",  icon: User,        color: "text-accent-purple" },
   lorebook:  { label: "Lorebooks",        icon: BookOpen,    color: "text-blue-500" },
-  script:    { label: "Script Cards",     icon: FileCode2,   color: "text-orange-500" },
+  script:    { label: "Script Cards",     icon: FileCode2,   color: "text-status-warn" },
   scenario:  { label: "Scenario Cards",   icon: Map,         color: "text-green-600" },
   persona:   { label: "Personas",         icon: UserCircle,  color: "text-pink-500" },
 };
@@ -48,6 +49,8 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
+  // Deletes are irreversible and there is no undo, so both paths confirm first.
+  const [pendingDelete, setPendingDelete] = useState<{ ids: string[]; label: string } | null>(null);
 
   const load = useCallback(async () => {
     const all = await getAllCards();
@@ -93,18 +96,19 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
     else setSelected(new Set(filtered.map((c) => c.id)));
   }
 
-  async function handleDelete(id: string) {
-    setDeleting(id);
-    await deleteCard(id);
-    setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; });
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { ids } = pendingDelete;
+    setPendingDelete(null);
+    setDeleting(ids[0] ?? null);
+    for (const id of ids) await deleteCard(id);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
     await load();
     setDeleting(null);
-  }
-
-  async function handleDeleteSelected() {
-    for (const id of selected) await deleteCard(id);
-    setSelected(new Set());
-    await load();
   }
 
   async function handleArchive(ids?: string[]) {
@@ -147,6 +151,17 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {pendingDelete && (
+        <ConfirmModal
+          title={`Delete ${pendingDelete.label}?`}
+          message="This permanently removes the card from your library. It cannot be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
       {/* Header */}
       <div className="border-b border-border px-5 py-3 flex items-center gap-3 shrink-0">
         <div className="relative flex-1 max-w-sm">
@@ -176,7 +191,7 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
           {selected.size > 0 && (
             <>
               <span className="text-xs text-text-muted">{selected.size} selected</span>
-              <button onClick={handleDeleteSelected} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-950/30 transition-colors">
+              <button onClick={() => setPendingDelete({ ids: [...selected], label: `${selected.size} card${selected.size !== 1 ? "s" : ""}` })} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-status-danger-border text-status-danger hover:bg-status-danger-soft transition-colors">
                 <Trash2 size={13} /> Delete
               </button>
               <button onClick={() => handleArchive()} disabled={archiving} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:bg-bg-hover transition-colors">
@@ -236,7 +251,7 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
                       deleting={deleting === card.id}
                       onToggle={() => toggleSelect(card.id)}
                       onEdit={() => handleEdit(card)}
-                      onDelete={() => handleDelete(card.id)}
+                      onDelete={() => setPendingDelete({ ids: [card.id], label: `"${card.name}"` })}
                       onExport={() => handleArchive([card.id])}
                       onTagClick={(tag) => setSearch(tag)}
                     />
@@ -302,7 +317,7 @@ function CardTile({
             <button onClick={(e) => { e.stopPropagation(); onExport(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors" title="Export ZIP">
               <Download size={16} />
             </button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting} className="p-2 rounded-lg bg-red-500/30 hover:bg-red-500/50 text-white transition-colors" title="Delete">
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting} className="p-2 rounded-lg bg-status-danger/30 hover:bg-status-danger/50 text-white transition-colors" title="Delete">
               <Trash2 size={16} />
             </button>
           </div>

@@ -27,8 +27,10 @@ Opens at **[http://localhost:3737](http://localhost:3737)** in your browser. No 
 ### Desktop App (Tauri)
 
 ```bash
-npm run tauri dev
+npm run tauri:dev
 ```
+
+The desktop shell loads the same Vite dev server on port 3737.
 
 ### Production Build
 
@@ -37,7 +39,7 @@ npm run tauri dev
 npm run build
 
 # Desktop installer
-npm run tauri build
+npm run tauri:build
 ```
 
 ---
@@ -80,7 +82,7 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 ### Scenario Card Editor
 - Create a standalone situation or setting card that can be dropped into any conversation
 - Fields: scenario text, opening message, creator, version, creator notes, and tags
-- Optional scene image with drag-and-drop support
+- Optional scene image with drag-and-drop support (JPEG/WebP covers are converted to PNG on export)
 - Export as JSON or embed in a PNG (`scenario` chunk)
 
 ### Persona Card Editor *(v1.4)*
@@ -96,7 +98,7 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 - **Clickable tags** — click any tag on a card to instantly filter the library by that tag
 - Search by name, type, or tag with a one-click clear button
 - Sort by last modified, created date, or name
-- Multi-select for bulk delete or export
+- Multi-select for bulk delete or export — deletes always ask for confirmation first
 
 ### Version Control in Library *(v1.4)*
 - Changing a card's version number and pressing **Save to Library** creates a **new entry** instead of overwriting the existing one
@@ -128,13 +130,13 @@ Character data is embedded directly into a PNG image as hidden metadata (Base64-
 | Platform | PNG Export | JSON Export | Metadata Key |
 |----------|-----------|-------------|--------------|
 | SillyTavern | ✅ | ✅ | `chara` |
-| JanitorAI | ✅ | ✅ | `chara` |
+| JanitorAI | ❌ | ✅ | — |
 | Chub.ai | ✅ | ✅ | `chara` |
 | Agnai | ❌ | ✅ | — |
 | Venus AI | ✅ | ✅ | `chara` |
 | Backyard AI | ❌ | ✅ | — |
 | RisuAI | ✅ | ✅ | `chara` |
-| Generic | ✅ | ✅ | `chara` |
+| Generic | ✅ | ✅ | `character` |
 
 Field compatibility is shown live in the editor when you switch target platforms.
 
@@ -192,15 +194,20 @@ PNG Signature (8 bytes)
 CharacterBinder/
 ├── src/
 │   ├── components/       # UI components (editors, sidebar, library, modals)
+│   ├── hooks/            # Shared React hooks (useStatusMessage)
 │   ├── lib/
 │   │   ├── pngMetadata/  # PNG tEXt chunk encoder/decoder
 │   │   ├── platforms/    # Platform definitions + format converters
 │   │   ├── validators/   # Card validation logic
-│   │   ├── exporters/    # PNG/JSON download helpers
 │   │   ├── library/      # IndexedDB card storage (idb)
 │   │   ├── archive/      # ZIP export (jszip)
 │   │   ├── tokenizer/    # Token counting (cl100k)
-│   │   └── customTemplates/ # User-saved templates (localStorage)
+│   │   ├── customTemplates/ # User-saved templates (localStorage)
+│   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
+│   │   ├── download.ts      # Blob download helper (all export paths)
+│   │   ├── settings.ts      # App settings + localStorage persistence
+│   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
+│   │   └── minimalPng.ts    # 1×1 fallback carrier image
 │   ├── data/templates/   # Built-in character templates
 │   ├── types/            # TypeScript type definitions
 │   └── App.tsx           # Root component and app state
@@ -212,6 +219,29 @@ CharacterBinder/
 ---
 
 ## Changelog
+
+### Unreleased
+
+**Fixes**
+- **Desktop app now launches** — `tauri.conf.json` pointed the webview at port 1420 while Vite serves 3737, so `npm run tauri dev` opened an empty window
+- **JPEG/WebP cover art no longer breaks PNG export** in the Lorebook, Script, Scenario, and Persona editors — non-PNG images are re-encoded through a canvas first, and export errors now say what went wrong instead of a bare "PNG export failed"
+- **Custom output filenames stick** — typing a filename then editing the card name no longer discards it
+- **Removed the leftover native resize grip** on textareas; the purple drag handle added in v1.4.0 was sitting on top of it, and the two wrote conflicting heights. The handle is now keyboard-accessible (arrow keys) and works with touch and pen input
+- **Status text is legible** — errors, warnings, and success messages were still using dark-theme colours on the light UI (warnings measured 1.4:1 contrast). All status colours now clear WCAG AA
+- Platform compatibility warnings count only fields the card actually uses, instead of the platform's entire theoretical loss list
+- Library deletes — single and bulk — now ask for confirmation
+- ZIP archives disambiguate same-named cards instead of silently overwriting them
+- Downloads attach their anchor to the document and revoke the object URL on a later tick, so large exports don't get cancelled mid-flight
+- The "save as a new version" baseline now follows the card you have open, instead of keeping the previously-loaded card's version
+
+**Performance**
+- Token counts and card validation are memoized. Previously a single keystroke ran roughly seventeen full BPE encodes on the main thread
+
+**Cleanup**
+- Removed `lib/exporters` and `lib/cardFormats` — both were superseded by `lib/platforms` and entirely unreachable, along with `detectCardFormat`, `autoParseCard`, `uint8ArrayToBase64`, `getCard`, `getCardCount`, and `getConversionLosses`
+- Removed the **Default Export Format** and **Default Metadata Key** settings — nothing read either one; the target platform determines both
+- `TextAreaField` now composes `ResizableTextArea` instead of duplicating its resize logic; blob downloads, the carrier-image conversion, the status banner, and the app defaults each live in one place now
+- Dropped the unused `puppeteer` dev dependency; added `tauri:dev` and `tauri:build` scripts
 
 ### v1.4.0
 - Added **Persona Card Editor** — define a user persona (`{{user}}` identity) with name, description, personality, appearance, background, avatar image, and PNG/JSON export

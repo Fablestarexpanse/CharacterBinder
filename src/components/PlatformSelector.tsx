@@ -64,7 +64,7 @@ function PlatformCard({
       }`}
     >
       {selected && (
-        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent-green flex items-center justify-center">
+        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-status-ok flex items-center justify-center">
           <Check size={10} className="text-white" />
         </span>
       )}
@@ -76,7 +76,7 @@ function PlatformCard({
       </p>
       <div className="flex items-center gap-2 text-xs">
         {platform.pngSupport && (
-          <span className="flex items-center gap-0.5 text-accent-green">
+          <span className="flex items-center gap-0.5 text-status-ok">
             <Image size={10} /> PNG
           </span>
         )}
@@ -86,13 +86,13 @@ function PlatformCard({
           </span>
         )}
         {lossCount > 0 && (
-          <span className="ml-auto text-red-400">{lossCount} lost</span>
+          <span className="ml-auto text-status-danger">{lossCount} lost</span>
         )}
         {lossCount === 0 && partialCount > 0 && (
-          <span className="ml-auto text-yellow-400">{partialCount} mapped</span>
+          <span className="ml-auto text-status-warn">{partialCount} mapped</span>
         )}
         {lossCount === 0 && partialCount === 0 && (
-          <span className="ml-auto text-accent-green">Full</span>
+          <span className="ml-auto text-status-ok">Full</span>
         )}
       </div>
     </button>

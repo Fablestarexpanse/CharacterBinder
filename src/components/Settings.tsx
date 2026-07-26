@@ -1,19 +1,12 @@
 import { useState } from "react";
-import type { AppSettings, ExportFormat, MetadataKey } from "../types";
+import type { AppSettings } from "../types";
+import { DEFAULT_SETTINGS } from "../lib/settings";
 import { Save, RotateCcw } from "lucide-react";
 
 interface SettingsProps {
   settings: AppSettings;
   onSave: (settings: AppSettings) => void;
 }
-
-const DEFAULT: AppSettings = {
-  defaultExportFormat: "tavern_v2",
-  defaultMetadataKey: "chara",
-  autoValidateBeforeExport: true,
-  preserveUnknownChunks: true,
-  prettyPrintJson: true,
-};
 
 export default function Settings({ settings, onSave }: SettingsProps) {
   const [draft, setDraft] = useState<AppSettings>({ ...settings });
@@ -25,7 +18,7 @@ export default function Settings({ settings, onSave }: SettingsProps) {
     setTimeout(() => setSaved(false), 1500);
   };
 
-  const handleReset = () => setDraft({ ...DEFAULT });
+  const handleReset = () => setDraft({ ...DEFAULT_SETTINGS });
 
   const set = <K extends keyof AppSettings>(key: K, val: AppSettings[K]) =>
     setDraft((d) => ({ ...d, [key]: val }));
@@ -36,42 +29,6 @@ export default function Settings({ settings, onSave }: SettingsProps) {
         <div>
           <h1 className="text-xl font-bold text-text-primary mb-1">Settings</h1>
           <p className="text-sm text-text-secondary">Configure default export behavior and app preferences.</p>
-        </div>
-
-        <div className="card-panel space-y-4">
-          <p className="section-title">Export Defaults</p>
-
-          <div>
-            <label className="label-base">Default Export Format</label>
-            <select
-              className="input-base"
-              value={draft.defaultExportFormat}
-              onChange={(e) => set("defaultExportFormat", e.target.value as ExportFormat)}
-            >
-              <option value="tavern_v2">Tavern Card v2 (Recommended)</option>
-              <option value="janitor_ai">JanitorAI JSON</option>
-              <option value="rpbuddy">RPBuddy JSON</option>
-              <option value="agnai">Agnai JSON</option>
-              <option value="generic">Generic JSON</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="label-base">Default Metadata Key</label>
-            <select
-              className="input-base"
-              value={draft.defaultMetadataKey}
-              onChange={(e) => set("defaultMetadataKey", e.target.value as MetadataKey)}
-            >
-              <option value="chara">chara (SillyTavern default)</option>
-              <option value="character">character</option>
-              <option value="tavern">tavern</option>
-              <option value="tavern_card_v2">tavern_card_v2</option>
-            </select>
-            <p className="text-xs text-text-muted mt-1">
-              The PNG tEXt chunk keyword used when embedding metadata. Most platforms expect <code className="text-accent-purple-light">chara</code>.
-            </p>
-          </div>
         </div>
 
         <div className="card-panel space-y-3">

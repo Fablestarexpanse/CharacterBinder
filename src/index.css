@@ -2,15 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Plain rules outside @layer sit above all Tailwind layers in the cascade,
- * so this resize cannot be overridden by any utility class.
- */
-textarea.input-base {
-  resize: vertical;
-  min-height: 4em; /* ensures a visible grab-corner even on short fields */
-}
-
 @layer base {
   * {
     box-sizing: border-box;
@@ -33,15 +24,26 @@ textarea.input-base {
     user-select: none;
   }
 
+  /* The chrome is non-selectable (desktop-app feel), but anything that holds
+     content the user might want to copy must opt back in — including <pre>
+     and <code>, which is where Raw Preview shows the base64 payload. */
   textarea,
   input,
   input[type="text"],
   input[type="number"],
   input[type="search"],
-  input:not([type]) {
+  input:not([type]),
+  pre,
+  code {
     user-select: text !important;
     -webkit-user-select: text !important;
     cursor: auto;
+  }
+
+  :focus-visible {
+    outline: 2px solid #7c3aed;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   ::-webkit-scrollbar {
@@ -93,11 +95,32 @@ textarea.input-base {
   }
 
   .badge-green {
-    @apply inline-flex items-center gap-1 bg-accent-green-dim text-accent-green text-xs font-medium px-2 py-0.5 rounded-full;
+    @apply inline-flex items-center gap-1 bg-status-ok-soft text-status-ok text-xs font-medium px-2 py-0.5 rounded-full;
   }
 
   .badge-purple {
-    @apply inline-flex items-center gap-1 bg-purple-900/40 text-accent-purple-light text-xs font-medium px-2 py-0.5 rounded-full;
+    @apply inline-flex items-center gap-1 bg-accent-purple/10 text-accent-purple text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  /* Status text / surfaces — see the `status` palette in tailwind.config.js */
+  .text-danger {
+    @apply text-status-danger;
+  }
+
+  .text-warn {
+    @apply text-status-warn;
+  }
+
+  .alert-danger {
+    @apply border border-status-danger-border bg-status-danger-soft text-status-danger;
+  }
+
+  .alert-warn {
+    @apply border border-status-warn-border bg-status-warn-soft text-status-warn;
+  }
+
+  .alert-ok {
+    @apply border border-status-ok-border bg-status-ok-soft text-status-ok;
   }
 
   .tab-button {

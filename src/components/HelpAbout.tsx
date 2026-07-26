@@ -52,7 +52,7 @@ export default function HelpAbout() {
               { name: "Generic Platforms", key: "any", note: "PNG + embedded JSON fallback" },
             ].map((p) => (
               <div key={p.name} className="flex items-center gap-3 text-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-status-ok shrink-0" />
                 <span className="font-medium text-text-primary w-32">{p.name}</span>
                 <code className="text-xs text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded">{p.key}</code>
                 <span className="text-text-muted text-xs">{p.note}</span>
