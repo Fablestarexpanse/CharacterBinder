@@ -16,14 +16,25 @@
  * are appended to Description with their original label intact.
  */
 
-export type PersonaField =
+/**
+ * Every field the parser knows how to fill. Individual editors consume a subset:
+ * personas use appearance/background, character cards use scenario/first_mes/
+ * mes_example instead. See PERSONA_FIELDS and CHARACTER_FIELDS.
+ */
+export type CardField =
   | "name"
   | "description"
   | "personality"
   | "appearance"
   | "background"
+  | "scenario"
+  | "first_mes"
+  | "mes_example"
   | "creator"
   | "creator_notes";
+
+/** Historical alias — the parser started out persona-only. */
+export type PersonaField = CardField;
 
 export type ParseMethod = "json" | "wpp" | "labelled" | "prose" | "empty" | "ai";
 
@@ -35,18 +46,26 @@ export interface ParsedPersona {
   notes: string[];
 }
 
-export const PERSONA_FIELD_LABELS: Record<PersonaField, string> = {
+export const PERSONA_FIELD_LABELS: Record<CardField, string> = {
   name: "Persona Name",
   description: "Description",
   personality: "Personality",
   appearance: "Appearance",
   background: "Background",
+  scenario: "Scenario",
+  first_mes: "First Message",
+  mes_example: "Example Dialogs",
   creator: "Creator",
   creator_notes: "Creator Notes",
 };
 
+export const CHARACTER_FIELD_LABELS: Record<CardField, string> = {
+  ...PERSONA_FIELD_LABELS,
+  name: "Character Name",
+};
+
 /** Field order used when rendering the preview. */
-export const PERSONA_FIELD_ORDER: PersonaField[] = [
+export const PERSONA_FIELD_ORDER: CardField[] = [
   "name",
   "description",
   "personality",
@@ -56,11 +75,26 @@ export const PERSONA_FIELD_ORDER: PersonaField[] = [
   "creator_notes",
 ];
 
+/**
+ * Character cards have no appearance/background of their own — that detail
+ * belongs in description — but they do carry scenario, greeting, and examples.
+ */
+export const CHARACTER_FIELD_ORDER: CardField[] = [
+  "name",
+  "description",
+  "personality",
+  "scenario",
+  "first_mes",
+  "mes_example",
+  "creator",
+  "creator_notes",
+];
+
 // ── Label vocabulary ────────────────────────────────────────────────────────
 // Aliases are matched after normalisation (lowercased, punctuation stripped).
 // Order matters: the first table entry whose alias matches exactly wins.
 
-type LabelTarget = PersonaField | "tags";
+type LabelTarget = CardField | "tags";
 
 const LABEL_ALIASES: Array<[LabelTarget, string[]]> = [
   ["name", ["name", "persona name", "full name", "character name", "char name", "char", "character", "alias", "goes by", "called"]],
@@ -68,6 +102,9 @@ const LABEL_ALIASES: Array<[LabelTarget, string[]]> = [
   ["personality", ["personality", "personalities", "traits", "trait", "character traits", "temperament", "mannerisms", "manner", "behaviour", "behavior", "demeanour", "demeanor", "quirks", "disposition", "attitude", "habits", "habit", "interests", "interest", "hobbies", "hobby", "strengths", "strength", "flaws", "flaw", "weaknesses", "weakness", "fears", "goals", "motivations"]],
   ["background", ["background", "backstory", "back story", "history", "biography", "origin", "origins", "past", "lore", "occupation", "job", "profession", "career", "story", "reputation", "education"]],
   ["description", ["description", "desc", "about", "summary", "overview", "persona", "bio", "profile", "intro", "introduction", "general", "quote", "quotes", "catchphrase"]],
+  ["scenario", ["scenario", "setting", "situation", "world", "world info", "context", "premise"]],
+  ["first_mes", ["first message", "first mes", "greeting", "opening message", "opening line", "intro message", "initial message", "first_mes"]],
+  ["mes_example", ["example dialogs", "example dialogue", "example dialogues", "example messages", "dialogue examples", "sample dialogue", "examples", "mes example", "mes_example"]],
   ["creator", ["creator", "author", "made by", "created by", "by"]],
   ["creator_notes", ["creator notes", "notes", "note", "authors note", "author notes", "creators note"]],
   ["tags", ["tags", "tag", "keywords", "categories"]],
@@ -170,6 +207,16 @@ const JSON_KEY_MAP: Record<string, LabelTarget> = {
   background: "background",
   backstory: "background",
   history: "background",
+  scenario: "scenario",
+  world: "scenario",
+  setting: "scenario",
+  first_mes: "first_mes",
+  first_message: "first_mes",
+  greeting: "first_mes",
+  char_greeting: "first_mes",
+  mes_example: "mes_example",
+  example_dialogue: "mes_example",
+  example_dialogs: "mes_example",
   creator: "creator",
   author: "creator",
   creator_notes: "creator_notes",
@@ -313,6 +360,18 @@ function isBulletLine(line: string): boolean {
 }
 
 /**
+ * `{{char}}: ...`, `{{user}}: ...`, `<BOT>: ...` — a speaker in an example
+ * exchange, not a section heading. Without this guard `{{char}}` normalises to
+ * "char", which is a Name alias, so every line of example dialogue would open a
+ * new Name section and shred the block.
+ */
+const DIALOGUE_SPEAKER_RE = /^\s*(\{\{[^}]*\}\}|<\s*\/?\s*[a-z]+\s*>)\s*:/i;
+
+function isDialogueLine(line: string): boolean {
+  return DIALOGUE_SPEAKER_RE.test(line);
+}
+
+/**
  * Decide whether a line opens a new section. Accepts `Label:`, markdown/bracket
  * decoration, or a bare line that is *exactly* a known section word — the shape
  * used by most hand-written cards, where `Appearance` sits alone above its
@@ -324,6 +383,7 @@ function matchHeading(line: string): Heading | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
   if (isSeparatorLine(trimmed)) return null;
+  if (isDialogueLine(trimmed)) return null;
 
   // [Label] or <Label> or (Label), alone on the line
   const bracket = trimmed.match(/^[[<(]\s*([^\]>)]{1,40}?)\s*[\]>)]\s*[:\-–—]?\s*(.*)$/);
@@ -521,6 +581,31 @@ function splitTags(value: string): string[] {
     .split(/[,;\n]/)
     .map((t) => t.trim().replace(/^[#\-*•]\s*/, ""))
     .filter(Boolean);
+}
+
+/**
+ * Fold a parse result into character-card fields.
+ *
+ * Character cards have no appearance or background field of their own — that
+ * detail conventionally lives in description — so those sections are merged in
+ * with their labels kept, rather than being dropped on the floor.
+ */
+export function toCharacterFields(parsed: ParsedPersona): Partial<Record<CardField, string>> {
+  const out: Partial<Record<CardField, string>> = {};
+
+  for (const field of CHARACTER_FIELD_ORDER) {
+    const value = (parsed.fields[field] ?? "").trim();
+    if (value) out[field] = value;
+  }
+
+  const folded: string[] = [];
+  for (const [field, label] of [["appearance", "Appearance"], ["background", "Background"]] as const) {
+    const value = (parsed.fields[field] ?? "").trim();
+    if (value) folded.push(`${label}:\n${value}`);
+  }
+  if (folded.length) out.description = joinSections(out.description, folded.join("\n\n"));
+
+  return out;
 }
 
 function joinSections(a: string | undefined, b: string | undefined): string {

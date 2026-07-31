@@ -1,0 +1,55 @@
+name: Deploy to GitHub Pages
+
+# Manual only. Nothing publishes unless you press "Run workflow" in the Actions
+# tab. Change to `on: push: branches: [main]` if you'd rather deploy on merge.
+on:
+  workflow_dispatch:
+
+# One deploy at a time; don't cancel a run that's mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      # A project site lives at /<repo>/, so asset URLs need that prefix baked in.
+      - name: Build
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      # Pages does no SPA rewriting; a 404 copy keeps deep links working.
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

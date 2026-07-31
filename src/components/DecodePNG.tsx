@@ -131,7 +131,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           <h1 className="text-xl font-bold text-text-primary mb-1">Decode PNG</h1>
           <p className="text-sm text-text-secondary">
             Inspect any card PNG's embedded metadata. All card types are detected —
-            character cards, lorebooks, scripts, and scenario cards.
+            character cards, lorebooks, scripts, scenario cards, and personas.
           </p>
         </div>
 

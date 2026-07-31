@@ -2,7 +2,7 @@
 
 > Create, embed, share — a local-first tool for building and exporting AI roleplay character cards in the Tavern Card PNG format. Runs entirely in your browser.
 
-![CharacterBinder — Main Editor](docs/preview-v1.5.0.png)
+![CharacterBinder — Main Editor](docs/preview-v1.6.0.png)
 
 ---
 
@@ -49,6 +49,25 @@ npm run build
 Outputs a static site to `dist/`. It has no server component, so it can be
 opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 
+### Deploying to GitHub Pages
+
+A workflow is included at `.github/workflows/deploy.yml`. It runs the tests,
+builds with the right subpath, and publishes.
+
+It is **manual only** — nothing deploys until you ask it to:
+
+1. In the repo, go to **Settings → Pages** and set *Source* to **GitHub Actions**
+2. Go to **Actions → Deploy to GitHub Pages → Run workflow**
+
+Hosting under a subpath is handled by the `BASE_PATH` environment variable, which
+the workflow sets to `/<repo-name>/`. Local builds leave it unset and stay at `/`.
+
+### Running the tests
+
+```bash
+npm test
+```
+
 ---
 
 ## What Is CharacterBinder?
@@ -80,6 +99,9 @@ to keep them, and **Tools** for everything else. Each section is covered below.
 The main editor. Every Tavern Card v2 field is here — description, personality,
 scenario, first message, example dialogs, and the advanced block (system prompt,
 post-history instructions, alternate greetings, lorebook).
+
+**Quick Import** sits at the top — paste an unsorted card and it fills the fields
+for you (see below).
 
 The right rail stays live as you type: card preview, embedded data size, a token
 counter with per-field breakdown, and validation. Pick a target platform and it
@@ -138,10 +160,17 @@ Above the fields sits **Quick Import**, which is the fastest way to fill this in
 
 ![Quick Import splitting a pasted persona into fields](docs/preview-quick-import-v1.5.0.png)
 
-Personas collected from JanitorAI and elsewhere rarely arrive neatly split into
-Appearance / Personality / Background. Quick Import takes one blob of text in
-whatever shape you have it and proposes a field-by-field split, which you review
-and adjust before anything is applied.
+Available in both the **Character** and **Persona** editors.
+
+Cards collected from JanitorAI and elsewhere rarely arrive neatly split into
+fields. Quick Import takes one blob of text in whatever shape you have it and
+proposes a field-by-field split, which you review and adjust before anything is
+applied.
+
+It targets whichever card you're editing: a persona gets appearance and
+background, a character card gets scenario, first message, and example dialogue
+instead — and any appearance or backstory it finds gets folded into the
+character's description with its heading kept, rather than dropped.
 
 It picks its own approach based on what you paste:
 
@@ -364,6 +393,27 @@ CharacterBinder/
 ---
 
 ## Changelog
+
+### v1.6.1
+- **Quick Import now works in the Character editor**, not just Persona. It targets
+  whichever card you're editing — a character gets scenario, first message, and
+  example dialogue, and any appearance or backstory the parser finds is folded
+  into description with its heading kept rather than dropped
+- **Fixed: example dialogue was being shredded.** `{{char}}:` normalises to
+  "char", which is a Name alias, so every line of an example exchange opened a new
+  Name section. Dialogue speakers are now excluded from heading detection
+- **Fixed: trigger keys and tags updated only on blur**, so the lorebook entry list
+  showed "No keys" while you were still typing them. Tags now report on every
+  keystroke, and a half-typed trailing comma still survives
+- **Fixed: the favicon 404'd.** `index.html` still pointed at `/vite.svg` from the
+  project scaffold; it now uses the actual logo, via a relative path so it also
+  works when hosted under a subpath
+- Import PNG and Decode PNG no longer omit personas from their list of detected
+  card types
+- **Added a test suite** — 23 cases covering the parser across all four input
+  formats, the character mapping, and the regressions above. `npm test`
+- **Added a GitHub Pages workflow** (manual trigger) plus `BASE_PATH` support for
+  subpath hosting
 
 ### v1.6.0
 - **Removed the Tauri desktop shell.** CharacterBinder is now browser-only. The

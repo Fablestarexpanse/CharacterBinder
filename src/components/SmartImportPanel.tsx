@@ -5,21 +5,26 @@ import {
 } from "lucide-react";
 import {
   parsePersonaText,
+  toCharacterFields,
   PERSONA_FIELD_LABELS,
+  CHARACTER_FIELD_LABELS,
   PERSONA_FIELD_ORDER,
+  CHARACTER_FIELD_ORDER,
   type ParsedPersona,
-  type PersonaField,
+  type CardField,
 } from "../lib/personaParser";
-import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress } from "../lib/personaLlm";
+import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../lib/personaLlm";
 import { useEngineState } from "../hooks/useEngineState";
 import { getSorterSettings, saveSorterSettings, type SorterSettings as Settings } from "../lib/personaLlm/settings";
 import SorterSettings from "./SorterSettings";
 
 interface SmartImportPanelProps {
+  /** Which card shape this editor wants back. Defaults to persona. */
+  target?: SortTarget;
   /** Current field contents, used to warn before overwriting. */
-  current: Partial<Record<PersonaField, string>>;
+  current: Partial<Record<CardField, string>>;
   currentTags: string[];
-  onApply: (fields: Partial<Record<PersonaField, string>>, tags: string[]) => void;
+  onApply: (fields: Partial<Record<CardField, string>>, tags: string[]) => void;
   defaultOpen?: boolean;
 }
 
@@ -42,11 +47,20 @@ const METHOD_BLURB: Record<ParsedPersona["method"], string> = {
  * for meaning, which is what handles prose where one sentence covers three
  * fields — at the cost of a one-time model download.
  */
-export default function SmartImportPanel({ current, currentTags, onApply, defaultOpen = false }: SmartImportPanelProps) {
+export default function SmartImportPanel({
+  target = "persona",
+  current,
+  currentTags,
+  onApply,
+  defaultOpen = false,
+}: SmartImportPanelProps) {
+  const FIELD_ORDER = target === "character" ? CHARACTER_FIELD_ORDER : PERSONA_FIELD_ORDER;
+  const FIELD_LABELS = target === "character" ? CHARACTER_FIELD_LABELS : PERSONA_FIELD_LABELS;
+
   const [open, setOpen] = useState(defaultOpen);
   const [raw, setRaw] = useState("");
   const [result, setResult] = useState<ParsedPersona | null>(null);
-  const [selected, setSelected] = useState<Set<PersonaField>>(new Set());
+  const [selected, setSelected] = useState<Set<CardField>>(new Set());
   const [takeTags, setTakeTags] = useState(true);
   const [mode, setMode] = useState<ApplyMode>("replace");
 
@@ -58,16 +72,22 @@ export default function SmartImportPanel({ current, currentTags, onApply, defaul
   const engine = useEngineState();
 
   const parsedFields = result
-    ? PERSONA_FIELD_ORDER.filter((f) => (result.fields[f] ?? "").trim().length > 0)
+    ? FIELD_ORDER.filter((f) => (result.fields[f] ?? "").trim().length > 0)
     : [];
 
   /** Fields that would clobber something the user already typed. */
   const collisions = parsedFields.filter((f) => selected.has(f) && (current[f] ?? "").trim().length > 0);
 
   function acceptResult(parsed: ParsedPersona) {
-    setResult(parsed);
-    setSelected(new Set(PERSONA_FIELD_ORDER.filter((f) => (parsed.fields[f] ?? "").trim().length > 0)));
-    setTakeTags(parsed.tags.length > 0);
+    // The parser always reports appearance/background when it finds them. A
+    // character card has no such fields, so fold them into description rather
+    // than silently discarding a section the author wrote.
+    const shaped: ParsedPersona =
+      target === "character" ? { ...parsed, fields: toCharacterFields(parsed) } : parsed;
+
+    setResult(shaped);
+    setSelected(new Set(FIELD_ORDER.filter((f) => (shaped.fields[f] ?? "").trim().length > 0)));
+    setTakeTags(shaped.tags.length > 0);
   }
 
   function handleQuickSort() {
@@ -80,7 +100,7 @@ export default function SmartImportPanel({ current, currentTags, onApply, defaul
     setBusy(true);
     setProgress(null);
     try {
-      acceptResult(await sorter(raw, { settings, onProgress: (p) => setProgress(p) }));
+      acceptResult(await sorter(raw, { settings, target, onProgress: (p) => setProgress(p) }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "The sort failed.");
     } finally {
@@ -106,7 +126,7 @@ export default function SmartImportPanel({ current, currentTags, onApply, defaul
     }
   }
 
-  function toggle(field: PersonaField) {
+  function toggle(field: CardField) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(field)) next.delete(field);
@@ -118,7 +138,7 @@ export default function SmartImportPanel({ current, currentTags, onApply, defaul
   function handleApply() {
     if (!result) return;
 
-    const out: Partial<Record<PersonaField, string>> = {};
+    const out: Partial<Record<CardField, string>> = {};
     for (const field of parsedFields) {
       if (!selected.has(field)) continue;
       const incoming = (result.fields[field] ?? "").trim();
@@ -329,7 +349,7 @@ export default function SmartImportPanel({ current, currentTags, onApply, defaul
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs font-semibold text-text-primary">
-                                {PERSONA_FIELD_LABELS[field]}
+                                {FIELD_LABELS[field]}
                               </span>
                               {on && existing && (
                                 <span className="flex items-center gap-1 text-xs text-status-warn">

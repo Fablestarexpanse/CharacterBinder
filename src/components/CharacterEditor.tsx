@@ -5,6 +5,8 @@ import { readImageFile } from "../lib/readImageFile";
 import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
 import ResizableTextArea from "./ResizableTextArea";
+import SmartImportPanel from "./SmartImportPanel";
+import type { CardField } from "../lib/personaParser";
 
 interface CharacterEditorProps {
   card: TavernCardV2;
@@ -55,8 +57,34 @@ export default function CharacterEditor({
     onUpdate({ alternate_greetings: updated });
   };
 
+  // A fresh, untouched card opens with the importer expanded; an existing one doesn't.
+  const isBlank = !data.name && !data.description && !data.personality && !data.first_mes;
+
+  function applySmartImport(fields: Partial<Record<CardField, string>>, tags: string[]) {
+    onUpdate({ ...fields, tags } as Partial<TavernCardV2["data"]>);
+  }
+
   return (
     <div className="h-full overflow-y-auto px-6 py-4">
+      <div className="mb-5">
+        <SmartImportPanel
+          target="character"
+          current={{
+            name: data.name,
+            description: data.description,
+            personality: data.personality,
+            scenario: data.scenario,
+            first_mes: data.first_mes,
+            mes_example: data.mes_example,
+            creator: data.creator,
+            creator_notes: data.creator_notes,
+          }}
+          currentTags={data.tags}
+          onApply={applySmartImport}
+          defaultOpen={isBlank}
+        />
+      </div>
+
       {/* Basic Information */}
       <section className="mb-5">
         <h2 className="text-base font-semibold text-text-primary mb-4 pb-2 border-b border-border">

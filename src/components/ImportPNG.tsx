@@ -165,8 +165,8 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         <div>
           <h1 className="text-xl font-bold text-text-primary mb-1">Import PNG Card</h1>
           <p className="text-sm text-text-secondary">
-            Load any card PNG to edit it — character cards, lorebooks, scripts, and scenario cards
-            are all auto-detected from the embedded metadata key.
+            Load any card PNG to edit it — character cards, lorebooks, scripts, scenario cards,
+            and personas are all auto-detected from the embedded metadata key.
           </p>
         </div>
 
