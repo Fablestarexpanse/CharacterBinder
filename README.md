@@ -86,43 +86,73 @@ a remote API instead, which does send your text and warns you before it will.*
 
 ## Features
 
+The sidebar splits into three groups — **Card Types** to make things, **Collection**
+to keep them, and **Tools** for everything else. Each section is covered below.
+
+---
+
 ### Character Editor
-- Fill in all Tavern Card v2 fields: name, description, personality, scenario, first message, example dialogs, system prompt, post-history instructions, and more
-- Live character image preview with drag-and-drop support
-- Alternate greetings — add multiple opening messages
-- Tags, creator fields, character version, and creator notes
-- Copy / Paste buttons on every text field with cursor-aware insertion
-- JSON View and Raw Preview tabs for direct inspection
-- Live token counter (cl100k / GPT-4 standard) with per-field breakdown
+
+![Character Editor](docs/section-character.png)
+
+The main editor. Every Tavern Card v2 field is here — description, personality,
+scenario, first message, example dialogs, and the advanced block (system prompt,
+post-history instructions, alternate greetings, lorebook).
+
+The right rail stays live as you type: card preview, embedded data size, a token
+counter with per-field breakdown, and validation. Pick a target platform and it
+tells you which of your fields that platform will drop or rename *before* you
+export. **JSON View** and **Raw Preview** tabs show exactly what will be written.
+
+---
 
 ### Lorebook Editor
-- Build SillyTavern-compatible world info / knowledge books
-- Add and manage entries with keyword triggers (primary + secondary), priority, insertion order, and position
-- Per-entry toggles: enabled, constant, selective, case-sensitive
-- Import existing SillyTavern lorebook JSON via drag-and-drop or file picker
-- Creator, version, and creator notes fields
-- Export as SillyTavern-compatible JSON or embed in a PNG (`lorebook` chunk)
+
+![Lorebook Editor](docs/section-lorebook.png)
+
+Builds SillyTavern-compatible world info books. Entries live in a list on the
+left; each one gets trigger keys, content, and an internal note.
+
+Per-entry controls cover **enabled**, **constant** (always inject), **selective**
+(require a second key), and **case sensitive**, plus position, insertion order,
+and priority. Existing SillyTavern lorebook JSON can be dragged straight in.
+
+---
 
 ### Script Card Editor
-- Package JavaScript snippets or system prompts as portable, shareable cards
-- Full-height code editor with line numbers, syntax highlighting colours, and Tab key support
-- Author, version, creator notes, and tags
-- Export as JSON or embed in a PNG (`script` chunk)
+
+![Script Card Editor](docs/section-script.png)
+
+Packages JavaScript snippets or system prompts as portable cards. The code
+editor has line numbers, syntax colouring, and Tab support.
+
+Exports as JSON, or embeds into a PNG using the `script` chunk so a script can
+be shared as a single image like any other card.
+
+---
 
 ### Scenario Card Editor
-- Create a standalone situation or setting card that can be dropped into any conversation
-- Fields: scenario text, opening message, creator, version, creator notes, and tags
-- Optional scene image with drag-and-drop support (JPEG/WebP covers are converted to PNG on export)
-- Export as JSON or embed in a PNG (`scenario` chunk)
 
-### Persona Card Editor *(v1.4)*
-- Define a user persona — who *you* are in the conversation, used as the `{{user}}` identity
-- **Quick Import** — paste one unsorted block of text and it gets split into the right fields (see below)
-- Fields: name, description, personality, appearance, background, creator, version, creator notes, and tags
-- Avatar image with drag-and-drop support
-- Export as JSON or embed in a PNG (`persona` chunk)
+![Scenario Card Editor](docs/section-scenario.png)
 
-### Quick Import — paste anything, get sorted fields *(Persona editor)*
+A standalone situation that can be dropped into any conversation, independent of
+which character you're talking to. Scenario text, an opening message, an optional
+scene image, and the usual creator/version/notes fields.
+
+---
+
+### Persona Card Editor
+
+![Persona Card Editor](docs/section-persona.png)
+
+Defines who *you* are in the conversation — the `{{user}}` identity. Name,
+description, personality, appearance, background, and an avatar.
+
+Above the fields sits **Quick Import**, which is the fastest way to fill this in.
+
+---
+
+### Quick Import — paste anything, get sorted fields
 
 ![Quick Import splitting a pasted persona into fields](docs/preview-quick-import-v1.5.0.png)
 
@@ -150,6 +180,7 @@ Before applying you get a checkbox per field to drop anything it got wrong, and
 a Replace / Keep-and-append choice for fields you've already filled in.
 
 #### The AI sorter
+
 Only used when your text has no structure to work from, because for structured
 text the parser is both faster and more faithful.
 
@@ -159,43 +190,78 @@ default, about 2.2 GB) and is cached, so it works offline afterwards. A typical
 sort takes ~2 seconds once loaded. Output is constrained to a JSON schema during
 decoding, so the model cannot return malformed or off-schema results.
 
-Under the gear icon you can pick a smaller model (down to 376 MB) for weaker
-machines, or point the sorter at any OpenAI-compatible server instead — Ollama,
-LM Studio, KoboldCpp, TabbyAPI. Non-local addresses require an explicit
-acknowledgement first, since that is the one path where your text leaves the
-machine.
+The `AI` light next to **Ready** in the sidebar shows whether the model is
+currently loaded, and clicking it loads or frees it — worth knowing, since a
+resident model holds a couple of GB of VRAM. Under the gear icon you can pick a
+smaller model (down to 376 MB), or point the sorter at any OpenAI-compatible
+server instead — Ollama, LM Studio, KoboldCpp, TabbyAPI. Non-local addresses
+require an explicit acknowledgement first, since that is the one path where your
+text leaves the machine.
 
-### Card Library
-- Save all card types locally in your browser's IndexedDB — no files to manage
-- Browse your collection in a thumbnail grid organised by type (Characters, Lorebooks, Scripts, Scenarios, Personas)
-- **Version badges** — each card tile shows its version number
-- **Clickable tags** — click any tag on a card to instantly filter the library by that tag
-- Search by name, type, or tag with a one-click clear button
-- Sort by last modified, created date, or name
-- Multi-select for bulk delete or export — deletes always ask for confirmation first
+---
 
-### Version Control in Library *(v1.4)*
-- Changing a card's version number and pressing **Save to Library** creates a **new entry** instead of overwriting the existing one
-- Previous versions stay in your library side-by-side
-- Works across all card types
+### Library
 
-### Archive & Export
-- **Export ZIP** — download selected cards (or your entire library) as a single `.zip` file
-- Each card exports as a `.png` (with embedded metadata) or `.json` (if no image)
-- A `manifest.json` is included listing all cards, types, and timestamps
-- Perfect for backing up your collection or moving it to another machine
+![Library](docs/section-library.png)
 
-### Multi-Platform Export (Character Cards)
-- Switch target platforms and see live field compatibility warnings before you export
-- Automatic field mapping and renaming per platform
-- PNG export or JSON export depending on platform support
-- Save as Template directly from the export panel
+Everything you save lives here, in your browser's IndexedDB — no files to manage.
+Cards are grouped by type and tagged with their version.
 
-### Tools
-- **Import PNG** — load any card PNG (character, lorebook, script, scenario, or persona) and open it in the correct editor automatically
-- **Decode PNG** — inspect the raw embedded metadata of any card PNG, with full chunk listing and decoded JSON
-- **Templates** — start from a built-in character or a blank slate
-- **Validate** — check your character card against the Tavern Card v2 spec before exporting
+Search by name, type, or tag; sort by modified, created, or name; click any tag
+on a card to filter by it. Multi-select supports bulk delete and bulk export, and
+**Archive All** drops your whole collection into a single `.zip` with a
+`manifest.json` — the easiest way to back up or move to another machine.
+
+**Version control:** change a card's version number before saving and you get a
+*new* library entry instead of overwriting the old one, so previous versions stay
+side by side. Works across all five card types.
+
+---
+
+### Templates
+
+![Templates](docs/section-templates.png)
+
+Start from a built-in character instead of a blank editor. Anything you build can
+be saved here too, via **Save as Template** in the character export panel.
+
+---
+
+### Import PNG
+
+![Import PNG](docs/section-import-png.png)
+
+Drop in any card PNG and it opens in the right editor automatically. It detects
+all five card types by their metadata chunk, so a lorebook PNG lands in the
+Lorebook editor and a persona lands in the Persona editor without being told.
+
+---
+
+### Decode PNG
+
+![Decode PNG](docs/section-decode-png.png)
+
+The inspector. Shows every `tEXt` chunk in a card PNG and the decoded JSON behind
+it — useful for checking what a card you downloaded actually contains, or for
+confirming your own export came out right.
+
+---
+
+### Settings
+
+![Settings](docs/section-settings.png)
+
+App preferences: validate before exporting, pretty-print JSON, and whether to
+preserve unknown PNG chunks when re-encoding an existing image.
+
+---
+
+### Help / About
+
+![Help / About](docs/section-help.png)
+
+A short primer on what Tavern Card PNGs are and how the embedding works, plus the
+current version.
 
 ---
 
@@ -351,6 +417,10 @@ CharacterBinder/
 - Added `npm start` (dev server + opens browser), plus `tauri:dev` / `tauri:build` scripts and a `node >=18` engines constraint
 - Added `.gitattributes` pinning `*.sh` to LF — without it a Windows checkout produced CRLF shebangs that fail on macOS/Linux with `bad interpreter`
 - The version shown in the sidebar and Help / About is now injected from `package.json` at build time instead of being hardcoded in two components, where it had already drifted a release behind
+
+**Documentation**
+- The README now walks through every section of the app — the five editors, Library, Templates, Import PNG, Decode PNG, Settings, and Help — each with a short description and a screenshot
+- Refreshed the header screenshot; the previous one was named for v1.4.0 but had actually been captured at v1.3.0
 
 **Cleanup**
 - Removed `lib/exporters` and `lib/cardFormats` — both were superseded by `lib/platforms` and entirely unreachable, along with `detectCardFormat`, `autoParseCard`, `uint8ArrayToBase64`, `getCard`, `getCardCount`, and `getConversionLosses`
