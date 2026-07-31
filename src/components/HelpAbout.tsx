@@ -72,7 +72,7 @@ export default function HelpAbout() {
         </InfoSection>
 
         <div className="card-panel text-center py-6 text-text-muted">
-          <p className="text-sm">Built with Tauri + React + TypeScript</p>
+          <p className="text-sm">Built with React + TypeScript + Vite</p>
           <p className="text-xs mt-1">CharacterBinder is open source and runs 100% locally.</p>
           <p className="text-xs mt-1">Character data never leaves your machine.</p>
         </div>

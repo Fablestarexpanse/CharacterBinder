@@ -14,8 +14,5 @@ export default defineConfig(async () => ({
   server: {
     port: 3737,
     strictPort: true,
-    watch: {
-      ignored: ["**/src-tauri/**"],
-    },
   },
 }));

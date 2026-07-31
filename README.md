@@ -1,6 +1,6 @@
 # CharacterBinder
 
-> Create, embed, share — a local-first desktop tool for building and exporting AI roleplay character cards in the Tavern Card PNG format.
+> Create, embed, share — a local-first tool for building and exporting AI roleplay character cards in the Tavern Card PNG format. Runs entirely in your browser.
 
 ![CharacterBinder — Main Editor](docs/preview-v1.5.0.png)
 
@@ -10,8 +10,7 @@
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org) v18 or later
-- [Rust](https://rustup.rs) — only needed for the Tauri desktop build
+- [Node.js](https://nodejs.org) v18 or later — that's the whole list
 
 ### Install & Run — no terminal needed
 
@@ -37,35 +36,18 @@ npm install
 npm start
 ```
 
-Opens at **[http://localhost:3737](http://localhost:3737)** in your browser. No Rust required for the web version.
+Opens at **[http://localhost:3737](http://localhost:3737)** in your browser.
 
 (`npm start` opens the browser for you; `npm run dev` is the same thing without that.)
-
-### Desktop App (Tauri)
-
-Runs in its own window instead of a browser tab. Needs [Rust](https://rustup.rs)
-in addition to Node.js — the first launch compiles it and takes a few minutes.
-
-- **Windows** — double-click **`start-desktop.bat`**
-- **macOS / Linux** — run **`./start-desktop.sh`**
-
-Or from a terminal:
-
-```bash
-npm run tauri:dev
-```
-
-The desktop shell loads the same Vite dev server on port 3737.
 
 ### Production Build
 
 ```bash
-# Web — outputs to dist/
 npm run build
-
-# Desktop installer
-npm run tauri:build
 ```
+
+Outputs a static site to `dist/`. It has no server component, so it can be
+opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 
 ---
 
@@ -333,7 +315,7 @@ PNG Signature (8 bytes)
 
 | Layer | Technology |
 |-------|-----------|
-| Desktop shell | [Tauri 2.x](https://tauri.app) (Rust) |
+| Runtime | The browser — no server, no native shell |
 | Frontend | React 18 + TypeScript |
 | Styling | Tailwind CSS |
 | Build tool | Vite |
@@ -374,16 +356,30 @@ CharacterBinder/
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations
 │   ├── main.tsx             # React entry point
 │   └── App.tsx              # Root component and app state
-├── src-tauri/               # Tauri (Rust) desktop shell
 ├── public/                  # Static assets (logo, etc.)
 ├── docs/                    # Screenshots and documentation assets
-├── start.bat / start.sh                 # One-click launch (browser)
-└── start-desktop.bat / start-desktop.sh # One-click launch (desktop window)
+└── start.bat / start.sh     # One-click launch
 ```
 
 ---
 
 ## Changelog
+
+### v1.6.0
+- **Removed the Tauri desktop shell.** CharacterBinder is now browser-only. The
+  shell had accumulated no purpose: the frontend imported no Tauri APIs, and the
+  three Rust commands it exposed (`read_file_bytes`, `write_file_bytes`,
+  `get_file_size`) were never called from the UI, as were the `dialog`, `fs`, and
+  `shell` plugins. It produced a window around the same static site the browser
+  already ran.
+- **Rust is no longer a prerequisite for anything.** Node.js 18+ is the entire
+  toolchain. `src-tauri/` and the four `@tauri-apps` packages are gone, along with
+  the `tauri`, `tauri:dev`, and `tauri:build` scripts and the `start-desktop`
+  launchers.
+- Removing the shell also settles a compatibility question the in-browser AI
+  sorter had raised: Tauri renders in the OS webview, where WebGPU is reliable on
+  Windows but only lands on macOS 15+ and is largely unavailable on Linux. In a
+  real browser it works consistently everywhere.
 
 ### v1.5.0
 
