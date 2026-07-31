@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { NavPage } from "../types";
+import LlmStatusLight from "./LlmStatusLight";
 import {
   PlusSquare,
   Library,
@@ -89,10 +90,11 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       </nav>
 
       {/* Status */}
-      <div className="border-t border-border px-4 py-2.5 flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-accent-green shrink-0" />
+      <div className="border-t border-border px-3 py-2.5 flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full bg-accent-green shrink-0 ml-1" />
         <span className="text-xs text-text-muted">Ready</span>
-        <span className="ml-auto text-xs text-text-muted">v1.4.0</span>
+        <LlmStatusLight />
+        <span className="ml-auto text-xs text-text-muted">v{__APP_VERSION__}</span>
       </div>
     </aside>
   );

@@ -1,0 +1,10 @@
+# Shell scripts must keep LF endings even when checked out on Windows —
+# a CRLF shebang makes Linux/macOS fail with "bad interpreter: /usr/bin/env bash^M".
+*.sh text eol=lf
+
+# Batch files are the mirror case: cmd.exe wants CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Everything else: normalise to LF in the repo, native on checkout.
+* text=auto

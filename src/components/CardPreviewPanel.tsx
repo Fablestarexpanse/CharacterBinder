@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import type { AppSettings, CardProject } from "../types";
-import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus } from "lucide-react";
+import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
 import { saveCard } from "../lib/library";
 import { saveCustomTemplate } from "../lib/customTemplates";
 import {
@@ -76,10 +76,9 @@ export default function CardPreviewPanel({
   }, []);
 
   const handleExportPng = useCallback(async () => {
-    if (!platform.pngSupport) {
-      setStatus(`${platform.name} doesn't support PNG embedding. Use JSON export instead.`, false);
-      return;
-    }
+    // PNG export is never blocked. Platforms that can't read card PNGs still
+    // produce a perfectly valid file — it just has to be imported somewhere
+    // else, so the UI warns rather than refusing.
     if (settings.autoValidateBeforeExport && !validation.valid) {
       setStatus("Fix validation errors before exporting.", false);
       return;
@@ -106,7 +105,12 @@ export default function CardPreviewPanel({
       const metaKey = platform.metadataKey ?? settings.defaultMetadataKey;
       const resultBytes = encodeCharaToPng(pngBytes, jsonData, metaKey as never, settings.preserveUnknownChunks);
       downloadPng(resultBytes, project.outputFileName);
-      setStatus("PNG exported!", true);
+      setStatus(
+        platform.pngSupport
+          ? "PNG exported!"
+          : `PNG exported — remember ${platform.name} needs the JSON instead.`,
+        true
+      );
     } catch (err) {
       setStatus(`Export failed: ${(err as Error).message}`, false);
     } finally {
@@ -380,19 +384,24 @@ export default function CardPreviewPanel({
       <div className="p-4 border-t border-border space-y-2 shrink-0">
         <button
           onClick={handleExportPng}
-          disabled={exporting || !platform.pngSupport}
-          className={`w-full btn-primary justify-center py-3 text-sm font-semibold ${
-            !platform.pngSupport ? "opacity-40 cursor-not-allowed" : ""
-          }`}
+          disabled={exporting}
+          className="w-full btn-primary justify-center py-3 text-sm font-semibold"
         >
           <Download size={16} />
-          {exporting ? "Exporting..." : `Export for ${platform.name}`}
+          {exporting ? "Exporting..." : platform.pngSupport ? `Export for ${platform.name}` : "Export PNG anyway"}
         </button>
 
         {!platform.pngSupport && (
-          <p className="text-xs text-center text-yellow-400">
-            {platform.name} doesn't support PNG — use JSON export
-          </p>
+          <div className="flex gap-2 p-2 rounded-md bg-amber-50 border border-amber-200">
+            <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <strong>{platform.name} can't import PNG cards</strong> — it reads JSON only, so use Export JSON below for
+              that site. The PNG still gets built correctly with your full card in a{" "}
+              <code className="bg-amber-100 px-1 rounded">{platform.metadataKey ?? settings.defaultMetadataKey}</code>{" "}
+              chunk, so it works anywhere that does read PNG cards, and it's a fine way to keep or share the card as a
+              single image.
+            </p>
+          </div>
         )}
 
         {exportStatus && (

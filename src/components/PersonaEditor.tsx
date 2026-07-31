@@ -9,6 +9,8 @@ import ImageDropzone from "./ImageDropzone";
 import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
+import SmartImportPanel from "./SmartImportPanel";
+import type { PersonaField } from "../lib/personaParser";
 
 const DEFAULT: PersonaCard = {
   spec: "persona_card_v1",
@@ -48,6 +50,12 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
 
   function update(patch: Partial<PersonaCard>) {
     setCard((c) => ({ ...c, ...patch }));
+  }
+
+  function applySmartImport(fields: Partial<Record<PersonaField, string>>, tags: string[]) {
+    update({ ...fields, tags });
+    const count = Object.keys(fields).length;
+    setMsg(`Sorted into ${count} field${count === 1 ? "" : "s"}.`, true);
   }
 
   function clearForNew() {
@@ -108,6 +116,9 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
     setSaving(false);
   }
 
+  // A fresh, untouched card opens with the importer expanded; an existing one doesn't.
+  const isBlank = !card.name && !card.description && !card.personality && !card.appearance && !card.background;
+
   return (
     <div className="h-full flex overflow-hidden">
       {/* ── Main editor ── */}
@@ -120,6 +131,21 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
             Define a user persona — who <em>you</em> are in the conversation. Used as the <code className="text-accent-purple-light bg-bg-tertiary px-1 rounded text-xs">{"{{user}}"}</code> identity.
           </p>
         </div>
+
+        <SmartImportPanel
+          current={{
+            name: card.name,
+            description: card.description,
+            personality: card.personality,
+            appearance: card.appearance,
+            background: card.background,
+            creator: card.creator,
+            creator_notes: card.creator_notes,
+          }}
+          currentTags={card.tags}
+          onApply={applySmartImport}
+          defaultOpen={isBlank}
+        />
 
         <div className="grid grid-cols-2 gap-4">
           <div>
