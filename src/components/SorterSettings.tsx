@@ -50,9 +50,9 @@ export default function SorterSettings({ settings, onChange, webGpuAvailable, lo
       {settings.backend === "webllm" && (
         <div className="space-y-2">
           {!webGpuAvailable && (
-            <div className="flex gap-2 p-2 rounded-md bg-amber-50 border border-amber-200">
-              <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800 leading-relaxed">
+            <div className="flex gap-2 p-2 rounded-md bg-status-warn-soft border border-status-warn-border">
+              <AlertTriangle size={13} className="text-status-warn shrink-0 mt-0.5" />
+              <p className="text-xs text-status-warn leading-relaxed">
                 This browser doesn't support WebGPU, so the in-browser model can't run. Use Chrome or Edge, or switch to
                 a local server.
               </p>
@@ -130,10 +130,10 @@ export default function SorterSettings({ settings, onChange, webGpuAvailable, lo
           </div>
 
           {remote ? (
-            <div className="flex gap-2 p-2 rounded-md bg-amber-50 border border-amber-200">
-              <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex gap-2 p-2 rounded-md bg-status-warn-soft border border-status-warn-border">
+              <AlertTriangle size={13} className="text-status-warn shrink-0 mt-0.5" />
               <div className="space-y-1.5">
-                <p className="text-xs text-amber-800 leading-relaxed">
+                <p className="text-xs text-status-warn leading-relaxed">
                   That address isn't on this machine. Everything you paste into Quick Import — the full persona text —
                   will be sent to it. CharacterBinder keeps everything local by default; this is the one thing that
                   doesn't.
@@ -143,9 +143,9 @@ export default function SorterSettings({ settings, onChange, webGpuAvailable, lo
                     type="checkbox"
                     checked={settings.remoteAcknowledged}
                     onChange={(e) => onChange({ remoteAcknowledged: e.target.checked })}
-                    className="accent-amber-600 mt-0.5"
+                    className="accent-status-warn mt-0.5"
                   />
-                  <span className="text-xs text-amber-800 font-medium">Send my persona text to this server anyway</span>
+                  <span className="text-xs text-status-warn font-medium">Send my persona text to this server anyway</span>
                 </label>
               </div>
             </div>

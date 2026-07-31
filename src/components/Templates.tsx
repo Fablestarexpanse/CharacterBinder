@@ -100,7 +100,7 @@ function TemplateCard({
         {onDelete && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="shrink-0 p-1 rounded text-text-muted hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+            className="shrink-0 p-1 rounded text-text-muted hover:text-status-danger hover:bg-status-danger-soft transition-colors opacity-0 group-hover:opacity-100"
             title="Delete template"
           >
             <Trash2 size={13} />

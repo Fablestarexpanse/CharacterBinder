@@ -264,11 +264,11 @@ export default function SmartImportPanel({ current, currentTags, onApply, defaul
 
           {/* Errors */}
           {error && (
-            <div className="flex gap-2 p-2 rounded-md bg-red-50 border border-red-200">
-              <AlertTriangle size={13} className="text-red-600 shrink-0 mt-0.5" />
+            <div className="flex gap-2 p-2 rounded-md bg-status-danger-soft border border-status-danger-border">
+              <AlertTriangle size={13} className="text-status-danger shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-xs text-red-800 leading-relaxed">{error}</p>
-                <button type="button" onClick={handleQuickSort} className="text-xs text-red-800 underline font-medium">
+                <p className="text-xs text-status-danger leading-relaxed">{error}</p>
+                <button type="button" onClick={handleQuickSort} className="text-xs text-status-danger underline font-medium">
                   Use Quick Sort instead
                 </button>
               </div>
@@ -332,7 +332,7 @@ export default function SmartImportPanel({ current, currentTags, onApply, defaul
                                 {PERSONA_FIELD_LABELS[field]}
                               </span>
                               {on && existing && (
-                                <span className="flex items-center gap-1 text-xs text-amber-600">
+                                <span className="flex items-center gap-1 text-xs text-status-warn">
                                   <AlertTriangle size={10} />
                                   {mode === "replace" ? "replaces existing text" : "appends to existing text"}
                                 </span>

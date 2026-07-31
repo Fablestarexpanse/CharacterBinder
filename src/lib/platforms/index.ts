@@ -1,4 +1,4 @@
-import type { TavernCardV2 } from "../../types";
+import type { TavernCardV2, MetadataKey } from "../../types";
 
 export type PlatformId =
   | "sillytavern"
@@ -20,13 +20,13 @@ export interface FieldSupport {
 export interface PlatformDef {
   id: PlatformId;
   name: string;
-  color: string;           // tailwind bg color class
-  textColor: string;       // tailwind text color
-  borderColor: string;
+  color: string;       // tailwind bg class for the platform chip
+  textColor: string;   // tailwind text class, AA-legible on `color`
+  borderColor: string; // tailwind border class
   description: string;
   pngSupport: boolean;
   jsonSupport: boolean;
-  metadataKey?: string;    // PNG chunk key if pngSupport
+  metadataKey?: MetadataKey;  // PNG chunk key, present iff pngSupport
   templateVars: { user: string; char: string };
   fields: FieldSupport[];
   importKeys: string[];    // JSON keys that identify this format
@@ -37,9 +37,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   sillytavern: {
     id: "sillytavern",
     name: "SillyTavern",
-    color: "bg-indigo-900/40",
-    textColor: "text-indigo-300",
-    borderColor: "border-indigo-700/50",
+    color: "bg-indigo-50",
+    textColor: "text-indigo-700",
+    borderColor: "border-indigo-200",
     description: "Full Tavern Card v2 — all fields supported",
     pngSupport: true,
     jsonSupport: true,
@@ -67,9 +67,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   janitorai: {
     id: "janitorai",
     name: "JanitorAI",
-    color: "bg-cyan-900/40",
-    textColor: "text-cyan-300",
-    borderColor: "border-cyan-700/50",
+    color: "bg-cyan-50",
+    textColor: "text-cyan-700",
+    borderColor: "border-cyan-200",
     description: "JSON import only — description maps to 'persona'",
     pngSupport: false,
     jsonSupport: true,
@@ -96,9 +96,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   chub: {
     id: "chub",
     name: "Chub.ai",
-    color: "bg-orange-900/40",
-    textColor: "text-orange-300",
-    borderColor: "border-orange-700/50",
+    color: "bg-orange-50",
+    textColor: "text-orange-700",
+    borderColor: "border-orange-200",
     description: "Tavern v2 compatible + Chub extensions block",
     pngSupport: true,
     jsonSupport: true,
@@ -126,9 +126,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   agnai: {
     id: "agnai",
     name: "Agnai",
-    color: "bg-purple-900/40",
-    textColor: "text-purple-300",
-    borderColor: "border-purple-700/50",
+    color: "bg-purple-50",
+    textColor: "text-purple-700",
+    borderColor: "border-purple-200",
     description: "JSON only — different schema with persona.attributes",
     pngSupport: false,
     jsonSupport: true,
@@ -155,9 +155,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   venus: {
     id: "venus",
     name: "Venus AI",
-    color: "bg-pink-900/40",
-    textColor: "text-pink-300",
-    borderColor: "border-pink-700/50",
+    color: "bg-pink-50",
+    textColor: "text-pink-700",
+    borderColor: "border-pink-200",
     description: "Tavern v1/v2 hybrid — v2 fields may be ignored",
     pngSupport: true,
     jsonSupport: true,
@@ -185,9 +185,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   backyard: {
     id: "backyard",
     name: "Backyard AI",
-    color: "bg-green-900/40",
-    textColor: "text-green-300",
-    borderColor: "border-green-700/50",
+    color: "bg-green-50",
+    textColor: "text-green-700",
+    borderColor: "border-green-200",
     description: "Own schema — name/description/prompt remapped",
     pngSupport: false,
     jsonSupport: true,
@@ -214,9 +214,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   risu: {
     id: "risu",
     name: "RisuAI",
-    color: "bg-yellow-900/40",
-    textColor: "text-yellow-300",
-    borderColor: "border-yellow-700/50",
+    color: "bg-yellow-50",
+    textColor: "text-yellow-700",
+    borderColor: "border-yellow-200",
     description: "Tavern v2 + RisuAI extensions (regex, UI modules)",
     pngSupport: true,
     jsonSupport: true,
@@ -244,9 +244,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
   generic: {
     id: "generic",
     name: "Generic / Other",
-    color: "bg-zinc-800/60",
-    textColor: "text-zinc-300",
-    borderColor: "border-zinc-600/50",
+    color: "bg-zinc-100",
+    textColor: "text-zinc-700",
+    borderColor: "border-zinc-200",
     description: "Plain JSON fallback — basic fields only",
     pngSupport: true,
     jsonSupport: true,
@@ -295,6 +295,3 @@ export function detectPlatform(json: unknown): PlatformId {
   return "generic";
 }
 
-export function getConversionLosses(platform: PlatformDef): FieldSupport[] {
-  return platform.fields.filter((f) => f.support === "none" || f.support === "partial");
-}

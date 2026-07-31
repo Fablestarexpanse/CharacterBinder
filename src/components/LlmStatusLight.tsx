@@ -71,28 +71,28 @@ export default function LlmStatusLight() {
     switch (engine.status) {
       case "ready":
         return {
-          dot: "bg-accent-green",
+          dot: "bg-status-ok",
           label: "AI on",
           title: `AI sorter is loaded and ready (${model?.label ?? engine.modelId}). Click to unload and free GPU memory.`,
           disabled: false,
         };
       case "loading":
         return {
-          dot: "bg-amber-500 animate-pulse",
+          dot: "bg-status-warn animate-pulse",
           label: `AI ${pct}%`,
           title: engine.message || "Loading the model…",
           disabled: true,
         };
       case "error":
         return {
-          dot: "bg-red-500",
+          dot: "bg-status-danger",
           label: "AI error",
           title: `${engine.error ?? "The model failed to load."} Click to try again.`,
           disabled: false,
         };
       default:
         return {
-          dot: "bg-red-500",
+          dot: "bg-status-danger",
           label: "AI off",
           title:
             cached === false && model

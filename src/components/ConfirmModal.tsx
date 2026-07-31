@@ -42,9 +42,9 @@ export default function ConfirmModal({
       <div className="relative bg-bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
         <div className="flex items-start gap-3">
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-            destructive ? "bg-red-900/40" : "bg-yellow-900/40"
+            destructive ? "bg-status-danger-soft" : "bg-status-warn-soft"
           }`}>
-            <AlertTriangle size={18} className={destructive ? "text-red-400" : "text-yellow-400"} />
+            <AlertTriangle size={18} className={destructive ? "text-status-danger" : "text-status-warn"} />
           </div>
           <div>
             <h2 className="text-base font-semibold text-text-primary">{title}</h2>
@@ -64,7 +64,7 @@ export default function ConfirmModal({
             onClick={onConfirm}
             className={`flex-1 justify-center font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
               destructive
-                ? "bg-red-600 hover:bg-red-700 text-white"
+                ? "bg-status-danger hover:brightness-110 text-white"
                 : "bg-accent-purple hover:bg-accent-purple-hover text-white"
             }`}
           >

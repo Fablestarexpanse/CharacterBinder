@@ -7,10 +7,10 @@ interface FieldCompatibilityProps {
 }
 
 const SUPPORT_CONFIG = {
-  full:    { dot: "bg-accent-green",  label: "Supported",  text: "text-accent-green" },
-  renamed: { dot: "bg-yellow-400",    label: "Renamed",    text: "text-yellow-400" },
-  partial: { dot: "bg-orange-400",    label: "Partial",    text: "text-orange-400" },
-  none:    { dot: "bg-red-500",       label: "Not supported", text: "text-red-400" },
+  full:    { dot: "bg-status-ok",  label: "Supported",  text: "text-status-ok" },
+  renamed: { dot: "bg-status-warn",    label: "Renamed",    text: "text-status-warn" },
+  partial: { dot: "bg-status-warn",    label: "Partial",    text: "text-status-warn" },
+  none:    { dot: "bg-status-danger",       label: "Not supported", text: "text-status-danger" },
 };
 
 export default function FieldCompatibility({ platformId, compact = false }: FieldCompatibilityProps) {
@@ -24,7 +24,7 @@ export default function FieldCompatibility({ platformId, compact = false }: Fiel
       <div className="space-y-1">
         {losses.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-red-400 mb-1">Not exported ({losses.length})</p>
+            <p className="text-xs font-medium text-status-danger mb-1">Not exported ({losses.length})</p>
             <div className="flex flex-wrap gap-1">
               {losses.map((f) => (
                 <FieldChip key={f.field} field={f} />
@@ -34,7 +34,7 @@ export default function FieldCompatibility({ platformId, compact = false }: Fiel
         )}
         {partials.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-yellow-400 mb-1">Mapped / partial ({partials.length})</p>
+            <p className="text-xs font-medium text-status-warn mb-1">Mapped / partial ({partials.length})</p>
             <div className="flex flex-wrap gap-1">
               {partials.map((f) => (
                 <FieldChip key={f.field} field={f} />
@@ -43,7 +43,7 @@ export default function FieldCompatibility({ platformId, compact = false }: Fiel
           </div>
         )}
         {losses.length === 0 && partials.length === 0 && (
-          <p className="text-xs text-accent-green">All {full.length} fields fully supported</p>
+          <p className="text-xs text-status-ok">All {full.length} fields fully supported</p>
         )}
       </div>
     );

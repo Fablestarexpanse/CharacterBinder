@@ -52,8 +52,10 @@ in addition to Node.js — the first launch compiles it and takes a few minutes.
 Or from a terminal:
 
 ```bash
-npm run desktop
+npm run tauri:dev
 ```
+
+The desktop shell loads the same Vite dev server on port 3737.
 
 ### Production Build
 
@@ -62,7 +64,7 @@ npm run desktop
 npm run build
 
 # Desktop installer
-npm run tauri build
+npm run tauri:build
 ```
 
 ---
@@ -110,7 +112,7 @@ a remote API instead, which does send your text and warns you before it will.*
 ### Scenario Card Editor
 - Create a standalone situation or setting card that can be dropped into any conversation
 - Fields: scenario text, opening message, creator, version, creator notes, and tags
-- Optional scene image with drag-and-drop support
+- Optional scene image with drag-and-drop support (JPEG/WebP covers are converted to PNG on export)
 - Export as JSON or embed in a PNG (`scenario` chunk)
 
 ### Persona Card Editor *(v1.4)*
@@ -170,7 +172,7 @@ machine.
 - **Clickable tags** — click any tag on a card to instantly filter the library by that tag
 - Search by name, type, or tag with a one-click clear button
 - Sort by last modified, created date, or name
-- Multi-select for bulk delete or export
+- Multi-select for bulk delete or export — deletes always ask for confirmation first
 
 ### Version Control in Library *(v1.4)*
 - Changing a card's version number and pressing **Save to Library** creates a **new entry** instead of overwriting the existing one
@@ -287,20 +289,23 @@ CharacterBinder/
 │   ├── lib/
 │   │   ├── pngMetadata/     # PNG tEXt chunk encoder/decoder
 │   │   ├── platforms/       # Platform definitions + format converters
-│   │   ├── cardFormats/     # Card-type detection and shared shapes
 │   │   ├── validators/      # Card validation logic
-│   │   ├── exporters/       # PNG/JSON download helpers
 │   │   ├── library/         # IndexedDB card storage (idb)
 │   │   ├── archive/         # ZIP export (jszip)
 │   │   ├── tokenizer/       # Token counting (cl100k)
 │   │   ├── personaParser/   # Quick Import: labelled / JSON / W++ / prose parsing
 │   │   ├── personaLlm/      # Quick Import: in-browser AI sorter (WebLLM) + settings
 │   │   ├── customTemplates/ # User-saved templates (localStorage)
-│   │   ├── minimalPng.ts    # 1×1 placeholder PNG for image-less cards
+│   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
+│   │   ├── download.ts      # Blob download helper (all export paths)
+│   │   ├── settings.ts      # App settings + localStorage persistence
+│   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
+│   │   ├── minimalPng.ts    # 1×1 fallback carrier image
 │   │   └── readImageFile.ts # Image file → data URL helper
 │   ├── data/templates/      # Built-in character templates
 │   ├── types/               # TypeScript type definitions
 │   ├── index.css            # Tailwind layers + shared component classes
+│   ├── vite-env.d.ts        # Vite + injected-constant type declarations
 │   ├── main.tsx             # React entry point
 │   └── App.tsx              # Root component and app state
 ├── src-tauri/               # Tauri (Rust) desktop shell
@@ -315,17 +320,43 @@ CharacterBinder/
 ## Changelog
 
 ### v1.5.0
-- Added **Quick Import** to the Persona editor — paste one unsorted block of text and it is split into name, description, personality, appearance, background, and tags, with a reviewable preview before anything is applied
+
+**Quick Import (Persona editor)**
+- Paste one unsorted block of text and it is split into name, description, personality, appearance, background, and tags, with a reviewable preview before anything is applied
 - Handles labelled sections (including bare headings and `⸻` dividers), markdown headings, W++ attribute lists, and JSON card exports; unrecognised sections are preserved in Description rather than dropped
 - Added an **in-browser AI sorter** for text with no structure at all — runs on WebGPU via [WebLLM](https://github.com/mlc-ai/web-llm), so persona text never leaves the machine; schema-constrained decoding guarantees well-formed output
+- Sorting picks its own engine: structured text goes through the parser (instant, wording preserved exactly), and only shapeless prose reaches the model
 - Optional OpenAI-compatible endpoint (Ollama, LM Studio, KoboldCpp) as an alternative to the in-browser model, with an explicit warning before any non-local address is used
+- A sidebar light shows whether the model is resident and toggles it, since it holds ~2 GB of VRAM
+
+**Fixes**
+- **Desktop app now launches** — `tauri.conf.json` pointed the webview at port 1420 while Vite serves 3737, so `npm run tauri dev` opened an empty window
 - **PNG export is no longer blocked** for platforms that can't import PNG cards (JanitorAI, Agnai, Backyard AI) — the button always works and an inline warning explains that the site needs the JSON, instead of the export being greyed out
 - Corrected the platform table: JanitorAI was documented as supporting PNG import, which it does not
-- Fixed `npm run tauri dev` — `devUrl` pointed at port 1420 while Vite serves 3737, so the desktop shell could never connect
+- **JPEG/WebP cover art no longer breaks PNG export** in the Lorebook, Script, Scenario, and Persona editors — non-PNG images are re-encoded through a canvas first, and export errors now say what went wrong instead of a bare "PNG export failed"
+- **Custom output filenames stick** — typing a filename then editing the card name no longer discards it
+- **Removed the leftover native resize grip** on textareas; the purple drag handle added in v1.4.0 was sitting on top of it, and the two wrote conflicting heights. The handle is now keyboard-accessible (arrow keys) and works with touch and pen input
+- **Status text is legible** — errors, warnings, and success messages were still using dark-theme colours on the light UI (warnings measured 1.4:1 contrast). All status colours now clear WCAG AA
+- Platform compatibility warnings count only fields the card actually uses, instead of the platform's entire theoretical loss list
+- Library deletes — single and bulk — now ask for confirmation
+- ZIP archives disambiguate same-named cards instead of silently overwriting them
+- Downloads attach their anchor to the document and revoke the object URL on a later tick, so large exports don't get cancelled mid-flight
+- The "save as a new version" baseline now follows the card you have open, instead of keeping the previously-loaded card's version
+
+**Performance**
+- Token counts and card validation are memoized. Previously a single keystroke ran roughly seventeen full BPE encodes on the main thread
+
+**Install & launch**
 - Added one-click `start` / `start-desktop` scripts for Windows, macOS, and Linux that check prerequisites, install dependencies on first run, and detect an already-running server instead of failing on a port clash
-- Added `npm start` (dev server + opens browser) and `npm run desktop` aliases, plus a `node >=18` engines constraint
+- Added `npm start` (dev server + opens browser), plus `tauri:dev` / `tauri:build` scripts and a `node >=18` engines constraint
 - Added `.gitattributes` pinning `*.sh` to LF — without it a Windows checkout produced CRLF shebangs that fail on macOS/Linux with `bad interpreter`
 - The version shown in the sidebar and Help / About is now injected from `package.json` at build time instead of being hardcoded in two components, where it had already drifted a release behind
+
+**Cleanup**
+- Removed `lib/exporters` and `lib/cardFormats` — both were superseded by `lib/platforms` and entirely unreachable, along with `detectCardFormat`, `autoParseCard`, `uint8ArrayToBase64`, `getCard`, `getCardCount`, and `getConversionLosses`
+- Removed the **Default Export Format** and **Default Metadata Key** settings — nothing read either one; the target platform determines both
+- `TextAreaField` now composes `ResizableTextArea` instead of duplicating its resize logic; blob downloads, the carrier-image conversion, the status banner, and the app defaults each live in one place now
+- Dropped the unused `puppeteer` dev dependency
 
 ### v1.4.0
 - Added **Persona Card Editor** — define a user persona (`{{user}}` identity) with name, description, personality, appearance, background, avatar image, and PNG/JSON export

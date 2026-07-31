@@ -68,7 +68,7 @@ echo   The first launch compiles Rust and can take several minutes.
 echo   Later launches are fast.
 echo.
 
-call npm run desktop
+call npm run tauri:dev
 
 echo.
 echo   CharacterBinder has stopped.

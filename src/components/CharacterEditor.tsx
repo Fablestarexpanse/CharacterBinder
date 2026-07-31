@@ -190,9 +190,9 @@ export default function CharacterEditor({
               <span
                 className={`text-xs px-1.5 py-0.5 rounded text-xs font-medium shrink-0 mt-0.5 ${
                   line.startsWith("{{user}}")
-                    ? "bg-blue-900/40 text-blue-300"
+                    ? "bg-status-info-soft text-status-info"
                     : line.startsWith("{{char}}")
-                    ? "bg-purple-900/40 text-purple-300"
+                    ? "bg-accent-purple/10 text-accent-purple"
                     : "bg-bg-hover text-text-muted"
                 }`}
               >
@@ -205,7 +205,7 @@ export default function CharacterEditor({
                   lines.splice(i, 1);
                   onUpdate({ mes_example: lines.join("\n") });
                 }}
-                className="text-text-muted hover:text-red-400 shrink-0"
+                className="text-text-muted hover:text-status-danger shrink-0"
               >
                 <Minus size={13} />
               </button>
@@ -309,7 +309,7 @@ export default function CharacterEditor({
                   />
                   <button
                     onClick={() => removeAlternateGreeting(i)}
-                    className="text-text-muted hover:text-red-400 shrink-0 self-start mt-2"
+                    className="text-text-muted hover:text-status-danger shrink-0 self-start mt-2"
                   >
                     <Minus size={15} />
                   </button>

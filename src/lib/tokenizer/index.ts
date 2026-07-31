@@ -76,15 +76,15 @@ export const TOKEN_BUDGET_LABELS: Record<TokenBudgetLevel, string> = {
 };
 
 export const TOKEN_BUDGET_COLORS: Record<TokenBudgetLevel, string> = {
-  low: "text-green-600",
-  medium: "text-yellow-600",
-  high: "text-orange-500",
-  over: "text-red-500",
+  low: "text-status-ok",
+  medium: "text-status-warn",
+  high: "text-status-warn",
+  over: "text-status-danger",
 };
 
 export const TOKEN_BUDGET_BAR_COLORS: Record<TokenBudgetLevel, string> = {
-  low: "bg-green-500",
-  medium: "bg-yellow-500",
-  high: "bg-orange-500",
-  over: "bg-red-500",
+  low: "bg-status-ok",
+  medium: "bg-status-warn",
+  high: "bg-status-warn",
+  over: "bg-status-danger",
 };

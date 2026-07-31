@@ -94,17 +94,9 @@ export async function getAllCards(): Promise<LibraryCard[]> {
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export async function getCard(id: string): Promise<LibraryCard | undefined> {
-  const db = await getDb();
-  return db.get(STORE, id);
-}
 
 export async function deleteCard(id: string): Promise<void> {
   const db = await getDb();
   await db.delete(STORE, id);
 }
 
-export async function getCardCount(): Promise<number> {
-  const db = await getDb();
-  return db.count(STORE);
-}

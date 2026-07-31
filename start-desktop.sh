@@ -59,4 +59,4 @@ echo "  The first launch compiles Rust and can take several minutes."
 echo "  Later launches are fast."
 echo
 
-npm run desktop
+npm run tauri:dev

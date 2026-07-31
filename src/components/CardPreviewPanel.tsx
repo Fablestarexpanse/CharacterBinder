@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import type { AppSettings, CardProject } from "../types";
 import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
 import { saveCard } from "../lib/library";
@@ -11,12 +11,21 @@ import {
   TOKEN_BUDGET_BAR_COLORS,
 } from "../lib/tokenizer";
 import { validateTavernCardV2 } from "../lib/validators";
-import { encodeCharaToPng, base64ToUint8Array } from "../lib/pngMetadata";
-import { downloadPng } from "../lib/exporters";
+import { encodeCharaToPng } from "../lib/pngMetadata";
+import { getCarrierPng } from "../lib/carrierImage";
+import { downloadJson, downloadPng } from "../lib/download";
+import { useStatusMessage } from "../hooks/useStatusMessage";
 import { PLATFORMS, type PlatformId } from "../lib/platforms";
 import { convertCardTo } from "../lib/platforms/converters";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";
+
+/**
+ * Chunk key used when the target platform declares none of its own — i.e. the
+ * platforms that can't read card PNGs at all. `chara` is what every PNG-capable
+ * app looks for, so the exported file stays importable elsewhere.
+ */
+const FALLBACK_METADATA_KEY = "chara" as const;
 
 interface CardPreviewPanelProps {
   project: CardProject;
@@ -24,7 +33,6 @@ interface CardPreviewPanelProps {
   targetPlatform: PlatformId;
   onPlatformChange: (id: PlatformId) => void;
   onUpdateOutputFileName: (name: string) => void;
-  onNavigateLibrary?: () => void;
   onNewCard?: () => void;
 }
 
@@ -34,46 +42,49 @@ export default function CardPreviewPanel({
   targetPlatform,
   onPlatformChange,
   onUpdateOutputFileName,
-  onNavigateLibrary: _onNavigateLibrary,
   onNewCard,
 }: CardPreviewPanelProps) {
   const [exporting, setExporting] = useState(false);
-  const [exportStatus, setExportStatus] = useState<{ msg: string; ok: boolean } | null>(null);
   const [compatOpen, setCompatOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedCharVersion, setSavedCharVersion] = useState<string>(project.card.data.character_version ?? "1.0");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [tokenOpen, setTokenOpen] = useState(false);
+  const { status: exportStatus, setMsg: setStatus } = useStatusMessage();
+
+  // Loading a different card from the library swaps `project` without remounting
+  // this panel, so the "has the version been bumped?" baseline has to follow it —
+  // otherwise it keeps comparing against the previously-open card's version.
+  useEffect(() => {
+    setSavedCharVersion(project.card.data.character_version ?? "1.0");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
 
   const platform = PLATFORMS[targetPlatform];
-  const validation = validateTavernCardV2(project.card);
-  const tokenBreakdown = getCardTokenBreakdown(project.card);
+
+  // Tokenizing is a full BPE encode over nine fields; without memoizing it runs
+  // on every render, i.e. on every keystroke anywhere in the editor.
+  const validation = useMemo(() => validateTavernCardV2(project.card), [project.card]);
+  const tokenBreakdown = useMemo(() => getCardTokenBreakdown(project.card), [project.card]);
+  const dataSize = useMemo(() => formatDataSize(project.card), [project.card]);
+
   const budgetLevel = getTokenBudgetLevel(tokenBreakdown.total);
   const MAX_TOKENS = 3000;
   const barPct = Math.min((tokenBreakdown.total / MAX_TOKENS) * 100, 100);
-  const lossCount = platform.fields.filter((f) => f.support === "none").length;
-  const partialCount = platform.fields.filter((f) => f.support === "partial" || f.support === "renamed").length;
 
-  const setStatus = (msg: string, ok: boolean) => {
-    setExportStatus({ msg, ok });
-    setTimeout(() => setExportStatus(null), 3000);
-  };
-
-  const getPlaceholderPng = useCallback(async (): Promise<Uint8Array> => {
-    const MINIMAL_PNG = new Uint8Array([
-      137,80,78,71,13,10,26,10,
-      0,0,0,13,73,72,68,82,
-      0,0,0,1,0,0,0,1,
-      8,2,0,0,0,
-      144,119,83,222,
-      0,0,0,12,73,68,65,84,
-      8,215,99,248,207,0,0,0,2,0,1,
-      226,33,188,51,
-      0,0,0,0,73,69,78,68,
-      174,66,96,130,
-    ]);
-    return MINIMAL_PNG;
-  }, []);
+  // Only warn about fields the card actually uses — otherwise every card reports
+  // the platform's full theoretical loss list, including empty fields.
+  const usedFields = useMemo(
+    () => platform.fields.filter((f) => {
+      const v = project.card.data[f.field];
+      if (Array.isArray(v)) return v.length > 0;
+      if (typeof v === "string") return v.trim().length > 0;
+      return v != null;
+    }),
+    [platform, project.card]
+  );
+  const lossCount = usedFields.filter((f) => f.support === "none").length;
+  const partialCount = usedFields.filter((f) => f.support === "partial" || f.support === "renamed").length;
 
   const handleExportPng = useCallback(async () => {
     // PNG export is never blocked. Platforms that can't read card PNGs still
@@ -85,25 +96,20 @@ export default function CardPreviewPanel({
     }
     setExporting(true);
     try {
-      let pngBytes: Uint8Array;
-      if (project.imageSrc) {
-        if (project.imageSrc.startsWith("data:image/png")) {
-          const b64 = project.imageSrc.split(",")[1];
-          pngBytes = base64ToUint8Array(b64);
-        } else if (project.imageSrc.startsWith("data:image/")) {
-          pngBytes = await imageSrcToPngBytes(project.imageSrc);
-        } else {
-          pngBytes = await getPlaceholderPng();
-        }
-      } else {
-        pngBytes = await getPlaceholderPng();
-      }
-
+      const pngBytes = await getCarrierPng(project.imageSrc);
       // Convert card to target platform format for embedding
       const converted = convertCardTo(project.card, targetPlatform);
       const jsonData = JSON.stringify(converted, null, settings.prettyPrintJson ? 2 : 0);
-      const metaKey = platform.metadataKey ?? settings.defaultMetadataKey;
-      const resultBytes = encodeCharaToPng(pngBytes, jsonData, metaKey as never, settings.preserveUnknownChunks);
+      // Platforms that can't read PNG cards carry no key of their own; fall back
+      // to the configured default so the file is still a valid, importable card
+      // rather than refusing to export.
+      const metaKey = platform.metadataKey ?? FALLBACK_METADATA_KEY;
+      const resultBytes = encodeCharaToPng(
+        pngBytes,
+        jsonData,
+        metaKey,
+        settings.preserveUnknownChunks
+      );
       downloadPng(resultBytes, project.outputFileName);
       setStatus(
         platform.pngSupport
@@ -116,20 +122,14 @@ export default function CardPreviewPanel({
     } finally {
       setExporting(false);
     }
-  }, [project, settings, validation, platform, targetPlatform, getPlaceholderPng]);
+  }, [project, settings, validation, platform, targetPlatform, setStatus]);
 
   const handleExportJson = useCallback(() => {
     const converted = convertCardTo(project.card, targetPlatform);
-    const json = JSON.stringify(converted, null, settings.prettyPrintJson ? 2 : 0);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = project.outputFileName.replace(/\.png$/, "") + `_${targetPlatform}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const name = project.outputFileName.replace(/\.png$/i, "") + `_${targetPlatform}`;
+    downloadJson(converted, name, settings.prettyPrintJson);
     setStatus("JSON exported!", true);
-  }, [project, settings, targetPlatform]);
+  }, [project, settings, targetPlatform, setStatus]);
 
   const handleValidate = () => {
     if (validation.valid) {
@@ -145,13 +145,9 @@ export default function CardPreviewPanel({
     const hasExistingId = project.id !== "default";
     const versionChanged = hasExistingId && currentVersion.trim() !== savedCharVersion;
     try {
-      let pngData: Uint8Array | null = null;
-      if (project.imageSrc?.startsWith("data:image/png")) {
-        const b64 = project.imageSrc.split(",")[1];
-        pngData = base64ToUint8Array(b64);
-      } else if (project.imageSrc?.startsWith("data:image/")) {
-        pngData = await imageSrcToPngBytes(project.imageSrc);
-      }
+      const pngData = project.imageSrc?.startsWith("data:image/")
+        ? await getCarrierPng(project.imageSrc)
+        : null;
       const existingId = hasExistingId && !versionChanged ? project.id : undefined;
       await saveCard(project.card, pngData, project.imageSrc ?? null, targetPlatform, existingId);
       setSavedCharVersion(currentVersion);
@@ -161,7 +157,7 @@ export default function CardPreviewPanel({
     } finally {
       setSaving(false);
     }
-  }, [project, targetPlatform, savedCharVersion]);
+  }, [project, targetPlatform, savedCharVersion, setStatus]);
 
   const handleSaveAsTemplate = useCallback(() => {
     setSavingTemplate(true);
@@ -173,7 +169,7 @@ export default function CardPreviewPanel({
     } finally {
       setSavingTemplate(false);
     }
-  }, [project.card]);
+  }, [project.card, setStatus]);
 
   const metaInfo = project.metadataInfo;
 
@@ -216,7 +212,7 @@ export default function CardPreviewPanel({
               </span>
             </MetaRow>
             <MetaRow label="Data Size">
-              <span className="text-text-primary">{formatDataSize(project.card)}</span>
+              <span className="text-text-primary">{dataSize}</span>
             </MetaRow>
             <MetaRow label="Image Size">
               <span className="text-text-primary">
@@ -298,7 +294,7 @@ export default function CardPreviewPanel({
           )}
 
           {budgetLevel === "over" && (
-            <p className="text-xs text-red-500 mt-2">
+            <p className="text-xs text-status-danger mt-2">
               Over 3,000 tokens — some platforms may truncate or ignore part of this card.
             </p>
           )}
@@ -314,10 +310,10 @@ export default function CardPreviewPanel({
             onClick={() => setCompatOpen(!compatOpen)}
             className={`w-full mt-3 flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
               lossCount > 0
-                ? "border-red-700/40 bg-red-900/10 text-red-400"
+                ? "border-status-danger-border bg-status-danger-soft text-status-danger"
                 : partialCount > 0
-                ? "border-yellow-700/40 bg-yellow-900/10 text-yellow-400"
-                : "border-green-700/40 bg-green-900/10 text-accent-green"
+                ? "border-status-warn-border bg-status-warn-soft text-status-warn"
+                : "border-status-ok-border bg-status-ok-soft text-status-ok"
             }`}
           >
             <span>
@@ -342,12 +338,12 @@ export default function CardPreviewPanel({
           <div className="px-4 py-3 border-b border-border">
             <p className="section-title">Validation</p>
             {validation.errors.map((err, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-red-400 mb-1">
+              <div key={i} className="flex items-start gap-2 text-xs text-status-danger mb-1">
                 <span className="shrink-0">✗</span><span>{err}</span>
               </div>
             ))}
             {validation.warnings.map((w, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-yellow-400 mb-1">
+              <div key={i} className="flex items-start gap-2 text-xs text-status-warn mb-1">
                 <span className="shrink-0">⚠</span><span>{w}</span>
               </div>
             ))}
@@ -392,12 +388,12 @@ export default function CardPreviewPanel({
         </button>
 
         {!platform.pngSupport && (
-          <div className="flex gap-2 p-2 rounded-md bg-amber-50 border border-amber-200">
-            <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800 leading-relaxed">
+          <div className="flex gap-2 p-2 rounded-md bg-status-warn-soft border border-status-warn-border">
+            <AlertTriangle size={13} className="text-status-warn shrink-0 mt-0.5" />
+            <p className="text-xs text-status-warn leading-relaxed">
               <strong>{platform.name} can't import PNG cards</strong> — it reads JSON only, so use Export JSON below for
               that site. The PNG still gets built correctly with your full card in a{" "}
-              <code className="bg-amber-100 px-1 rounded">{platform.metadataKey ?? settings.defaultMetadataKey}</code>{" "}
+              <code className="bg-white/60 px-1 rounded">{platform.metadataKey ?? FALLBACK_METADATA_KEY}</code>{" "}
               chunk, so it works anywhere that does read PNG cards, and it's a fine way to keep or share the card as a
               single image.
             </p>
@@ -405,7 +401,7 @@ export default function CardPreviewPanel({
         )}
 
         {exportStatus && (
-          <p className={`text-xs text-center ${exportStatus.ok ? "text-accent-green" : "text-red-400"}`}>
+          <p className={`text-xs text-center ${exportStatus.ok ? "text-status-ok" : "text-status-danger"}`}>
             {exportStatus.msg}
           </p>
         )}
@@ -447,7 +443,7 @@ export default function CardPreviewPanel({
           <div className="border-t border-border pt-3 mt-1">
             <button
               onClick={onNewCard}
-              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-muted hover:border-red-400/50 hover:text-red-400 transition-colors"
+              className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg border border-dashed border-border text-text-muted hover:border-status-danger-border hover:text-status-danger transition-colors"
             >
               <FilePlus size={13} /> New Character
             </button>
@@ -473,22 +469,3 @@ function formatDataSize(card: unknown): string {
   return `${kb} KB`;
 }
 
-async function imageSrcToPngBytes(dataUrl: string): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Canvas not available"));
-      ctx.drawImage(img, 0, 0);
-      canvas.toBlob((blob) => {
-        if (!blob) return reject(new Error("Failed to convert image"));
-        blob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
-      }, "image/png");
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
