@@ -17,6 +17,7 @@ import ScriptEditor from "./components/ScriptEditor";
 import ScenarioEditor from "./components/ScenarioEditor";
 import PersonaEditor from "./components/PersonaEditor";
 import ConfirmModal from "./components/ConfirmModal";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 /** Output filename derived from the character name, e.g. "Mira Vale" → "Mira_Vale_Tavern_Card.png". */
 function defaultFileName(name: string): string {
@@ -29,6 +30,9 @@ function App() {
   const [settings, setSettings] = useState<AppSettings>(loadStoredSettings);
   const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  // Bumped whenever the MCP bridge mutates the library, so an open Library view
+  // reloads instead of showing a stale list until the user navigates away.
+  const [libraryRevision, setLibraryRevision] = useState(0);
 
   // ── Character card state ──
   const [project, setProject] = useState<CardProject>({
@@ -120,6 +124,10 @@ function App() {
     setActivePage("create");
   }, []);
 
+  const adoptLibraryId = useCallback((id: string) => {
+    setProject((p) => (p.id === id ? p : { ...p, id }));
+  }, []);
+
   const updateImage = useCallback((imageSrc: string) => {
     setProject((p) => ({ ...p, imageSrc }));
   }, []);
@@ -198,6 +206,7 @@ function App() {
   // editor that matches its type. Registered once; the handlers are stable.
   useEffect(() => {
     registerBridgeHost({
+      onLibraryChanged: () => setLibraryRevision((n) => n + 1),
       openCard: (card) => {
         const image = card.imageSrc ?? null;
         switch (card.cardType) {
@@ -238,6 +247,7 @@ function App() {
       <Sidebar activePage={activePage} onNavigate={setActivePage} onNewCard={() => setShowClearConfirm(true)} />
 
       <main className="flex-1 overflow-hidden">
+        <ErrorBoundary area="editor" key={`boundary-${activePage}`}>
         {activePage === "create" && (
           <CreateCard
             project={project}
@@ -246,6 +256,7 @@ function App() {
             onUpdateCard={updateCard}
             onUpdateImage={updateImage}
             onUpdateOutputFileName={updateOutputFileName}
+            onSavedToLibrary={adoptLibraryId}
             onPlatformChange={setTargetPlatform}
             onNewCard={() => setShowClearConfirm(true)}
           />
@@ -303,6 +314,7 @@ function App() {
         {activePage === "templates" && <Templates onLoad={loadCard} />}
         {activePage === "library" && (
           <Library
+            refreshToken={libraryRevision}
             onEditCard={loadFromLibrary}
             onEditLorebook={handleEditLorebook}
             onEditScript={handleEditScript}
@@ -312,6 +324,7 @@ function App() {
         )}
         {activePage === "settings" && <Settings settings={settings} onSave={(s) => { setSettings(s); saveSettings(s); }} />}
         {activePage === "help" && <HelpAbout />}
+        </ErrorBoundary>
       </main>
     </div>
   );

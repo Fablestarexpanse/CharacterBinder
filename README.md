@@ -49,19 +49,6 @@ npm run build
 Outputs a static site to `dist/`. It has no server component, so it can be
 opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 
-### Deploying to GitHub Pages
-
-A workflow is included at `.github/workflows/deploy.yml`. It runs the tests,
-builds with the right subpath, and publishes.
-
-It is **manual only** — nothing deploys until you ask it to:
-
-1. In the repo, go to **Settings → Pages** and set *Source* to **GitHub Actions**
-2. Go to **Actions → Deploy to GitHub Pages → Run workflow**
-
-Hosting under a subpath is handled by the `BASE_PATH` environment variable, which
-the workflow sets to `/<repo-name>/`. Local builds leave it unset and stay at `/`.
-
 ### Running the tests
 
 ```bash
@@ -316,8 +303,10 @@ Set up the CharacterBinder MCP server for me.
    - For Claude Code, run: claude mcp add characterbinder -- node <abs-path>
    - For Claude Desktop, add it to claudeDesktopConfig.json under mcpServers
      instead, then tell me to restart the app.
-4. Start the app with `npm start` from the repo root and tell me to click the
-   MCP light in the sidebar footer to switch the bridge on.
+4. Start the app with `npm start` from the repo root. Tell me the pairing token
+   the MCP server printed (it is also in ~/.characterbinder/bridge-token), and
+   tell me to paste it into Settings → MCP bridge and then click the MCP light
+   in the sidebar footer.
 5. Verify by calling the app_status tool and report what it says.
 
 Tell me if anything is already installed so you don't redo it.
@@ -351,8 +340,12 @@ Or for Claude Desktop, in `claude_desktop_config.json`:
 }
 ```
 
-Then start the app (`npm start` from the repo root) and click the **MCP** light in
-the sidebar footer. It turns green once the agent's server is connected.
+Then:
+
+1. Start the app (`npm start` from the repo root)
+2. Copy the pairing token the MCP server printed on startup (also saved to
+   `~/.characterbinder/bridge-token`) into **Settings → MCP bridge**
+3. Click the **MCP** light in the sidebar footer — it turns green once paired
 
 ### Tools
 
@@ -378,13 +371,27 @@ made. Pass `open: false` to work quietly in the background.
 
 ### Security
 
-The bridge exposes your card library to whatever agent is connected — it can read,
-edit, and delete. Three things keep that bounded:
+The bridge exposes your card library to whatever is connected — it can read, edit,
+and delete. What keeps that bounded:
 
-- The WebSocket binds to `127.0.0.1`, so nothing off your machine can reach it
-- It is **off by default**, and the light in the sidebar is the only switch
-- The light shows a running count of requests served, so an agent can't work your
-  library without it being visible
+- **A shared pairing token, proved in both directions.** The server prints a token
+  on startup and stores it in `~/.characterbinder/bridge-token`; you paste it into
+  Settings once. Neither side ever transmits it — each proves it holds it by
+  HMAC-ing the other's nonce, and the *server* proves itself first, so the app
+  never hands its secret to an unverified peer.
+- **One connection at a time.** A second connection is refused rather than being
+  allowed to displace a live session.
+- **Origin checking.** Connections from a browser origin that isn't the app are
+  rejected at the HTTP upgrade.
+- **Loopback only**, off by default, with the sidebar light as the only switch and
+  a running count of requests served.
+
+An earlier version of this section claimed the loopback bind alone kept the bridge
+bounded. That was wrong: on a desktop, loopback is a shared trust boundary, not an
+authentication boundary. Any local process could have bound the port first and
+impersonated the server, and any web page could have connected — `ws://` to
+loopback is exempt from mixed-content blocking and isn't subject to CORS. The
+token handshake above is what actually closes that.
 
 Turn it off when you're not using it.
 
@@ -513,6 +520,79 @@ CharacterBinder/
 ---
 
 ## Changelog
+
+### v1.8.0 — audit fixes
+
+A full audit across security, the card pipeline, and accessibility. The
+data-corruption fixes are the important ones.
+
+**Data loss and corruption**
+- **Every export without cover art was producing a broken PNG.** The fallback
+  carrier image declared an IDAT length of 12 with only 11 bytes of data, so a
+  reader over-ran into the IEND marker, mistook its tail for another chunk, and
+  never found a real IEND. Replaced with a verified constant, and pinned by a test
+  that checks every chunk length, every CRC, and that the stream ends exactly on
+  IEND
+- **ZIP archives of cards with cover art contained no card data.** The library
+  stored the bare cover image rather than the encoded card, so a backup of exactly
+  the cards you care about was just a picture. Now stores a real card PNG
+- **Saving a character created a duplicate record every time**, and a version bump
+  left the editor pointing at the old row — so the next save overwrote the version
+  you had just preserved. The editor now adopts the id the library assigns
+- **Stale `name` chunks accumulated on every re-export.** `name` wasn't in the
+  set of keys the encoder owns, so old copies survived and readers that take the
+  first one showed the original name forever
+- The `name` chunk is now read from the parsed card rather than regex-scraped out
+  of the serialised JSON, which broke on escaped quotes and could match a nested
+  `character_book.name`
+
+**Security**
+- **The MCP bridge is now authenticated in both directions.** A shared token,
+  proved by HMAC over each side's nonce, with the server proving itself first so
+  the app never reveals its secret to a process that squatted the port. Previously
+  anything that answered on `127.0.0.1:8787` could read, edit, and delete the
+  whole library
+- Only one connection is accepted at a time; a second is refused rather than
+  displacing a live session. Connections from a foreign browser origin are
+  rejected at the upgrade
+- **A crafted 32-byte PNG could hang the tab.** Chunk lengths were read with
+  signed bit shifts, so a high-bit length went negative and walked the read cursor
+  backwards forever, allocating on every pass. Lengths are now unsigned and bounds
+  checked, with a forward-progress guarantee
+- A missing socket error handler meant any local process could kill the MCP server
+  with a TCP reset. In-flight calls now fail immediately on disconnect instead of
+  hanging for the full timeout
+- Cover art supplied over the bridge must be an inline `data:image/*` URL — a
+  remote URL would have turned every Library render into a beacon
+
+**Correctness**
+- **Added a React error boundary.** A single component throwing rendered a blank
+  white page and discarded all unsaved editor state, with nothing on screen to
+  explain it. The editor pane now fails on its own, leaving the sidebar and
+  Library reachable
+- The Library now refreshes live when the MCP bridge changes it. The hook existed
+  but was never wired, so agent-created cards didn't appear until you navigated
+  away and back — the README claimed otherwise
+
+**Accessibility**
+- **Pressing Enter on the delete dialog's Cancel button deleted the card.** A
+  global key handler ran confirm regardless of what was focused, so the most
+  natural dismissal keystroke did the destructive thing. The dialog also gained
+  `role="dialog"`, a focus trap, focus restore, and working click-outside
+- **Library card actions were mouse-only** — Edit, Export and Delete were rendered
+  on hover state and absent from the DOM otherwise, so they were unreachable by
+  keyboard. They now stay mounted and reveal on hover *or* focus, with accessible
+  names; the select control is a real `role="checkbox"`
+- Settings toggles now show a focus ring; the real control is visually hidden, so
+  keyboard users previously saw no focus at all
+- Remaining dark-theme colour classes in the Library replaced with the semantic
+  status palette
+
+**Removed**
+- The GitHub Pages workflow and `BASE_PATH` support. Hosted and local are separate
+  browser origins, so libraries don't carry across and the MCP bridge can't reach
+  a `ws://` endpoint from an `https://` page. One origin means one library and a
+  bridge that always works
 
 ### v1.7.0
 - **Added an MCP server** so Claude Code, Claude Desktop, and other MCP clients can

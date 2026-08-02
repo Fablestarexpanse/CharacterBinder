@@ -13,8 +13,86 @@
 export const BRIDGE_PORT = 8787;
 export const BRIDGE_URL = `ws://127.0.0.1:${BRIDGE_PORT}`;
 
-/** Bumped when the shape below changes incompatibly. */
-export const BRIDGE_PROTOCOL_VERSION = 1;
+/** Bumped when the shape below changes incompatibly. v2 added the handshake. */
+export const BRIDGE_PROTOCOL_VERSION = 2;
+
+/**
+ * Mutual challenge-response over a shared token.
+ *
+ * Loopback is not an authentication boundary — any local process can bind the
+ * port first and impersonate the server, so the app must not hand its token to
+ * an unverified peer, and the server must not serve the library to an
+ * unverified client. Neither side ever transmits the token: each proves
+ * knowledge of it by HMAC-ing the other's nonce.
+ *
+ *   app    → hello      { clientNonce }
+ *   server → challenge  { serverNonce, proof = HMAC(token, clientNonce) }
+ *   app    → auth       { proof = HMAC(token, serverNonce) }      // after verifying
+ *   server → ready      {}                                        // RPCs begin
+ */
+export interface HelloFrame {
+  type: "hello";
+  protocol: number;
+  app: string;
+  version: string;
+  clientNonce: string;
+}
+
+export interface ChallengeFrame {
+  type: "challenge";
+  serverNonce: string;
+  proof: string;
+}
+
+export interface AuthFrame {
+  type: "auth";
+  proof: string;
+}
+
+export interface ReadyFrame {
+  type: "ready";
+}
+
+export interface AuthFailedFrame {
+  type: "auth_failed";
+  reason: string;
+}
+
+export type HandshakeFrame = HelloFrame | ChallengeFrame | AuthFrame | ReadyFrame | AuthFailedFrame;
+
+/** Close codes, so each side can explain itself rather than dropping silently. */
+export const CLOSE_BAD_TOKEN = 4001;
+export const CLOSE_ALREADY_CONNECTED = 4002;
+export const CLOSE_BAD_ORIGIN = 4003;
+export const CLOSE_PROTOCOL = 4004;
+
+/** HMAC-SHA256 of `message` under `token`, lowercase hex. Same on both sides. */
+export async function proveToken(token: string, message: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(token),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Comparison that doesn't leak position via early exit. */
+export function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+export function randomNonce(): string {
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  return [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
 
 export type CardType = "character" | "lorebook" | "script" | "scenario" | "persona";
 
@@ -38,14 +116,6 @@ export interface BridgeResponse {
   id: string;
   result?: unknown;
   error?: string;
-}
-
-/** Sent by the app immediately after connecting. */
-export interface BridgeHello {
-  type: "hello";
-  protocol: number;
-  app: string;
-  version: string;
 }
 
 export function isBridgeRequest(msg: unknown): msg is BridgeRequest {

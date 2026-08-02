@@ -3,8 +3,8 @@
  *
  * The MCP server can't reach IndexedDB, so it dials nothing — it *listens*, and
  * this client connects out to it. Once connected, the server issues RPCs and
- * this module fulfils them against the real card library, which is why an agent
- * creating a card makes it appear in the Library immediately.
+ * this module fulfils them against the real card library, so an agent's card
+ * lands in the user's actual collection rather than a parallel store.
  *
  * Off by default. Nothing connects until the user turns the bridge on, because
  * an always-open socket to a local port isn't something to enable behind
@@ -14,7 +14,12 @@
 import {
   BRIDGE_URL,
   BRIDGE_PROTOCOL_VERSION,
+  CLOSE_ALREADY_CONNECTED,
+  CLOSE_BAD_TOKEN,
   isBridgeRequest,
+  proveToken,
+  randomNonce,
+  safeEqual,
   type BridgeRequest,
   type BridgeResponse,
   type CardType,
@@ -33,6 +38,15 @@ import { createBlankTavernCard } from "../tavernCard";
 import type { LibraryCard, TavernCardV2 } from "../../types";
 
 const ENABLED_KEY = "cb_bridge_enabled";
+const TOKEN_KEY = "cb_bridge_token";
+
+export function getBridgeToken(): string {
+  return localStorage.getItem(TOKEN_KEY) ?? "";
+}
+
+export function setBridgeToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token.trim());
+}
 
 export type BridgeStatus = "off" | "connecting" | "connected" | "error";
 
@@ -135,14 +149,20 @@ function open() {
   }
   socket = ws;
 
+  // Nonce for this attempt. The server must HMAC it with the shared token
+  // before we send any proof of our own — otherwise a process that squatted the
+  // port would simply be handed the secret.
+  const clientNonce = randomNonce();
+  let authed = false;
+
   ws.onopen = () => {
-    setState({ status: "connected", error: null });
     ws.send(
       JSON.stringify({
         type: "hello",
         protocol: BRIDGE_PROTOCOL_VERSION,
         app: "CharacterBinder",
         version: __APP_VERSION__,
+        clientNonce,
       })
     );
   };
@@ -154,6 +174,43 @@ function open() {
     } catch {
       return;
     }
+    // ── Handshake ────────────────────────────────────────────────────────
+    if (!authed) {
+      const frame = msg as { type?: string; serverNonce?: string; proof?: string; reason?: string };
+
+      if (frame.type === "challenge") {
+        const token = getBridgeToken();
+        const expected = await proveToken(token, clientNonce);
+        if (!token || !safeEqual(String(frame.proof ?? ""), expected)) {
+          // Whatever is on that port does not hold the token. Say nothing more.
+          manualDisconnect = true;
+          setState({
+            status: "error",
+            error: token
+              ? "The server on that port failed to prove it holds your pairing token. Not sending anything to it."
+              : "No pairing token set. Copy it from the MCP server output into Settings → MCP bridge.",
+          });
+          ws.close();
+          return;
+        }
+        ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, String(frame.serverNonce ?? "")) }));
+        return;
+      }
+
+      if (frame.type === "ready") {
+        authed = true;
+        setState({ status: "connected", error: null });
+        return;
+      }
+
+      if (frame.type === "auth_failed") {
+        manualDisconnect = true;
+        setState({ status: "error", error: `Pairing rejected: ${frame.reason ?? "bad token"}. Check the token in Settings.` });
+        return;
+      }
+      return;
+    }
+
     if (!isBridgeRequest(msg)) return;
 
     const response: BridgeResponse = { id: msg.id };
@@ -170,9 +227,22 @@ function open() {
     // The close handler does the reporting; onerror carries no useful detail.
   };
 
-  ws.onclose = () => {
+  ws.onclose = (event) => {
     socket = null;
     if (manualDisconnect) return;
+
+    // These are deliberate refusals; retrying in a loop would be noise.
+    if (event.code === CLOSE_BAD_TOKEN) {
+      manualDisconnect = true;
+      setState({ status: "error", error: "The server rejected your pairing token. Update it in Settings → MCP bridge." });
+      return;
+    }
+    if (event.code === CLOSE_ALREADY_CONNECTED) {
+      manualDisconnect = true;
+      setState({ status: "error", error: "Another CharacterBinder tab is already connected to the MCP server." });
+      return;
+    }
+
     setState({
       status: "error",
       error: "Not connected. Start the CharacterBinder MCP server, or check nothing else holds the port.",
@@ -264,9 +334,27 @@ async function persist(
   return saveAnyCard(cardType, name, body, imageSrc, tags, existingId);
 }
 
+/**
+ * Cover art arriving over the bridge must be inline data. A remote URL would be
+ * rendered into an <img src> on every Library paint, turning the user's card
+ * collection into a beacon for whoever supplied it.
+ */
+function safeImageSrc(src: unknown): string | null {
+  if (typeof src !== "string" || !src) return null;
+  if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(src)) {
+    throw new Error("imageSrc must be an inline data:image/* URL, not a remote address.");
+  }
+  return src;
+}
+
+const ALLOWED_CARD_TYPES: CardType[] = ["character", "lorebook", "script", "scenario", "persona"];
+
 async function createCard(params: CreateParams): Promise<MutationResult> {
   if (!params?.cardType) throw new Error("cardType is required.");
-  const saved = await persist(params.cardType, params.data ?? {}, params.imageSrc ?? null);
+  if (!ALLOWED_CARD_TYPES.includes(params.cardType)) {
+    throw new Error(`Unknown cardType "${params.cardType}". Expected one of: ${ALLOWED_CARD_TYPES.join(", ")}.`);
+  }
+  const saved = await persist(params.cardType, params.data ?? {}, safeImageSrc(params.imageSrc));
   host?.onLibraryChanged?.();
   if (params.open) host?.openCard(saved);
   return { id: saved.id, name: saved.name, cardType: saved.cardType as CardType };

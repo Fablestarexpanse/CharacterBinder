@@ -33,6 +33,8 @@ interface CardPreviewPanelProps {
   targetPlatform: PlatformId;
   onPlatformChange: (id: PlatformId) => void;
   onUpdateOutputFileName: (name: string) => void;
+  /** Adopt the id the library assigned, so the next save updates that record. */
+  onSavedToLibrary?: (id: string) => void;
   onNewCard?: () => void;
 }
 
@@ -42,6 +44,7 @@ export default function CardPreviewPanel({
   targetPlatform,
   onPlatformChange,
   onUpdateOutputFileName,
+  onSavedToLibrary,
   onNewCard,
 }: CardPreviewPanelProps) {
   const [exporting, setExporting] = useState(false);
@@ -145,11 +148,25 @@ export default function CardPreviewPanel({
     const hasExistingId = project.id !== "default";
     const versionChanged = hasExistingId && currentVersion.trim() !== savedCharVersion;
     try {
-      const pngData = project.imageSrc?.startsWith("data:image/")
-        ? await getCarrierPng(project.imageSrc)
-        : null;
+      // Store a real card PNG, not the bare cover art. This is what Archive
+      // writes into the ZIP, and it used to be the un-encoded image — so a
+      // backup of any card that had cover art contained no card data at all.
+      const carrier = await getCarrierPng(project.imageSrc);
+      const converted = convertCardTo(project.card, targetPlatform);
+      const json = JSON.stringify(converted, null, settings.prettyPrintJson ? 2 : 0);
+      const pngData = encodeCharaToPng(
+        carrier,
+        json,
+        platform.metadataKey ?? FALLBACK_METADATA_KEY,
+        settings.preserveUnknownChunks
+      );
+
       const existingId = hasExistingId && !versionChanged ? project.id : undefined;
-      await saveCard(project.card, pngData, project.imageSrc ?? null, targetPlatform, existingId);
+      const saved = await saveCard(project.card, pngData, project.imageSrc ?? null, targetPlatform, existingId);
+      // Adopt the new id. Without this every save created another record, and a
+      // version bump left the editor still pointing at the previous row — so the
+      // next save overwrote the version the user had just preserved.
+      onSavedToLibrary?.(saved.id);
       setSavedCharVersion(currentVersion);
       setStatus(versionChanged ? "Saved as new version!" : hasExistingId ? "Library updated!" : "Saved to library!", true);
     } catch {
@@ -157,7 +174,7 @@ export default function CardPreviewPanel({
     } finally {
       setSaving(false);
     }
-  }, [project, targetPlatform, savedCharVersion, setStatus]);
+  }, [project, targetPlatform, savedCharVersion, setStatus, settings, platform, onSavedToLibrary]);
 
   const handleSaveAsTemplate = useCallback(() => {
     setSavingTemplate(true);

@@ -14,6 +14,7 @@ interface CreateCardProps {
   onUpdateImage: (src: string) => void;
   onUpdateOutputFileName: (name: string) => void;
   onPlatformChange: (id: PlatformId) => void;
+  onSavedToLibrary?: (id: string) => void;
   onNewCard?: () => void;
 }
 
@@ -27,6 +28,7 @@ export default function CreateCard({
   onUpdateImage,
   onUpdateOutputFileName,
   onPlatformChange,
+  onSavedToLibrary,
   onNewCard,
 }: CreateCardProps) {
   const [activeTab, setActiveTab] = useState<Tab>("editor");
@@ -81,6 +83,7 @@ export default function CreateCard({
         targetPlatform={targetPlatform}
         onPlatformChange={onPlatformChange}
         onUpdateOutputFileName={onUpdateOutputFileName}
+        onSavedToLibrary={onSavedToLibrary}
         onNewCard={onNewCard}
       />
     </div>

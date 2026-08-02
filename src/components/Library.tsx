@@ -25,15 +25,17 @@ type SortDir = "asc" | "desc";
 
 const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; color: string }> = {
   character: { label: "Character Cards",  icon: User,        color: "text-accent-purple" },
-  lorebook:  { label: "Lorebooks",        icon: BookOpen,    color: "text-blue-500" },
+  lorebook:  { label: "Lorebooks",        icon: BookOpen,    color: "text-status-info" },
   script:    { label: "Script Cards",     icon: FileCode2,   color: "text-status-warn" },
-  scenario:  { label: "Scenario Cards",   icon: Map,         color: "text-green-600" },
-  persona:   { label: "Personas",         icon: UserCircle,  color: "text-pink-500" },
+  scenario:  { label: "Scenario Cards",   icon: Map,         color: "text-status-ok" },
+  persona:   { label: "Personas",         icon: UserCircle,  color: "text-accent-purple-light" },
 };
 
 const TYPE_ORDER: LibraryCardType[] = ["character", "lorebook", "script", "scenario", "persona"];
 
 interface LibraryProps {
+  /** Bumped by the MCP bridge after it mutates the library; forces a reload. */
+  refreshToken?: number;
   onEditCard:     (card: TavernCardV2,  pngData: Uint8Array | null, imageSrc: string | null, id: string) => void;
   onEditLorebook: (data: LoreBook,      imageSrc: string | null,    id: string) => void;
   onEditScript:   (data: ScriptCard,    imageSrc: string | null,    id: string) => void;
@@ -41,7 +43,7 @@ interface LibraryProps {
   onEditPersona:  (data: PersonaCard,   imageSrc: string | null,    id: string) => void;
 }
 
-export default function Library({ onEditCard, onEditLorebook, onEditScript, onEditScenario, onEditPersona }: LibraryProps) {
+export default function Library({ refreshToken = 0, onEditCard, onEditLorebook, onEditScript, onEditScenario, onEditPersona }: LibraryProps) {
   const [cards, setCards] = useState<LibraryCard[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
@@ -57,7 +59,7 @@ export default function Library({ onEditCard, onEditLorebook, onEditScript, onEd
     setCards(all);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshToken]);
 
   const filtered = cards
     .filter((c) => {
@@ -290,10 +292,9 @@ function CardTile({
 
   return (
     <div
-      className={`relative rounded-xl border transition-all cursor-pointer group ${
+      className={`relative rounded-xl border transition-all group focus-within:border-accent-purple ${
         selected ? "border-accent-purple ring-2 ring-accent-purple/20" : "border-border hover:border-border-light"
       } bg-bg-card overflow-hidden`}
-      onClick={onEdit}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
@@ -308,26 +309,36 @@ function CardTile({
           </div>
         )}
 
-        {/* Hover overlay */}
-        {hover && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center gap-2">
-            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors" title="Edit">
-              <Edit3 size={16} />
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onExport(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors" title="Export ZIP">
-              <Download size={16} />
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting} className="p-2 rounded-lg bg-status-danger/30 hover:bg-status-danger/50 text-white transition-colors" title="Delete">
-              <Trash2 size={16} />
-            </button>
-          </div>
-        )}
+        {/* Action overlay. Kept mounted and revealed on hover *or* keyboard
+            focus — these used to be conditionally rendered on a mouseenter
+            state, so Edit, Export and Delete were unreachable without a mouse. */}
+        <div
+          className={`absolute inset-0 bg-black/50 flex items-center justify-center gap-2 transition-opacity ${
+            hover ? "opacity-100" : "opacity-0 focus-within:opacity-100"
+          }`}
+        >
+          <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors" title={`Edit ${card.name}`} aria-label={`Edit ${card.name}`}>
+            <Edit3 size={16} />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onExport(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors" title={`Export ${card.name} as ZIP`} aria-label={`Export ${card.name} as ZIP`}>
+            <Download size={16} />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting} className="p-2 rounded-lg bg-status-danger/30 hover:bg-status-danger/50 text-white transition-colors" title={`Delete ${card.name}`} aria-label={`Delete ${card.name}`}>
+            <Trash2 size={16} />
+          </button>
+        </div>
 
         {/* Select checkbox */}
-        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="absolute top-2 left-2 z-10">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="absolute top-2 left-2 z-10 rounded"
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={`Select ${card.name}`}
+        >
           {selected
             ? <CheckSquare size={18} className="text-accent-purple drop-shadow" />
-            : <Square size={18} className="text-white/70 drop-shadow opacity-0 group-hover:opacity-100 transition-opacity" />}
+            : <Square size={18} className="text-white/70 drop-shadow opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" />}
         </button>
 
         {/* Badges: type + version */}

@@ -31,33 +31,55 @@ interface PngChunk {
   data: Uint8Array;
 }
 
+/** The card's own name, from the V2 `data` block or a flat body. */
+function readCardName(jsonData: string): string | null {
+  try {
+    const parsed = JSON.parse(jsonData) as { name?: unknown; data?: { name?: unknown } };
+    const name = parsed?.data?.name ?? parsed?.name;
+    return typeof name === "string" && name.trim() ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A PNG can declare a chunk length up to 2^32-1, but this app only ever deals
+ * in card art. Anything past this is malformed or hostile, and refusing early
+ * keeps us from trying to allocate it.
+ */
+const MAX_CHUNK_LENGTH = 64 * 1024 * 1024;
+/** Ordinary PNGs have a handful of chunks; thousands means something is wrong. */
+const MAX_CHUNKS = 4096;
+
 function readChunks(bytes: Uint8Array): PngChunk[] {
   const chunks: PngChunk[] = [];
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let offset = 8; // skip PNG signature
 
-  while (offset < bytes.length) {
-    if (offset + 8 > bytes.length) break;
-    const length =
-      (bytes[offset] << 24) |
-      (bytes[offset + 1] << 16) |
-      (bytes[offset + 2] << 8) |
-      bytes[offset + 3];
-    offset += 4;
+  while (offset + 8 <= bytes.length) {
+    // getUint32 rather than shifts: `<<` and `|` coerce to *signed* int32, so a
+    // length with the high bit set came out negative and `offset += length`
+    // walked the cursor backwards — an unterminated loop on a crafted file.
+    const length = view.getUint32(offset, false);
+
+    // A chunk must fit in what's left, after its own 4-byte CRC.
+    if (length > MAX_CHUNK_LENGTH || length > bytes.length - offset - 12) break;
 
     const type = String.fromCharCode(
-      bytes[offset],
-      bytes[offset + 1],
-      bytes[offset + 2],
-      bytes[offset + 3]
+      bytes[offset + 4],
+      bytes[offset + 5],
+      bytes[offset + 6],
+      bytes[offset + 7]
     );
-    offset += 4;
 
-    const data = bytes.slice(offset, offset + length);
-    offset += length;
-    offset += 4; // skip CRC
+    const data = bytes.slice(offset + 8, offset + 8 + length);
+
+    // Belt and braces: every iteration must consume at least 12 bytes, so the
+    // cursor can only move forward and the loop must terminate.
+    offset += 12 + length;
 
     chunks.push({ type, data });
-    if (type === "IEND") break;
+    if (type === "IEND" || chunks.length >= MAX_CHUNKS) break;
   }
 
   return chunks;
@@ -167,7 +189,11 @@ export function encodeCharaToPng(
 
   const base64Data = btoa(unescape(encodeURIComponent(jsonData)));
   const chunks = readChunks(pngBytes);
-  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario", "persona"];
+  // Keys this encoder owns and therefore rewrites from scratch on every save.
+  // "name" belongs here: it used to be absent, so preserveUnknown kept every
+  // previous copy and appended a new one, leaving readers that take the first
+  // `name` chunk showing the original name forever.
+  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario", "persona", "name"];
 
   const keepChunks: PngChunk[] = [];
   let ihdChunk: PngChunk | null = null;
@@ -201,10 +227,13 @@ export function encodeCharaToPng(
   }
   // Insert metadata tEXt chunk before IDAT
   parts.push(makeTextChunk(metadataKey, base64Data));
-  // Also write the name chunk for SillyTavern compatibility
-  const nameMatch = /"name"\s*:\s*"([^"]+)"/.exec(jsonData);
-  if (nameMatch) {
-    parts.push(makeTextChunk("name", nameMatch[1]));
+  // Also write the name chunk for SillyTavern compatibility.
+  // Parsed rather than regex-scraped: a regex over the serialised string breaks
+  // on escaped quotes in the name and can match a nested `character_book.name`
+  // that happens to appear earlier in the document.
+  const cardName = readCardName(jsonData);
+  if (cardName) {
+    parts.push(makeTextChunk("name", cardName));
   }
   for (const chunk of idatChunks) {
     parts.push(makeChunkBytes("IDAT", chunk.data));

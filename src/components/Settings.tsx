@@ -1,7 +1,9 @@
 import { useState } from "react";
 import type { AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../lib/settings";
-import { Save, RotateCcw } from "lucide-react";
+import { Save, RotateCcw, Plug, Check } from "lucide-react";
+import { getBridgeToken, setBridgeToken } from "../lib/bridge/client";
+import { BRIDGE_PORT } from "../lib/bridge/protocol";
 
 interface SettingsProps {
   settings: AppSettings;
@@ -11,6 +13,14 @@ interface SettingsProps {
 export default function Settings({ settings, onSave }: SettingsProps) {
   const [draft, setDraft] = useState<AppSettings>({ ...settings });
   const [saved, setSaved] = useState(false);
+  const [token, setToken] = useState(getBridgeToken);
+  const [tokenSaved, setTokenSaved] = useState(false);
+
+  const handleSaveToken = () => {
+    setBridgeToken(token);
+    setTokenSaved(true);
+    setTimeout(() => setTokenSaved(false), 1500);
+  };
 
   const handleSave = () => {
     onSave(draft);
@@ -54,6 +64,40 @@ export default function Settings({ settings, onSave }: SettingsProps) {
           />
         </div>
 
+        <div className="card-panel space-y-3">
+          <p className="section-title flex items-center gap-2">
+            <Plug size={14} className="text-accent-purple" /> MCP bridge
+          </p>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            Lets a coding agent create and edit cards in your library. The MCP server prints a
+            pairing token when it starts — paste it here once, then switch the bridge on with the
+            <strong className="text-text-primary"> MCP</strong> light in the sidebar footer.
+          </p>
+          <div>
+            <label htmlFor="bridge-token" className="label-base">Pairing token</label>
+            <div className="flex gap-2">
+              <input
+                id="bridge-token"
+                type="password"
+                className="input-base font-mono text-xs flex-1"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Paste the token from the MCP server output"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button onClick={handleSaveToken} className="btn-secondary px-3 shrink-0">
+                {tokenSaved ? <Check size={14} className="text-status-ok" /> : "Save"}
+              </button>
+            </div>
+            <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+              Both sides prove they hold this token before anything is exchanged, so a different
+              process that grabbed port {BRIDGE_PORT} first can't impersonate the server or read
+              your cards. Without a matching token the app refuses to talk to it.
+            </p>
+          </div>
+        </div>
+
         <div className="flex gap-3">
           <button onClick={handleSave} className="btn-primary flex-1 justify-center">
             <Save size={15} />
@@ -85,12 +129,14 @@ function Toggle({
       <div className="relative mt-0.5 shrink-0">
         <input
           type="checkbox"
-          className="sr-only"
+          className="sr-only peer"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
         />
+        {/* The real control is visually hidden, so the focus ring has to be
+            painted on the track — otherwise keyboard users see nothing at all. */}
         <div
-          className={`w-9 h-5 rounded-full transition-colors ${
+          className={`w-9 h-5 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent-purple peer-focus-visible:ring-offset-2 ${
             checked ? "bg-accent-purple" : "bg-bg-hover border border-border"
           }`}
         />
