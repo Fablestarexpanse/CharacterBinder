@@ -276,6 +276,120 @@ current version.
 
 ---
 
+## MCP Server — let a coding agent build cards
+
+CharacterBinder ships an [MCP](https://modelcontextprotocol.io) server, so Claude
+Code, Claude Desktop, or any MCP client can create and edit cards in your library
+directly. Ask for *"a stoic dwarven blacksmith with a lorebook for his forge"* and
+the cards appear in the app, already open in the editor.
+
+Everything stays on your machine. The server listens on `127.0.0.1` only and is
+off until you switch it on.
+
+### How it fits together
+
+Your library lives in the browser's IndexedDB, which a Node process can't reach.
+So the app is the source of truth and the MCP server proxies to it:
+
+```
+Claude Code ──stdio──> CharacterBinder MCP server ──ws://127.0.0.1:8787──> the app
+                                                                            └─ IndexedDB
+```
+
+Card tools need the app open with the bridge switched on. Validation, platform
+compatibility, and text parsing are pure and work regardless — those reuse the
+app's own modules, so they can't drift from what the UI does.
+
+### Install it for me
+
+Paste this into Cowork (or Claude Code) from anywhere and it will do the whole
+setup, including registering the server with your client:
+
+```text
+Set up the CharacterBinder MCP server for me.
+
+1. Clone https://github.com/Fablestarexpanse/CharacterBinder.git if I don't
+   already have it, then cd into it.
+2. Run `npm install`, then `cd mcp && npm install && npm run build`.
+3. Register the server with my MCP client using the absolute path to
+   mcp/dist/index.js, running it with `node`. Name it "characterbinder".
+   - For Claude Code, run: claude mcp add characterbinder -- node <abs-path>
+   - For Claude Desktop, add it to claudeDesktopConfig.json under mcpServers
+     instead, then tell me to restart the app.
+4. Start the app with `npm start` from the repo root and tell me to click the
+   MCP light in the sidebar footer to switch the bridge on.
+5. Verify by calling the app_status tool and report what it says.
+
+Tell me if anything is already installed so you don't redo it.
+```
+
+### Install it manually
+
+```bash
+git clone https://github.com/Fablestarexpanse/CharacterBinder.git
+cd CharacterBinder
+npm install
+cd mcp && npm install && npm run build
+```
+
+Register it with Claude Code:
+
+```bash
+claude mcp add characterbinder -- node /absolute/path/to/CharacterBinder/mcp/dist/index.js
+```
+
+Or for Claude Desktop, in `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "characterbinder": {
+      "command": "node",
+      "args": ["/absolute/path/to/CharacterBinder/mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+Then start the app (`npm start` from the repo root) and click the **MCP** light in
+the sidebar footer. It turns green once the agent's server is connected.
+
+### Tools
+
+| Tool | What it does |
+|------|--------------|
+| `app_status` | Whether the app is connected. Call this first if anything errors |
+| `list_cards` | Everything in the library, filterable by type |
+| `get_card` | One card in full |
+| `create_character` | A Tavern Card v2 character |
+| `create_persona` | A `{{user}}` persona |
+| `create_lorebook` | A world info book, entries and all |
+| `create_scenario` | A standalone situation card |
+| `create_script` | A script card |
+| `update_card` | Shallow-merge edits into an existing card |
+| `delete_card` | Remove a card — no undo |
+| `open_card` | Bring a card up in the app's editor |
+| `validate_character` | Check against the Tavern v2 spec |
+| `platform_compatibility` | What a given platform drops or renames |
+| `parse_card_text` | Sort a pasted blob into fields — the Quick Import parser |
+
+Creating a card opens it in the app by default, so you can see what the agent
+made. Pass `open: false` to work quietly in the background.
+
+### Security
+
+The bridge exposes your card library to whatever agent is connected — it can read,
+edit, and delete. Three things keep that bounded:
+
+- The WebSocket binds to `127.0.0.1`, so nothing off your machine can reach it
+- It is **off by default**, and the light in the sidebar is the only switch
+- The light shows a running count of requests served, so an agent can't work your
+  library without it being visible
+
+Turn it off when you're not using it.
+
+---
+
 ## Supported Platforms
 
 **PNG and JSON export are always available for every platform.** The table below
@@ -353,6 +467,7 @@ PNG Signature (8 bytes)
 | PNG encoding | Pure JavaScript (no native deps) |
 | Token counting | [gpt-tokenizer](https://github.com/niieani/gpt-tokenizer) (cl100k) |
 | In-browser AI | [WebLLM](https://github.com/mlc-ai/web-llm) on WebGPU (lazy-loaded, optional) |
+| Agent access | [MCP](https://modelcontextprotocol.io) server over stdio, bridged to the app on loopback |
 
 ---
 
@@ -364,6 +479,7 @@ CharacterBinder/
 │   ├── components/          # UI components (editors, sidebar, library, modals)
 │   ├── hooks/               # Shared React hooks (status messages, AI engine state)
 │   ├── lib/
+│   │   ├── bridge/          # MCP bridge: wire protocol + app-side client
 │   │   ├── pngMetadata/     # PNG tEXt chunk encoder/decoder
 │   │   ├── platforms/       # Platform definitions + format converters
 │   │   ├── validators/      # Card validation logic
@@ -385,6 +501,10 @@ CharacterBinder/
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations
 │   ├── main.tsx             # React entry point
 │   └── App.tsx              # Root component and app state
+├── mcp/                     # MCP server (own package; shares src/lib)
+│   └── src/
+│       ├── index.ts         # Tool definitions
+│       └── bridge.ts        # WebSocket server the app dials in on
 ├── public/                  # Static assets (logo, etc.)
 ├── docs/                    # Screenshots and documentation assets
 └── start.bat / start.sh     # One-click launch
@@ -393,6 +513,18 @@ CharacterBinder/
 ---
 
 ## Changelog
+
+### v1.7.0
+- **Added an MCP server** so Claude Code, Claude Desktop, and other MCP clients can
+  build cards directly. Fourteen tools covering create, read, update, delete, open,
+  validate, platform compatibility, and the Quick Import parser
+- Card tools proxy to the running app over a loopback WebSocket, because the
+  library lives in the browser's IndexedDB — so an agent's card lands in your real
+  library and opens in the editor, rather than in some parallel store
+- Validation, platform compatibility, and text parsing reuse the app's own modules
+  in the server process, so agent-facing rules can't drift from what the UI enforces
+- The bridge is **off by default** and bound to `127.0.0.1`. A new **MCP** light in
+  the sidebar footer is the only switch, and it shows how many requests have been served
 
 ### v1.6.1
 - **Quick Import now works in the Character editor**, not just Persona. It targets

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "./types";
 import type { PlatformId } from "./lib/platforms";
 import { loadStoredSettings, saveSettings } from "./lib/settings";
+import { registerBridgeHost, initBridge } from "./lib/bridge/client";
 import { blankTemplate } from "./data/templates/ronalVoss";
 import Sidebar from "./components/Sidebar";
 import CreateCard from "./components/CreateCard";
@@ -192,6 +193,34 @@ function App() {
     setPersonaKey((k) => k + 1);
     setActivePage("persona");
   }, []);
+
+  // Let the MCP bridge open whatever an agent just created or edited, in the
+  // editor that matches its type. Registered once; the handlers are stable.
+  useEffect(() => {
+    registerBridgeHost({
+      openCard: (card) => {
+        const image = card.imageSrc ?? null;
+        switch (card.cardType) {
+          case "character":
+            if (card.cardData) loadFromLibrary(card.cardData, null, image, card.id);
+            break;
+          case "lorebook":
+            handleImportLorebook(card.rawData as LoreBook, image);
+            break;
+          case "script":
+            handleImportScript(card.rawData as ScriptCard, image);
+            break;
+          case "scenario":
+            handleImportScenario(card.rawData as ScenarioCard, image);
+            break;
+          case "persona":
+            handleImportPersona(card.rawData as PersonaCard, image);
+            break;
+        }
+      },
+    });
+    initBridge();
+  }, [loadFromLibrary, handleImportLorebook, handleImportScript, handleImportScenario, handleImportPersona]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">

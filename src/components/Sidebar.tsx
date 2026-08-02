@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { NavPage } from "../types";
 import LlmStatusLight from "./LlmStatusLight";
+import BridgeStatusLight from "./BridgeStatusLight";
 import {
   PlusSquare,
   Library,
@@ -94,6 +95,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
         <span className="w-2 h-2 rounded-full bg-status-ok shrink-0 ml-1" />
         <span className="text-xs text-text-muted">Ready</span>
         <LlmStatusLight />
+        <BridgeStatusLight />
         <span className="ml-auto text-xs text-text-muted">v{__APP_VERSION__}</span>
       </div>
     </aside>
