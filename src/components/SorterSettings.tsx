@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { AlertTriangle, Cpu, Server } from "lucide-react";
 import { SORTER_MODELS, formatSize } from "../lib/personaLlm/models";
 import { isRemoteUrl, type SorterSettings as Settings, type SorterBackend } from "../lib/personaLlm/settings";
@@ -13,6 +14,10 @@ interface SorterSettingsProps {
 /** Where the AI sorter runs, and which model it uses. */
 export default function SorterSettings({ settings, onChange, webGpuAvailable, loadedModelId, onUnload }: SorterSettingsProps) {
   const remote = settings.backend === "endpoint" && isRemoteUrl(settings.endpointUrl);
+  const modelId = useId();
+  const urlId = useId();
+  const endpointModelId = useId();
+  const keyId = useId();
 
   return (
     <div className="space-y-3 border-t border-accent-purple/20 pt-3">
@@ -60,8 +65,9 @@ export default function SorterSettings({ settings, onChange, webGpuAvailable, lo
           )}
 
           <div>
-            <label className="label-base">Model</label>
+            <label htmlFor={modelId} className="label-base">Model</label>
             <select
+              id={modelId}
               className="input-base"
               value={settings.modelId}
               onChange={(e) => onChange({ modelId: e.target.value })}
@@ -99,8 +105,9 @@ export default function SorterSettings({ settings, onChange, webGpuAvailable, lo
       {settings.backend === "endpoint" && (
         <div className="space-y-2">
           <div>
-            <label className="label-base">Base URL</label>
+            <label htmlFor={urlId} className="label-base">Base URL</label>
             <input
+              id={urlId}
               className="input-base font-mono text-xs"
               value={settings.endpointUrl}
               onChange={(e) => onChange({ endpointUrl: e.target.value, remoteAcknowledged: false })}
@@ -109,8 +116,9 @@ export default function SorterSettings({ settings, onChange, webGpuAvailable, lo
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="label-base">Model</label>
+              <label htmlFor={endpointModelId} className="label-base">Model</label>
               <input
+                id={endpointModelId}
                 className="input-base text-xs"
                 value={settings.endpointModel}
                 onChange={(e) => onChange({ endpointModel: e.target.value })}
@@ -118,8 +126,9 @@ export default function SorterSettings({ settings, onChange, webGpuAvailable, lo
               />
             </div>
             <div>
-              <label className="label-base">API key</label>
+              <label htmlFor={keyId} className="label-base">API key</label>
               <input
+                id={keyId}
                 type="password"
                 className="input-base text-xs"
                 value={settings.endpointKey}

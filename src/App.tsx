@@ -3,6 +3,7 @@ import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject, Lor
 import type { PlatformId } from "./lib/platforms";
 import { loadStoredSettings, saveSettings } from "./lib/settings";
 import { registerBridgeHost, initBridge } from "./lib/bridge/client";
+import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
 import { blankTemplate } from "./data/templates/ronalVoss";
 import Sidebar from "./components/Sidebar";
 import CreateCard from "./components/CreateCard";
@@ -76,6 +77,17 @@ function App() {
     if (fileNameTouched) return;
     setProject((p) => ({ ...p, outputFileName: defaultFileName(p.card.data.name) }));
   }, [project.card.data.name, fileNameTouched]);
+
+  // The editor holds plain React state until it is saved or exported, so closing
+  // the tab mid-edit used to discard it silently. Only guard once there is
+  // something worth losing.
+  const hasUnsavedWork =
+    project.id === "default" &&
+    (!!project.card.data.name.trim() ||
+      !!project.card.data.description.trim() ||
+      !!project.card.data.personality.trim() ||
+      !!project.card.data.first_mes.trim());
+  useUnsavedWarning(hasUnsavedWork);
 
   // ── Character card handlers ──
   const updateCard = useCallback((updates: Partial<TavernCardV2["data"]>) => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useId } from "react";
 import {
   Wand2, ChevronDown, ChevronRight, ClipboardPaste, X, AlertTriangle, Check,
   Sparkles, Settings2, Loader2, Zap,
@@ -57,6 +57,7 @@ export default function SmartImportPanel({
   const FIELD_ORDER = target === "character" ? CHARACTER_FIELD_ORDER : PERSONA_FIELD_ORDER;
   const FIELD_LABELS = target === "character" ? CHARACTER_FIELD_LABELS : PERSONA_FIELD_LABELS;
 
+  const pasteId = useId();
   const [open, setOpen] = useState(defaultOpen);
   const [raw, setRaw] = useState("");
   const [result, setResult] = useState<ParsedPersona | null>(null);
@@ -187,7 +188,7 @@ export default function SmartImportPanel({
           {/* Paste area */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="label-base mb-0">Paste anything</label>
+              <label htmlFor={pasteId} className="label-base mb-0">Paste anything</label>
               <button
                 type="button"
                 onClick={handlePasteFromClipboard}
@@ -198,6 +199,7 @@ export default function SmartImportPanel({
               </button>
             </div>
             <textarea
+              id={pasteId}
               className="input-base font-mono text-xs"
               rows={8}
               value={raw}

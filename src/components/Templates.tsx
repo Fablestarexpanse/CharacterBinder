@@ -3,6 +3,7 @@ import type { TavernCardV2, MetadataInfo } from "../types";
 import type { PlatformId } from "../lib/platforms";
 import { templates } from "../data/templates/ronalVoss";
 import { getCustomTemplates, deleteCustomTemplate, type CustomTemplate } from "../lib/customTemplates";
+import ConfirmModal from "./ConfirmModal";
 import { FileText, Plus, Trash2 } from "lucide-react";
 
 interface TemplatesProps {
@@ -16,13 +17,29 @@ export default function Templates({ onLoad }: TemplatesProps) {
     setCustom(getCustomTemplates());
   }, []);
 
-  function handleDelete(id: string) {
-    deleteCustomTemplate(id);
+  // Deleting a saved template is irreversible, same as a library card — the
+  // Library gained a confirmation for exactly that reason and this was missed.
+  const [pendingDelete, setPendingDelete] = useState<CustomTemplate | null>(null);
+
+  function confirmDelete() {
+    if (!pendingDelete) return;
+    deleteCustomTemplate(pendingDelete.id);
+    setPendingDelete(null);
     setCustom(getCustomTemplates());
   }
 
   return (
     <div className="h-full overflow-y-auto p-6">
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete this template?"
+          message={`"${pendingDelete.name}" will be removed permanently. This cannot be undone.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
       <div className="max-w-2xl mx-auto">
         <h1 className="text-xl font-bold text-text-primary mb-1">Templates</h1>
         <p className="text-sm text-text-secondary mb-6">
@@ -57,7 +74,7 @@ export default function Templates({ onLoad }: TemplatesProps) {
                   description={tpl.description}
                   tags={(tpl.card.data.tags ?? []).slice(0, 4)}
                   onUse={() => onLoad(tpl.card)}
-                  onDelete={() => handleDelete(tpl.id)}
+                  onDelete={() => setPendingDelete(tpl)}
                 />
               ))}
             </div>

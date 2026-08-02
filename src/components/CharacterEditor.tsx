@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useId } from "react";
 import type { TavernCardV2 } from "../types";
 import { Plus, Minus, ChevronDown, ChevronUp, Image } from "lucide-react";
 import { readImageFile } from "../lib/readImageFile";
@@ -30,6 +30,8 @@ export default function CharacterEditor({
   onUpdate,
   onUpdateImage,
 }: CharacterEditorProps) {
+  const nameId = useId();
+  const sourceId = useId();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const { data } = card;
@@ -110,8 +112,9 @@ export default function CharacterEditor({
           <div className="flex-1 space-y-4">
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="label-base">Name</label>
+                <label htmlFor={nameId} className="label-base">Name</label>
                 <input
+                  id={nameId}
                   className="input-base"
                   placeholder="Character name..."
                   value={data.name}
@@ -119,8 +122,9 @@ export default function CharacterEditor({
                 />
               </div>
               <div className="flex-1">
-                <label className="label-base">Source</label>
+                <label htmlFor={sourceId} className="label-base">Source</label>
                 <select
+                  id={sourceId}
                   className="input-base"
                   value={(data.extensions?.source as string | undefined) ?? SOURCES[0]}
                   onChange={(e) =>
@@ -201,6 +205,7 @@ export default function CharacterEditor({
             </button>
             <input
               ref={imageInputRef}
+              aria-label="Choose a character image"
               type="file"
               accept="image/*"
               className="hidden"

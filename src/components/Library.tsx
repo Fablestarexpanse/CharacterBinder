@@ -171,6 +171,7 @@ export default function Library({ refreshToken = 0, onEditCard, onEditLorebook, 
           <input
             className="input-base pl-8 py-1.5 text-xs"
             placeholder="Search name, type, tag…"
+            aria-label="Search the library by name, type, or tag"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

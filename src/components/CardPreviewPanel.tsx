@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useId } from "react";
 import type { AppSettings, CardProject } from "../types";
 import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
 import { saveCard } from "../lib/library";
@@ -47,6 +47,7 @@ export default function CardPreviewPanel({
   onSavedToLibrary,
   onNewCard,
 }: CardPreviewPanelProps) {
+  const outputFileId = useId();
   const [exporting, setExporting] = useState(false);
   const [compatOpen, setCompatOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -374,9 +375,10 @@ export default function CardPreviewPanel({
           <p className="section-title">Output Settings</p>
           <div className="space-y-3">
             <div>
-              <label className="label-base">Output File</label>
+              <label htmlFor={outputFileId} className="label-base">Output File</label>
               <div className="flex gap-1.5">
                 <input
+                  id={outputFileId}
                   className="input-base flex-1"
                   value={project.outputFileName}
                   onChange={(e) => onUpdateOutputFileName(e.target.value)}

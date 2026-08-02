@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useId } from "react";
 
 interface TagInputProps {
   tags: string[];
@@ -20,6 +20,7 @@ const key = (tags: string[]) => tags.join("\x00");
  * come.
  */
 export default function TagInput({ tags, onChange, placeholder, label }: TagInputProps) {
+  const fieldId = useId();
   const [raw, setRaw] = useState(tags.join(", "));
 
   // What we last sent upward. Lets us tell a genuine external change (loading a
@@ -53,8 +54,10 @@ export default function TagInput({ tags, onChange, placeholder, label }: TagInpu
 
   return (
     <div>
-      {label && <label className="label-base">{label}</label>}
+      {label && <label htmlFor={fieldId} className="label-base">{label}</label>}
       <input
+        id={fieldId}
+        aria-label={label ? undefined : placeholder}
         className="input-base"
         placeholder={placeholder}
         value={raw}

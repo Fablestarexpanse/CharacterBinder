@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useId } from "react";
 import { Copy, ClipboardPaste, Check } from "lucide-react";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
 import ResizableTextArea from "./ResizableTextArea";
@@ -24,6 +24,7 @@ export default function TextAreaField({
   placeholder,
   showTokens = true,
 }: TextAreaFieldProps) {
+  const fieldId = useId();
   const [copied, setCopied] = useState(false);
   const [pasteHint, setPasteHint] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -62,7 +63,7 @@ export default function TextAreaField({
     <div>
       {/* Label row */}
       <div className="flex items-center justify-between mb-1.5">
-        <label className="label-base mb-0">{label}</label>
+        <label htmlFor={fieldId} className="label-base mb-0">{label}</label>
         <div className="flex items-center gap-2">
           {showTokens && value.length > 0 && (
             <span className={`text-xs font-medium ${TOKEN_BUDGET_COLORS[getTokenBudgetLevel(tokens)]}`}>
@@ -100,6 +101,7 @@ export default function TextAreaField({
       </div>
 
       <ResizableTextArea
+        id={fieldId}
         ref={textareaRef}
         rows={rows}
         value={value}
