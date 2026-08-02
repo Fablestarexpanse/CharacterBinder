@@ -1,7 +1,8 @@
-import { useState, useRef, useMemo, useId } from "react";
+import { useRef, useMemo, useId } from "react";
 import { Copy, ClipboardPaste, Check } from "lucide-react";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
 import ResizableTextArea from "./ResizableTextArea";
+import { useTimedFlag } from "../hooks/useTimedFlag";
 
 interface TextAreaFieldProps {
   label: string;
@@ -25,8 +26,8 @@ export default function TextAreaField({
   showTokens = true,
 }: TextAreaFieldProps) {
   const fieldId = useId();
-  const [copied, setCopied] = useState(false);
-  const [pasteHint, setPasteHint] = useState(false);
+  const [copied, flashCopied] = useTimedFlag();
+  const [pasteHint, flashPasteHint] = useTimedFlag(2500);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // countTokens is a full BPE encode; unmemoized, every keystroke in any field
@@ -35,8 +36,7 @@ export default function TextAreaField({
 
   function handleCopy() {
     navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    flashCopied();
   }
 
   async function handlePaste() {
@@ -54,8 +54,7 @@ export default function TextAreaField({
       });
     } catch {
       textareaRef.current?.focus();
-      setPasteHint(true);
-      setTimeout(() => setPasteHint(false), 2500);
+      flashPasteHint();
     }
   }
 

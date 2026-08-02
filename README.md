@@ -526,6 +526,38 @@ CharacterBinder/
 A full audit across security, the card pipeline, and accessibility. The
 data-corruption fixes are the important ones.
 
+**Import routing**
+- **A lorebook stored under a `chara` key imported as an empty character card and
+  reported success.** The import path chose its branch from the metadata keyword
+  alone, so when the keyword and the payload disagreed every entry was discarded
+  behind a green checkmark. A new `lib/cardShape` works out what a payload
+  actually is from its structure, and the importer trusts that over the label,
+  saying so when the two differ
+- A damaged card chunk now reports as damaged rather than as "no card found" —
+  the two call for opposite responses, and Decode PNG was listing the chunk in
+  its own table two lines below the error
+
+**Quick Import**
+- **The W++ strategy fired on ordinary prose and discarded the rest.** Its block
+  pattern matched any `word(...)`, so English parentheticals were read as
+  attributes; since that strategy builds its result only from matches, everything
+  outside them was thrown away. It now requires quoted values and must cover most
+  of the input, or the text falls through to a strategy that keeps it
+- **The JSON strategy dropped every array and object**, so a full Tavern V2 paste
+  silently lost its alternate greetings, lorebook, and extensions
+
+**Converters and validation** (now covered by tests)
+- A slim third-party v2 card threw mid-export; `convertCardFrom` normalises now
+- **Venus dropped six fields**, three of which the compatibility panel advertised
+  as "partial" — the UI was promising more than the export delivered. A test now
+  asserts that every field the support table claims to keep actually appears in
+  the payload, for all eight platforms
+- JanitorAI left literal `{{bot}}` placeholders after a round trip; Generic lost
+  `character_version`
+- The validator checked four fields and nothing else — a card whose `tags` was a
+  string passed, and one with no `data` block threw. It now checks the spec's
+  required fields, their types, and an attached lorebook
+
 **Data loss and corruption**
 - **Every export without cover art was producing a broken PNG.** The fallback
   carrier image declared an IDAT length of 12 with only 11 bytes of data, so a
@@ -575,6 +607,19 @@ data-corruption fixes are the important ones.
   away and back — the README claimed otherwise
 
 **Accessibility**
+- **There was no keyboard path to import a card at all.** Import PNG, Decode PNG
+  and the image dropzone were bare divs with a `display:none` file input. All
+  three are now focusable and activate on Enter or Space
+- **The script code editor was a keyboard trap** — Tab inserted an indent with no
+  way out, a WCAG 2.1.2 Level A failure. Escape then Tab now leaves, with a hint
+  in the editor header
+- Lorebook toggles (four per entry) were divs with an onClick; they are now
+  `role="switch"` buttons with `aria-checked`
+- **No form control in the app was programmatically labelled** — a screen reader
+  announced "edit text, blank" for every field, including the API key. All of
+  them are paired now
+- Status messages are announced (`aria-live`), disclosures report `aria-expanded`,
+  and the current page is marked with `aria-current`
 - **Pressing Enter on the delete dialog's Cancel button deleted the card.** A
   global key handler ran confirm regardless of what was focused, so the most
   natural dismissal keystroke did the destructive thing. The dialog also gained
@@ -587,6 +632,19 @@ data-corruption fixes are the important ones.
   keyboard users previously saw no focus at all
 - Remaining dark-theme colour classes in the Library replaced with the semantic
   status palette
+
+**Performance and hygiene**
+- `public/logo.png` was 1536×1024 and **2.11 MB**, served as favicon *and* small
+  sidebar logo on every load — larger than the gzipped JS bundle. Now 91 KB
+- Full BPE token counts ran on every render in the Scenario and Lorebook editors,
+  so a keystroke anywhere re-tokenized whole fields
+- The WebLLM worker is terminated on unload, not just detached
+- Deleting an alternate greeting no longer migrates the next one's stored height
+- Six self-clearing timers shared a `useTimedFlag` hook instead of leaking on
+  unmount
+- Templates deleted a saved template with no confirmation; it uses the same
+  dialog as the Library now
+- Closing the tab mid-edit discarded editor state silently; there is a guard
 
 **Removed**
 - The GitHub Pages workflow and `BASE_PATH` support. Hosted and local are separate

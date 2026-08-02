@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from "../lib/settings";
 import { Save, RotateCcw, Plug, Check } from "lucide-react";
 import { getBridgeToken, setBridgeToken } from "../lib/bridge/client";
 import { BRIDGE_PORT } from "../lib/bridge/protocol";
+import { useTimedFlag } from "../hooks/useTimedFlag";
 
 interface SettingsProps {
   settings: AppSettings;
@@ -12,20 +13,18 @@ interface SettingsProps {
 
 export default function Settings({ settings, onSave }: SettingsProps) {
   const [draft, setDraft] = useState<AppSettings>({ ...settings });
-  const [saved, setSaved] = useState(false);
+  const [saved, flashSaved] = useTimedFlag();
   const [token, setToken] = useState(getBridgeToken);
-  const [tokenSaved, setTokenSaved] = useState(false);
+  const [tokenSaved, flashTokenSaved] = useTimedFlag();
 
   const handleSaveToken = () => {
     setBridgeToken(token);
-    setTokenSaved(true);
-    setTimeout(() => setTokenSaved(false), 1500);
+    flashTokenSaved();
   };
 
   const handleSave = () => {
     onSave(draft);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    flashSaved();
   };
 
   const handleReset = () => setDraft({ ...DEFAULT_SETTINGS });

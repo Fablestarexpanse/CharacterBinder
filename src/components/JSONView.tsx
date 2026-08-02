@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { TavernCardV2 } from "../types";
 import { Check, AlertCircle, Copy, RefreshCw, Save } from "lucide-react";
 import { validateJson } from "../lib/validators";
+import { useTimedFlag } from "../hooks/useTimedFlag";
 
 interface JSONViewProps {
   card: TavernCardV2;
@@ -11,8 +12,8 @@ interface JSONViewProps {
 export default function JSONView({ card, onUpdate }: JSONViewProps) {
   const [jsonText, setJsonText] = useState(() => JSON.stringify(card, null, 2));
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [copied, flashCopied] = useTimedFlag();
+  const [applied, flashApplied] = useTimedFlag();
   // Track whether local edits differ from the external card prop
   const [isDirty, setIsDirty] = useState(false);
 
@@ -39,8 +40,7 @@ export default function JSONView({ card, onUpdate }: JSONViewProps) {
       // Apply the full card's data fields back to the parent
       onUpdate(parsed.data);
       setIsDirty(false);
-      setApplied(true);
-      setTimeout(() => setApplied(false), 1500);
+      flashApplied();
     } catch {
       setValidationError("Could not parse JSON");
     }
@@ -48,8 +48,7 @@ export default function JSONView({ card, onUpdate }: JSONViewProps) {
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(jsonText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    flashCopied();
   };
 
   const handleRefresh = () => {

@@ -256,7 +256,7 @@ function App() {
         />
       )}
 
-      <Sidebar activePage={activePage} onNavigate={setActivePage} onNewCard={() => setShowClearConfirm(true)} />
+      <Sidebar activePage={activePage} onNavigate={setActivePage} />
 
       <main className="flex-1 overflow-hidden">
         <ErrorBoundary area="editor" key={`boundary-${activePage}`}>

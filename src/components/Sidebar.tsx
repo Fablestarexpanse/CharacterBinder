@@ -20,7 +20,6 @@ import {
 interface SidebarProps {
   activePage: NavPage;
   onNavigate: (page: NavPage) => void;
-  onNewCard: () => void;
 }
 
 interface NavSection {
@@ -75,6 +74,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
                 <button
                   key={page}
                   onClick={() => onNavigate(page)}
+                  aria-current={activePage === page ? "page" : undefined}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
                     activePage === page
                       ? "bg-accent-purple/20 text-accent-purple-light border border-accent-purple/30"

@@ -6,6 +6,7 @@ import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata"
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { convertCardFrom } from "../lib/platforms/converters";
 import FieldCompatibility from "./FieldCompatibility";
+import { useTimedFlag } from "../hooks/useTimedFlag";
 
 const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
 
@@ -35,7 +36,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
     imageSrc: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useTimedFlag();
   const [showFullCompat, setShowFullCompat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,8 +122,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
   const handleCopy = async () => {
     if (!result) return;
     await navigator.clipboard.writeText(JSON.stringify(JSON.parse(result.json), null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    flashCopied();
   };
 
   const isCharCard = result && result.sourcePlatform !== null && CHARACTER_KEYS.has(result.key);
