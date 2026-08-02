@@ -248,6 +248,7 @@ export default function CardPreviewPanel({
         <div className="p-4 border-b border-border">
           <button
             onClick={() => setTokenOpen(!tokenOpen)}
+            aria-expanded={tokenOpen}
             className="w-full flex items-center justify-between mb-2"
           >
             <p className="section-title mb-0">Token Count</p>
@@ -325,6 +326,7 @@ export default function CardPreviewPanel({
           {/* Compatibility summary */}
           <button
             onClick={() => setCompatOpen(!compatOpen)}
+            aria-expanded={compatOpen}
             className={`w-full mt-3 flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
               lossCount > 0
                 ? "border-status-danger-border bg-status-danger-soft text-status-danger"
@@ -418,7 +420,11 @@ export default function CardPreviewPanel({
         )}
 
         {exportStatus && (
-          <p className={`text-xs text-center ${exportStatus.ok ? "text-status-ok" : "text-status-danger"}`}>
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-xs text-center ${exportStatus.ok ? "text-status-ok" : "text-status-danger"}`}
+          >
             {exportStatus.msg}
           </p>
         )}

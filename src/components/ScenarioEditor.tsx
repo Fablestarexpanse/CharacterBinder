@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Download, FileJson, Map, Save } from "lucide-react";
 import type { ScenarioCard } from "../types";
 import ResizableTextArea from "./ResizableTextArea";
@@ -90,8 +90,10 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
     setSaving(false);
   }
 
-  const scenarioTokens = countTokens(card.scenario);
-  const firstMesTokens = countTokens(card.first_mes);
+  // Tokenizing is a full BPE encode. Unmemoized these ran on every render, so
+  // every keystroke in the Name field re-tokenized the whole scenario.
+  const scenarioTokens = useMemo(() => countTokens(card.scenario), [card.scenario]);
+  const firstMesTokens = useMemo(() => countTokens(card.first_mes), [card.first_mes]);
   const totalTokens = scenarioTokens + firstMesTokens;
   const level = getTokenBudgetLevel(totalTokens);
 
@@ -195,7 +197,13 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
         </div>
 
         {status && (
-          <p className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}>{status.msg}</p>
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}
+          >
+            {status.msg}
+          </p>
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">

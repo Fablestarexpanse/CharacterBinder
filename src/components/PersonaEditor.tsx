@@ -203,7 +203,13 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
         </div>
 
         {status && (
-          <p className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}>{status.msg}</p>
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}
+          >
+            {status.msg}
+          </p>
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">

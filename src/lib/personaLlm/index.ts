@@ -132,6 +132,10 @@ type WebLlmEngine = {
 let engine: WebLlmEngine | null = null;
 let engineModelId: string | null = null;
 let engineLoading: Promise<WebLlmEngine> | null = null;
+// Kept so "Free memory" can actually stop the thread. unload() releases GPU
+// memory but leaves the worker running, so switching models repeatedly used to
+// pile up orphaned workers.
+let engineWorker: Worker | null = null;
 
 // ── Observable status ───────────────────────────────────────────────────────
 // The model is a couple of GB of VRAM, and it can be loaded from either the
@@ -197,12 +201,7 @@ async function getEngine(modelId: string, onProgress?: (p: LoadProgress) => void
 
   // Switching models — drop the old weights before pulling new ones.
   if (engine && engineModelId !== modelId) {
-    try {
-      await engine.unload?.();
-    } catch {
-      /* best effort */
-    }
-    engine = null;
+    await teardownEngine();
   }
 
   engineModelId = modelId;
@@ -211,6 +210,7 @@ async function getEngine(modelId: string, onProgress?: (p: LoadProgress) => void
   engineLoading = (async () => {
     const webllm = await import("@mlc-ai/web-llm");
     const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+    engineWorker = worker;
     const created = await webllm.CreateWebWorkerMLCEngine(
       worker,
       modelId,
@@ -246,15 +246,26 @@ async function getEngine(modelId: string, onProgress?: (p: LoadProgress) => void
   }
 }
 
-/** Frees GPU memory. The next sort reloads from the browser cache, not the network. */
-export async function unloadModel() {
+/** Releases the GPU memory *and* the worker thread that holds it. */
+async function teardownEngine() {
   try {
     await engine?.unload?.();
   } catch {
     /* best effort */
   }
+  try {
+    engineWorker?.terminate();
+  } catch {
+    /* best effort */
+  }
   engine = null;
+  engineWorker = null;
   engineModelId = null;
+}
+
+/** Frees GPU memory. The next sort reloads from the browser cache, not the network. */
+export async function unloadModel() {
+  await teardownEngine();
   setState({ status: "off", modelId: null, progress: 0, message: "", error: null });
 }
 

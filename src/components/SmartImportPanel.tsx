@@ -171,6 +171,7 @@ export default function SmartImportPanel({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-accent-purple/5 transition-colors"
       >
         {open ? <ChevronDown size={14} className="text-accent-purple shrink-0" /> : <ChevronRight size={14} className="text-accent-purple shrink-0" />}
@@ -248,6 +249,8 @@ export default function SmartImportPanel({
             <button
               type="button"
               onClick={() => setShowSettings((s) => !s)}
+              aria-expanded={showSettings}
+              aria-label="Sorter settings"
               className="ml-auto p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
               title="Sorter settings"
             >
@@ -284,7 +287,7 @@ export default function SmartImportPanel({
 
           {/* Errors */}
           {error && (
-            <div className="flex gap-2 p-2 rounded-md bg-status-danger-soft border border-status-danger-border">
+            <div role="alert" className="flex gap-2 p-2 rounded-md bg-status-danger-soft border border-status-danger-border">
               <AlertTriangle size={13} className="text-status-danger shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-xs text-status-danger leading-relaxed">{error}</p>

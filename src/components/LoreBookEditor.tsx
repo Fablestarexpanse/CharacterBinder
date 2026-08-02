@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import ResizableTextArea from "./ResizableTextArea";
 import {
   Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
@@ -421,6 +421,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
         <div className="border-t border-border pt-3">
           <button
             onClick={() => setSettingsOpen(!settingsOpen)}
+            aria-expanded={settingsOpen}
             className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary transition-colors mb-2"
           >
             <span className="font-medium">Book Settings</span>
@@ -465,7 +466,13 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
         </div>
 
         {status && (
-          <p className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}>{status.msg}</p>
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}
+          >
+            {status.msg}
+          </p>
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
@@ -481,7 +488,8 @@ function EntryEditor({ entry, onChange }: {
   entry: LoreEntry;
   onChange: (patch: Partial<LoreEntry>) => void;
 }) {
-  const tokens = countTokens(entry.content);
+  // Re-ran on every keystroke of the very field it measures.
+  const tokens = useMemo(() => countTokens(entry.content), [entry.content]);
   const entryLevel = getTokenBudgetLevel(tokens);
 
   return (

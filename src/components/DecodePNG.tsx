@@ -162,7 +162,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         </div>
 
         {error && (
-          <div className="bg-status-danger-soft border border-status-danger-border text-status-danger text-sm rounded-xl p-3">{error}</div>
+          <div role="alert" className="bg-status-danger-soft border border-status-danger-border text-status-danger text-sm rounded-xl p-3">{error}</div>
         )}
 
         {result && (
@@ -211,6 +211,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
                   <div>
                     <button
                       onClick={() => setShowFullCompat(!showFullCompat)}
+                      aria-expanded={showFullCompat}
                       className="text-xs text-accent-purple-light hover:underline mb-1"
                     >
                       {showFullCompat ? "Hide" : "Show"} field compatibility

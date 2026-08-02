@@ -45,10 +45,25 @@ export default function CharacterEditor({
     if (file?.type.startsWith("image/")) handleImageFile(file);
   }
 
+  // Greetings are plain strings with no id of their own, but each row wraps a
+  // ResizableTextArea that keeps its own height. Keyed by index, deleting row 1
+  // handed row 2's element to row 1 — and with it, the wrong custom height.
+  // These ids travel with the row instead.
+  const greetingIds = useRef<number[]>([]);
+  const nextGreetingId = useRef(0);
+  while (greetingIds.current.length < data.alternate_greetings.length) {
+    greetingIds.current.push(nextGreetingId.current++);
+  }
+  if (greetingIds.current.length > data.alternate_greetings.length) {
+    greetingIds.current = greetingIds.current.slice(0, data.alternate_greetings.length);
+  }
+
   const addAlternateGreeting = () => {
+    greetingIds.current = [...greetingIds.current, nextGreetingId.current++];
     onUpdate({ alternate_greetings: [...data.alternate_greetings, ""] });
   };
   const removeAlternateGreeting = (i: number) => {
+    greetingIds.current = greetingIds.current.filter((_, idx) => idx !== i);
     onUpdate({ alternate_greetings: data.alternate_greetings.filter((_, idx) => idx !== i) });
   };
   const updateAlternateGreeting = (i: number, val: string) => {
@@ -259,6 +274,7 @@ export default function CharacterEditor({
         <button
           className="w-full flex items-center justify-between text-base font-semibold text-text-primary py-2 border-b border-border mb-3"
           onClick={() => setAdvancedOpen(!advancedOpen)}
+          aria-expanded={advancedOpen}
         >
           Advanced Fields (Optional)
           {advancedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -327,7 +343,7 @@ export default function CharacterEditor({
                 </button>
               </div>
               {data.alternate_greetings.map((greeting, i) => (
-                <div key={i} className="flex gap-2 mb-2">
+                <div key={greetingIds.current[i] ?? i} className="flex gap-2 mb-2">
                   <ResizableTextArea
                     className="input-base flex-1"
                     rows={2}
@@ -337,6 +353,7 @@ export default function CharacterEditor({
                   />
                   <button
                     onClick={() => removeAlternateGreeting(i)}
+                    aria-label={`Remove alternate greeting ${i + 1}`}
                     className="text-text-muted hover:text-status-danger shrink-0 self-start mt-2"
                   >
                     <Minus size={15} />

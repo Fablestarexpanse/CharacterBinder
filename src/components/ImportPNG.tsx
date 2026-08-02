@@ -5,8 +5,7 @@ import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map,
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
 import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
-
-const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
+import { detectCardShape, shapeForKey } from "../lib/cardShape";
 
 type DetectedType = "character" | "lorebook" | "script" | "scenario" | "persona" | null;
 
@@ -84,8 +83,20 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
       const imageSrc = uint8ToDataUrl(bytes);
       setDetectedKey(key);
 
+      // The metadata keyword says what the file claims to be; the payload shape
+      // says what it is. When they disagree, trust the shape — otherwise a
+      // lorebook stored under `chara` was rebuilt as a blank character card and
+      // every entry was silently dropped behind a success message.
+      const claimed = shapeForKey(key);
+      const actual = detectCardShape(parsed);
+      const mismatch = actual !== null && claimed !== null && actual !== claimed;
+      const effective = mismatch ? actual : claimed;
+      const mismatchNote = mismatch
+        ? ` (the file is labelled '${key}' but its contents are a ${actual} card, so it was opened as one)`
+        : "";
+
       // ── Character card ──────────────────────────────────────────────
-      if (CHARACTER_KEYS.has(key)) {
+      if (effective === "character") {
         const sourcePlatformId = detectPlatform(parsed);
         const card = convertCardFrom(parsed, sourcePlatformId);
         const platform = PLATFORMS[sourcePlatformId];
@@ -103,13 +114,13 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         setDetectedType("character");
         setDetectedPlatform(sourcePlatformId);
         setStatus("success");
-        setMessage(`Loaded character "${card.data.name}" — detected as ${platform.name}. Opening in editor…`);
+        setMessage(`Loaded character "${card.data.name}" — detected as ${platform.name}${mismatchNote}. Opening in editor…`);
         onLoad(card, imageSrc, meta, sourcePlatformId);
         return;
       }
 
       // ── Lorebook ────────────────────────────────────────────────────
-      if (key === "lorebook") {
+      if (effective === "lorebook") {
         setDetectedType("lorebook");
         setStatus("success");
         const entryCount = Array.isArray(parsed.entries)
@@ -117,34 +128,34 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           : typeof parsed.entries === "object" && parsed.entries
           ? Object.keys(parsed.entries).length
           : 0;
-        setMessage(`Loaded lorebook "${parsed.name || "Unnamed"}" — ${entryCount} entries. Opening in editor…`);
+        setMessage(`Loaded lorebook "${parsed.name || "Unnamed"}" — ${entryCount} entries${mismatchNote}. Opening in editor…`);
         onLoadLorebook?.(parsed as LoreBook, imageSrc);
         return;
       }
 
       // ── Script card ─────────────────────────────────────────────────
-      if (key === "script") {
+      if (effective === "script") {
         setDetectedType("script");
         setStatus("success");
-        setMessage(`Loaded script "${parsed.name || "Unnamed"}". Opening in editor…`);
+        setMessage(`Loaded script "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
         onLoadScript?.(parsed as ScriptCard, imageSrc);
         return;
       }
 
       // ── Scenario card ───────────────────────────────────────────────
-      if (key === "scenario") {
+      if (effective === "scenario") {
         setDetectedType("scenario");
         setStatus("success");
-        setMessage(`Loaded scenario "${parsed.name || "Unnamed"}". Opening in editor…`);
+        setMessage(`Loaded scenario "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
         onLoadScenario?.(parsed as ScenarioCard, imageSrc);
         return;
       }
 
       // ── Persona card ─────────────────────────────────────────────────
-      if (key === "persona") {
+      if (effective === "persona") {
         setDetectedType("persona");
         setStatus("success");
-        setMessage(`Loaded persona "${parsed.name || "Unnamed"}". Opening in editor…`);
+        setMessage(`Loaded persona "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
         onLoadPersona?.(parsed as PersonaCard, imageSrc);
         return;
       }
