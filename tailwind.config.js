@@ -46,9 +46,29 @@ export default {
           green: "#15803D",
         },
       },
+      // No web fonts are loaded (see index.html). Inter and JetBrains Mono are
+      // used when the user happens to have them installed; the rest of each
+      // stack is what the OS already ships, so the app looks native offline.
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+        sans: [
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        mono: [
+          "JetBrains Mono",
+          "Fira Code",
+          "Cascadia Code",
+          "SF Mono",
+          "Consolas",
+          "Liberation Mono",
+          "monospace",
+        ],
       },
     },
   },

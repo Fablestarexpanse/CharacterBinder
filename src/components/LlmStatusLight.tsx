@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useEngineState } from "../hooks/useEngineState";
 import { preloadModel, unloadModel, isModelCached, isWebGpuAvailable } from "../lib/personaLlm";
-import { getSorterSettings } from "../lib/personaLlm/settings";
+import { getSorterSettings, subscribeSorterSettings } from "../lib/personaLlm/settings";
 import { findModel, formatSize } from "../lib/personaLlm/models";
 
 /**
@@ -16,11 +16,10 @@ export default function LlmStatusLight() {
   const [settings, setSettings] = useState(() => getSorterSettings());
   const [cached, setCached] = useState<boolean | null>(null);
 
-  // Settings live in localStorage and are edited in the import panel, so re-read
-  // them whenever this light is interacted with or the engine state moves.
-  useEffect(() => {
-    setSettings(getSorterSettings());
-  }, [engine.status]);
+  // Settings are edited elsewhere (the Quick Import panel), so subscribe rather
+  // than sampling. Sampling on engine.status left this holding a stale model id
+  // between loads, and clicking would then fetch the wrong model.
+  useEffect(() => subscribeSorterSettings(setSettings), []);
 
   const model = findModel(settings.modelId);
   const usingServer = settings.backend === "endpoint";

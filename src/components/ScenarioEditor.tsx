@@ -195,7 +195,7 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
         </div>
 
         {status && (
-          <p className={`text-xs text-center ${status.ok ? "text-green-600" : "text-status-danger"}`}>{status.msg}</p>
+          <p className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}>{status.msg}</p>
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">

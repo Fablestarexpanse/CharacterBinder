@@ -465,7 +465,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
         </div>
 
         {status && (
-          <p className={`text-xs text-center ${status.ok ? "text-green-600" : "text-status-danger"}`}>{status.msg}</p>
+          <p className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}>{status.msg}</p>
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
@@ -559,8 +559,12 @@ function EntryEditor({ entry, onChange }: {
 
 function ToggleField({ label, value, onChange, description }: { label: string; value: boolean; onChange: (v: boolean) => void; description?: string }) {
   return (
-    <div
-      className={`flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer transition-colors ${value ? "border-accent-purple/40 bg-accent-purple/5" : "border-border"}`}
+    <button
+      type="button"
+      role="switch"
+      aria-checked={value}
+      aria-label={description ? `${label} — ${description}` : label}
+      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer transition-colors text-left ${value ? "border-accent-purple/40 bg-accent-purple/5" : "border-border"}`}
       onClick={() => onChange(!value)}
     >
       <div>
@@ -568,6 +572,6 @@ function ToggleField({ label, value, onChange, description }: { label: string; v
         {description && <p className="text-[10px] text-text-muted">{description}</p>}
       </div>
       {value ? <ToggleRight size={16} className="text-accent-purple shrink-0" /> : <ToggleLeft size={16} className="text-text-muted shrink-0" />}
-    </div>
+    </button>
   );
 }

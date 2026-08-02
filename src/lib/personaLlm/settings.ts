@@ -34,9 +34,25 @@ export function getSorterSettings(): SorterSettings {
   }
 }
 
+const listeners = new Set<(s: SorterSettings) => void>();
+
+/**
+ * These settings are edited in the Quick Import panel but also read by the
+ * sidebar AI light. Without a notification the light kept a stale copy, so
+ * clicking it could start downloading a model the user had just deselected —
+ * potentially several GB.
+ */
+export function subscribeSorterSettings(fn: (s: SorterSettings) => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
 export function saveSorterSettings(patch: Partial<SorterSettings>): SorterSettings {
   const next = { ...getSorterSettings(), ...patch };
   localStorage.setItem(KEY, JSON.stringify(next));
+  for (const fn of listeners) fn(next);
   return next;
 }
 

@@ -185,7 +185,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         </div>
 
         {status && (
-          <p className={`text-xs text-center ${status.ok ? "text-green-600" : "text-status-danger"}`}>{status.msg}</p>
+          <p className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}>{status.msg}</p>
         )}
 
         <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
@@ -224,18 +224,37 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
     }
   }, []);
 
+  // Tab inserts an indent here, which means Tab can't also move focus — and
+  // with no way out that is a keyboard trap (WCAG 2.1.2, a Level A failure).
+  // Escape arms an exit: the next Tab leaves the field as it normally would.
+  const [escaped, setEscaped] = useState(false);
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const ta = e.currentTarget;
-      const start = ta.selectionStart;
-      const end   = ta.selectionEnd;
-      const next  = value.substring(0, start) + "  " + value.substring(end);
-      onChange(next);
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 2;
-      });
+    if (e.key === "Escape") {
+      setEscaped(true);
+      return;
     }
+
+    if (e.key !== "Tab") {
+      if (escaped) setEscaped(false);
+      return;
+    }
+
+    if (escaped) {
+      // Let the browser move focus, and re-arm the trap for next time.
+      setEscaped(false);
+      return;
+    }
+
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    const next  = value.substring(0, start) + "  " + value.substring(end);
+    onChange(next);
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + 2;
+    });
   }
 
   return (
@@ -258,6 +277,9 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
         <span>Script Code</span>
         <span style={{ color: "#a78bfa" }}>◆</span>
         <span>JavaScript</span>
+        <span style={{ marginLeft: "auto", textTransform: "none", letterSpacing: 0, opacity: 0.7 }}>
+          Tab indents · Esc then Tab to leave
+        </span>
       </div>
 
       {/* Editor body: gutter + textarea side-by-side */}
@@ -288,6 +310,7 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
         {/* Code textarea — resize disabled because the editor manages its own scroll */}
         <textarea
           ref={textareaRef}
+          aria-label="Script code, JavaScript. Tab inserts an indent; press Escape then Tab to move focus out."
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onScroll={syncScroll}

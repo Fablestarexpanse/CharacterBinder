@@ -11,10 +11,10 @@ const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"
 
 type NonCharType = "lorebook" | "script" | "scenario" | "persona";
 const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {
-  lorebook: { label: "Lorebook",     icon: <BookOpen    size={14} />, color: "text-blue-400" },
+  lorebook: { label: "Lorebook",     icon: <BookOpen    size={14} />, color: "text-status-info" },
   script:   { label: "Script Card",  icon: <FileCode2   size={14} />, color: "text-status-warn" },
-  scenario: { label: "Scenario Card",icon: <Map         size={14} />, color: "text-green-400" },
-  persona:  { label: "Persona",      icon: <UserCircle  size={14} />, color: "text-pink-400" },
+  scenario: { label: "Scenario Card",icon: <Map         size={14} />, color: "text-status-ok" },
+  persona:  { label: "Persona",      icon: <UserCircle  size={14} />, color: "text-accent-purple-light" },
 };
 
 interface DecodePNGProps {
