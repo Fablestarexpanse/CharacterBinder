@@ -263,7 +263,11 @@ function parseJson(text: string): ParsedPersona | null {
 
     if (target) {
       fields[target] = fields[target] ? fields[target] + "\n\n" + asText : asText;
-    } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    } else {
+      // Every unmapped key lands here, arrays and objects included. They used to
+      // be dropped: stringifyValue returned "" for objects, and this branch only
+      // accepted scalars — so a full Tavern V2 paste silently lost its alternate
+      // greetings, lorebook, and extensions, while the note claimed one field.
       leftovers.push(`${prettyKey(key)}: ${asText}`);
     }
   }
@@ -280,7 +284,20 @@ function parseJson(text: string): ParsedPersona | null {
 function stringifyValue(value: unknown): string {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
-  if (Array.isArray(value)) return value.map(stringifyValue).filter(Boolean).join("\n");
+  if (Array.isArray(value)) {
+    // An array of plain values reads best one per line; anything structured
+    // keeps its shape so the user can see what they had.
+    const simple = value.every((v) => typeof v !== "object" || v === null);
+    return simple
+      ? value.map(stringifyValue).filter(Boolean).join("\n")
+      : JSON.stringify(value, null, 2);
+  }
+  if (value && typeof value === "object") {
+    // Nested blocks — a character_book, an extensions bag — are kept verbatim
+    // rather than discarded. The user can decide what to do with them.
+    const json = JSON.stringify(value, null, 2);
+    return json === "{}" ? "" : json;
+  }
   return "";
 }
 
@@ -291,25 +308,35 @@ function prettyKey(key: string): string {
 // ── Strategy 2: W++ / attribute lists ───────────────────────────────────────
 // Personality("cheerful" + "loyal")  |  Appearance("tall", "silver hair")
 
-const WPP_BLOCK_RE = /([A-Za-z][A-Za-z _-]{0,28}?)\s*[({[]\s*([^)}\]]*)[)}\]]/g;
+/**
+ * `Label("a" + "b")`. The body must be quoted strings joined by `+` or `,` —
+ * nothing else. An earlier version accepted any `word(...)`, which matched
+ * ordinary English parentheticals like "he works (nights) at the docks", and
+ * since this strategy builds its result purely from matches, everything outside
+ * them was silently discarded. Quotes may contain parentheses of their own,
+ * which the old body pattern also truncated on.
+ */
+const WPP_BLOCK_RE = /([A-Za-z][A-Za-z _-]{0,28}?)\s*[({[]\s*((?:"[^"]*"\s*[+,]?\s*)+)[)}\]]/g;
+
+/** Below this, the text is prose that happens to contain a quoted list. */
+const WPP_MIN_COVERAGE = 0.6;
 
 function parseWpp(text: string): ParsedPersona | null {
-  const quoted = /"[^"]+"\s*\+/.test(text) || /\[\s*"[^"]+"/.test(text);
-  if (!quoted) return null;
-
   const fields: Partial<Record<PersonaField, string>> = {};
   const tags: string[] = [];
   const leftovers: string[] = [];
   let matched = 0;
+  let covered = 0;
 
   for (const m of text.matchAll(WPP_BLOCK_RE)) {
     const rawLabel = m[1].trim();
-    const body = m[2];
-    const values = [...body.matchAll(/"([^"]*)"/g)].map((v) => v[1].trim()).filter(Boolean);
-    const joined = values.length ? values.join(", ") : body.replace(/\s*\+\s*/g, ", ").trim();
-    if (!joined) continue;
+    const values = [...m[2].matchAll(/"([^"]*)"/g)].map((v) => v[1].trim()).filter(Boolean);
+    if (!values.length) continue;
 
     matched++;
+    covered += m[0].length;
+
+    const joined = values.join(", ");
     const target = lookupLabel(rawLabel);
     if (target === "tags") {
       tags.push(...values);
@@ -321,6 +348,11 @@ function parseWpp(text: string): ParsedPersona | null {
   }
 
   if (matched < 2) return null;
+
+  // A real W++ card is almost entirely attribute blocks. If most of the text
+  // sits outside them, this is prose and another strategy should keep it all.
+  const meaningful = text.replace(/\s+/g, " ").trim().length;
+  if (!meaningful || covered / meaningful < WPP_MIN_COVERAGE) return null;
 
   const notes = ["Read as a W++ / attribute list."];
   if (leftovers.length) {

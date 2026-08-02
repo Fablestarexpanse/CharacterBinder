@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import type { LibraryCard } from "../../types";
+import { downloadBlob } from "../download";
 
 export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
   const zip = new JSZip();
@@ -39,10 +40,8 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
   zip.file("manifest.json", JSON.stringify(manifest, null, 2));
 
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `CharacterBinder_Archive_${new Date().toISOString().slice(0, 10)}.zip`;
-  a.click();
-  URL.revokeObjectURL(url);
+  // Use the shared helper rather than a local copy: this used to click a
+  // detached anchor (a no-op in Firefox) and revoke the object URL synchronously,
+  // which can cancel a large archive mid-write.
+  downloadBlob(blob, `CharacterBinder_Archive_${new Date().toISOString().slice(0, 10)}.zip`);
 }

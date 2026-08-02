@@ -354,6 +354,10 @@ async function runEndpoint(input: string, settings: SorterSettings, target: Sort
       method: "POST",
       headers,
       signal,
+      // The local-vs-remote check is lexical and only ever saw this URL. Without
+      // this, an endpoint that passed the check could answer 307 and the user's
+      // persona text would be replayed off-machine with no warning shown.
+      redirect: "manual",
       body: JSON.stringify({
         model: settings.endpointModel,
         messages: [
@@ -369,6 +373,11 @@ async function runEndpoint(input: string, settings: SorterSettings, target: Sort
     throw new Error(`Couldn't reach ${base}. Is the server running?`);
   }
 
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+    throw new Error(
+      `${base} tried to redirect the request elsewhere. Refusing to follow it — your persona text stays here.`
+    );
+  }
   if (!res.ok) {
     throw new Error(`Endpoint returned ${res.status} ${res.statusText}.`);
   }

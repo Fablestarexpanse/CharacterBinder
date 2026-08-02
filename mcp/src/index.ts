@@ -38,7 +38,9 @@ const tags = z.array(z.string()).optional().describe("Lowercase keywords, e.g. [
 const openAfter = z
   .boolean()
   .optional()
-  .describe("Bring the card up in the app's editor after saving. Defaults to true for create.");
+  .describe(
+    "Bring the card up in the app's editor after saving. Defaults to false — opening a card replaces whatever the user is currently editing, and any unsaved work in that panel is lost. Set true only when the user asked to see it."
+  );
 
 // ── Status ──────────────────────────────────────────────────────────────────
 
@@ -103,12 +105,14 @@ server.registerTool(
 // ── Creating ────────────────────────────────────────────────────────────────
 
 async function create(cardType: string, data: Record<string, unknown>, open?: boolean) {
-  const res = await callApp<MutationResult>("cards.create", {
-    cardType,
-    data,
-    open: open ?? true,
+  const opened = open ?? false;
+  const res = await callApp<MutationResult>("cards.create", { cardType, data, open: opened });
+  return text({
+    ...res,
+    saved: opened
+      ? "Card saved to the library and opened in the app."
+      : "Card saved to the library. It is in the Library view; pass open:true to bring it up in the editor.",
   });
-  return text({ ...res, saved: "Card saved to the library and opened in the app." });
 }
 
 server.registerTool(

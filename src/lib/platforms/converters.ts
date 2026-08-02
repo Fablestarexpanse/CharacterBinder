@@ -16,8 +16,8 @@ export function convertToJanitorAI(card: TavernCardV2): Record<string, unknown> 
   return {
     name: data.name,
     persona: replaceVars(persona),
-    world: data.scenario,
-    scenario: data.scenario,
+    world: replaceVars(data.scenario),
+    scenario: replaceVars(data.scenario),
     greeting: replaceVars(data.first_mes),
     example_dialogs: replaceVars(data.mes_example),
     visibility: "public",
@@ -76,6 +76,16 @@ export function convertToVenus(card: TavernCardV2): Record<string, unknown> {
       mes_example: data.mes_example,
       tags: data.tags,
       alternate_greetings: data.alternate_greetings,
+      // The compatibility table lists these as "partial" — they may be ignored
+      // by older Venus builds, but writing them is what "partial" means. They
+      // were previously omitted entirely, so the UI was promising more than the
+      // export delivered.
+      system_prompt: data.system_prompt,
+      post_history_instructions: data.post_history_instructions,
+      character_book: data.character_book,
+      creator: data.creator,
+      creator_notes: data.creator_notes,
+      character_version: data.character_version,
     },
   };
 }
@@ -125,8 +135,8 @@ export function convertToGeneric(card: TavernCardV2): Record<string, unknown> {
 export function convertFromJanitorAI(obj: Record<string, unknown>): TavernCardV2 {
   const card = createBlankTavernCard(String(obj.name ?? ""));
   const replaceVars = (s: string) => s.replace(/\{\{bot\}\}/g, "{{char}}");
-  card.data.description = String(obj.persona ?? "");
-  card.data.scenario = String(obj.world ?? obj.scenario ?? "");
+  card.data.description = replaceVars(String(obj.persona ?? ""));
+  card.data.scenario = replaceVars(String(obj.world ?? obj.scenario ?? ""));
   card.data.first_mes = replaceVars(String(obj.greeting ?? ""));
   card.data.mes_example = replaceVars(String(obj.example_dialogs ?? ""));
   card.data.tags = Array.isArray(obj.tags) ? obj.tags.map(String) : [];
@@ -188,7 +198,16 @@ export function convertCardFrom(
     case "backyard":   return convertFromBackyard(obj);
     default: {
       // SillyTavern, Chub, Venus, RisuAI, Generic — all basically Tavern v2 shape
-      if (obj.spec === "chara_card_v2") return obj as unknown as TavernCardV2;
+      if (obj.spec === "chara_card_v2") {
+        // Normalise rather than trusting the shape. A third-party card that
+        // declares v2 with a partial `data` block used to come back with
+        // undefined string fields, and the first converter to call .replace()
+        // or .slice() on one threw at export time.
+        const incoming = (obj.data ?? {}) as Partial<TavernCardV2["data"]>;
+        const card = createBlankTavernCard(String(incoming.name ?? ""));
+        card.data = { ...card.data, ...incoming, name: String(incoming.name ?? "") };
+        return card;
+      }
       // Fallback: try to map common field names
       const card = createBlankTavernCard(String(obj.name ?? ""));
       card.data.description = String(obj.description ?? "");
@@ -199,6 +218,10 @@ export function convertCardFrom(
       card.data.system_prompt = String(obj.system_prompt ?? "");
       card.data.tags = Array.isArray(obj.tags) ? obj.tags.map(String) : [];
       card.data.creator = String(obj.creator ?? "");
+      card.data.creator_notes = String(obj.creator_notes ?? "");
+      card.data.character_version = String(
+        obj.character_version ?? obj.version ?? card.data.character_version
+      );
       return card;
     }
   }

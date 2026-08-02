@@ -118,13 +118,16 @@ export function decodeCharaFromPng(bytes: Uint8Array): {
   json: string | null;
   key: string | null;
   chunks: PngChunkInfo[];
+  /** Set when a card chunk exists but its payload wouldn't decode. */
+  corruptKey?: string | null;
 } {
-  if (!isPng(bytes)) return { json: null, key: null, chunks: [] };
+  if (!isPng(bytes)) return { json: null, key: null, chunks: [], corruptKey: null };
 
   const chunks = readChunks(bytes);
   const chunkInfos: PngChunkInfo[] = [];
   const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario", "persona"];
   let foundJson: string | null = null;
+  let corruptKey: string | null = null;
   let foundKey: string | null = null;
 
   for (const chunk of chunks) {
@@ -170,13 +173,17 @@ export function decodeCharaFromPng(bytes: Uint8Array): {
           foundJson = decoded;
           foundKey = keyword;
         } catch {
-          // not valid JSON, skip
+          // The chunk is there and carries the right keyword, but its payload
+          // won't decode. Remember that: reporting it as "no card found" sends
+          // the user looking for the wrong problem, when the chunk is listed
+          // right there in Decode PNG's own table.
+          corruptKey = keyword;
         }
       }
     }
   }
 
-  return { json: foundJson, key: foundKey, chunks: chunkInfos };
+  return { json: foundJson, key: foundKey, chunks: chunkInfos, corruptKey: foundJson ? null : corruptKey };
 }
 
 export function encodeCharaToPng(

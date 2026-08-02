@@ -67,11 +67,16 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
       }
 
       const dims = getPngDimensions(bytes);
-      const { json, key, chunks } = decodeCharaFromPng(bytes);
+      const { json, key, chunks, corruptKey } = decodeCharaFromPng(bytes);
 
       if (!json || !key) {
         setStatus("error");
-        setMessage("No card metadata found in this PNG. Try Decode PNG to inspect raw chunks.");
+        // "No card" and "damaged card" call for opposite responses, so say which.
+        setMessage(
+          corruptKey
+            ? `This PNG carries a '${corruptKey}' card chunk, but its contents are damaged and couldn't be read. The file was probably truncated or re-saved by an image editor. Try Decode PNG to inspect the raw chunks.`
+            : "No card metadata found in this PNG. Try Decode PNG to inspect raw chunks."
+        );
         return;
       }
 
@@ -177,6 +182,14 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
               ? "border-accent-purple bg-accent-purple/10"
               : "border-border hover:border-accent-purple/50 hover:bg-bg-hover"
           }`}
+          role="button"
+          tabIndex={0}
+          aria-label="Choose a card PNG to import, or drop one here"
+          onKeyDown={(e) => {
+            // The visible target is a div and the real input is display:none, so
+            // without this there was no keyboard path to import a card at all.
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); }
+          }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}

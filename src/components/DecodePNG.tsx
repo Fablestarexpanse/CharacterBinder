@@ -48,7 +48,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
       if (!isPng(bytes)) { setError("Not a valid PNG file."); return; }
 
       const dims = getPngDimensions(bytes);
-      const { json, key, chunks } = decodeCharaFromPng(bytes);
+      const { json, key, chunks, corruptKey } = decodeCharaFromPng(bytes);
 
       const uint8ToDataUrl = (b: Uint8Array) => {
         let bin = "";
@@ -58,7 +58,11 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
       const imageSrc = uint8ToDataUrl(bytes);
 
       if (!json || !key) {
-        setError("No card metadata found in this PNG.");
+        setError(
+          corruptKey
+            ? `Found a '${corruptKey}' chunk, but its payload is damaged and couldn't be decoded. The chunk list below shows what is actually in the file.`
+            : "No card metadata found in this PNG."
+        );
         return;
       }
 
@@ -140,6 +144,12 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 transition-colors cursor-pointer ${
             dragging ? "border-accent-purple bg-accent-purple/10" : "border-border hover:border-accent-purple/50"
           }`}
+          role="button"
+          tabIndex={0}
+          aria-label="Choose a card PNG to inspect, or drop one here"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); }
+          }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
@@ -148,7 +158,7 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           <FileSearch size={28} className="text-text-muted" />
           <p className="text-sm text-text-secondary">Drop any card PNG here to inspect its metadata</p>
           <input ref={fileInputRef} type="file" accept=".png,image/png" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }} />
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.currentTarget.value = ""; }} />
         </div>
 
         {error && (

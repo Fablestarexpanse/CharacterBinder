@@ -27,7 +27,13 @@ export default function ImageDropzone({ imageSrc, onFile, label, className = "h-
       {label && <label className="label-base">{label}</label>}
       <div
         className={`${className} rounded-xl border-2 border-dashed border-border hover:border-accent-purple/50 transition-colors cursor-pointer overflow-hidden relative group bg-bg-tertiary flex items-center justify-center`}
+        role="button"
+        tabIndex={0}
+        aria-label={imageSrc ? `Change ${label ?? "image"}` : `Choose ${label ?? "an image"}, or drop one here`}
         onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click(); }
+        }}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
         onDragOver={(e) => e.preventDefault()}
       >

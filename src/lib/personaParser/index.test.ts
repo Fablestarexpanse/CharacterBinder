@@ -269,6 +269,57 @@ Likes("rain" + "old books")`);
     expect(r.fields.personality).toBe("Calm");
   });
 
+  it("does not mistake prose containing parentheses for W++", () => {
+    // Regression: the block pattern matched any `word(...)`, so English
+    // parentheticals were read as attributes — and because the W++ strategy
+    // builds its result only from matches, the rest of the paste was discarded.
+    const src = `Kael Ardent
+
+He works (nights) at the docks (usually) hauling crates for the shipping guild.
+
+She whispered "run" + "now" was all he heard before the lights went out.
+
+He is stubborn, loyal, and hates being thanked for anything at all.`;
+
+    const r = parsePersonaText(src);
+    expect(r.method).not.toBe("wpp");
+
+    // Nothing may be lost, whichever strategy claims it.
+    const all = Object.values(r.fields).join("\n");
+    expect(all).toContain("hauling crates");
+    expect(all).toContain("before the lights went out");
+    expect(all).toContain("hates being thanked");
+  });
+
+  it("keeps parentheses that live inside a quoted W++ value", () => {
+    const r = parsePersonaText(`Name("Sable")
+Personality("kind (mostly)" + "shy" + "loyal")
+Appearance("tall" + "amber eyes")`);
+
+    expect(r.method).toBe("wpp");
+    expect(r.fields.personality).toBe("kind (mostly), shy, loyal");
+  });
+
+  it("keeps arrays and nested objects from a JSON card", () => {
+    // Regression: objects stringified to "" and the leftovers branch accepted
+    // only scalars, so greetings, lorebooks and extensions vanished silently.
+    const r = parsePersonaText(
+      JSON.stringify({
+        name: "Rook",
+        description: "A dockhand.",
+        alternate_greetings: ["Hey there.", "Well, look who it is."],
+        character_book: { name: "Docks", entries: [{ keys: ["wharf"], content: "Built on stilts." }] },
+        extensions: { depth_prompt: { depth: 4, prompt: "Stay terse." } },
+      })
+    );
+
+    expect(r.method).toBe("json");
+    const all = Object.values(r.fields).join("\n");
+    expect(all).toContain("Well, look who it is.");
+    expect(all).toContain("Built on stilts.");
+    expect(all).toContain("Stay terse.");
+  });
+
   it("does not treat malformed JSON as JSON", () => {
     const r = parsePersonaText(`{ this is not json, it is just prose that starts with a brace`);
     expect(r.method).not.toBe("json");
