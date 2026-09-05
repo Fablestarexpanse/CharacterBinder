@@ -513,7 +513,7 @@ CharacterBinder/
 │   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   ├── minimalPng.ts    # 1×1 fallback carrier image
 │   │   └── readImageFile.ts # Image file → data URL helper
-│   ├── data/templates/      # Built-in character templates
+│   ├── data/                # Built-in character templates
 │   ├── types/               # TypeScript type definitions
 │   ├── index.css            # Tailwind layers + shared component classes
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations

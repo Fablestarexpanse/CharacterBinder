@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { TavernCardV2, MetadataInfo } from "../../types";
 import type { PlatformId } from "../../lib/platforms";
-import { templates } from "../../data/templates/ronalVoss";
+import { templates } from "../../data/builtinTemplates";
 import { getCustomTemplates, deleteCustomTemplate, type CustomTemplate } from "../../lib/customTemplates";
 import ConfirmModal from "../ui/ConfirmModal";
 import { FileText, Plus, Trash2 } from "lucide-react";

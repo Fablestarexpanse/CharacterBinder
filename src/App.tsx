@@ -7,7 +7,7 @@ import type { PlatformId } from "./lib/platforms";
 import { getAppSettings, saveAppSettings } from "./lib/settings";
 import { initBridge } from "./lib/bridge/client";
 import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
-import { blankTemplate } from "./data/templates/ronalVoss";
+import { blankTemplate } from "./data/builtinTemplates";
 import Sidebar from "./components/pages/Sidebar";
 import CreateCard from "./components/pages/CreateCard";
 import ImportPNG from "./components/pages/ImportPNG";
