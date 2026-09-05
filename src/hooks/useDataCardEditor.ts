@@ -65,6 +65,9 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
   const [libraryId, setLibraryId] = useState<string | undefined>(opts.initialLibraryId);
   const [saving, setSaving] = useState(false);
   const [savedVersion, setSavedVersion] = useState(opts.initialCard?.version ?? "1.0");
+  // The card as last written to the library, held as state rather than a ref:
+  // saving has to re-run the dirty check, and a ref assignment renders nothing.
+  const [savedCard, setSavedCard] = useState<RawCardFor<T> | null>(opts.initialCard ?? null);
   const [outputFileName, setFileName] = useState(() =>
     fileNameFor(opts.initialCard?.name ?? "", cardType)
   );
@@ -88,16 +91,13 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
   // Whatever is in an editor is plain React state until it is saved or
   // exported. The character editor warned before the tab closed on unsaved
   // work; these four held exactly the same kind of state and did not.
-  const dirty = useMemo(() => {
-    if (libraryId) return false; // already in the library
-    const empty = blank() as unknown as Record<string, unknown>;
-    return Object.entries(card as unknown as Record<string, unknown>).some(([key, value]) => {
-      const initial = empty[key];
-      if (typeof value === "string") return value.trim() !== String(initial ?? "").trim();
-      if (Array.isArray(value)) return value.length !== (Array.isArray(initial) ? initial.length : 0);
-      return false;
-    });
-  }, [card, libraryId, blank]);
+  // Compared against what was last written to the library — or against a blank
+  // card when nothing has been. Treating "has a library id" as "saved" meant
+  // every edit after the first save went unguarded, which is most of them.
+  const dirty = useMemo(
+    () => JSON.stringify(card) !== JSON.stringify(savedCard ?? blank()),
+    [card, savedCard, blank]
+  );
   useUnsavedWarning(dirty);
 
   const update = useCallback((patch: Partial<RawCardFor<T>>) => {
@@ -109,6 +109,7 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
     setImageSrc(null);
     setLibraryId(undefined);
     setSavedVersion("1.0");
+    setSavedCard(null);
     setFileName(fileNameFor("", cardType));
     setFileNameTouched(false);
   }, [blank, cardType]);
@@ -147,6 +148,7 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
       const saved = await saveLibraryCard(saveCardInput(cardType, card, common));
       setLibraryId(saved.id);
       setSavedVersion(card.version);
+      setSavedCard(card);
       setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
     } catch (err) {
       // The message matters: a save fails on quota, a blocked upgrade, or

@@ -119,3 +119,42 @@ describe("useDataCardEditor", () => {
     expect(screen.getByTestId("library-id")).toHaveTextContent("none");
   });
 });
+
+describe("unsaved-work guard", () => {
+  const beforeUnloadPrevented = () => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it("does not guard a card that has not been touched", () => {
+    render(<Probe />);
+    expect(beforeUnloadPrevented()).toBe(false);
+  });
+
+  it("guards an edited card that was never saved", () => {
+    render(<Probe />);
+    fireEvent.click(screen.getByText("rename"));
+    expect(beforeUnloadPrevented()).toBe(true);
+  });
+
+  it("stops guarding once the card is saved", async () => {
+    render(<Probe />);
+    fireEvent.click(screen.getByText("rename"));
+    fireEvent.click(screen.getByText("save"));
+
+    await waitFor(() => expect(screen.getByTestId("library-id")).toHaveTextContent("saved-1"));
+    expect(beforeUnloadPrevented()).toBe(false);
+  });
+
+  it("guards again when the card is edited after a save", async () => {
+    render(<Probe />);
+    fireEvent.click(screen.getByText("save"));
+    await waitFor(() => expect(screen.getByTestId("library-id")).toHaveTextContent("saved-1"));
+
+    // The case the old check missed: a card already in the library, edited
+    // again, was left unguarded.
+    fireEvent.click(screen.getByText("rename"));
+    expect(beforeUnloadPrevented()).toBe(true);
+  });
+});

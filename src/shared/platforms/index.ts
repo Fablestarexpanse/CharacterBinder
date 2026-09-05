@@ -184,9 +184,12 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
       { field: "alternate_greetings", label: "Alternate Greetings", support: "partial" },
       { field: "character_book", label: "Lorebook", support: "partial" },
       { field: "tags", label: "Tags", support: "full" },
-      { field: "creator", label: "Creator", support: "none" },
-      { field: "creator_notes", label: "Creator Notes", support: "none" },
-      { field: "character_version", label: "Version", support: "none" },
+      // Written into the file and carried with the card, but not shown in the
+      // Venus UI. "none" said the export drops them, which it does not — and
+      // the difference matters when the file is later opened somewhere else.
+      { field: "creator", label: "Creator", support: "partial", note: "Stored in the card, not shown in Venus" },
+      { field: "creator_notes", label: "Creator Notes", support: "partial", note: "Stored in the card, not shown in Venus" },
+      { field: "character_version", label: "Version", support: "partial", note: "Stored in the card, not shown in Venus" },
     ],
   },
 
@@ -268,7 +271,9 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
       { field: "scenario", label: "Scenario", support: "partial" },
       { field: "first_mes", label: "First Message", support: "partial" },
       { field: "mes_example", label: "Example Dialogs", support: "partial" },
-      { field: "system_prompt", label: "System Prompt", support: "none" },
+      // Written into the JSON; whether the receiving tool reads it is its own
+      // business, but the export does not drop it.
+      { field: "system_prompt", label: "System Prompt", support: "partial", note: "Written; support depends on the tool" },
       { field: "post_history_instructions", label: "Post-History", support: "none" },
       { field: "alternate_greetings", label: "Alternate Greetings", support: "none" },
       { field: "character_book", label: "Lorebook", support: "none" },
