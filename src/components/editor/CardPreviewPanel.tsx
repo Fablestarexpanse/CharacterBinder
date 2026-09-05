@@ -178,8 +178,10 @@ export default function CardPreviewPanel({
       onSavedToLibrary?.(saved.id);
       setSavedCharVersion(currentVersion);
       setStatus(versionChanged ? "Saved as new version!" : hasExistingId ? "Library updated!" : "Saved to library!", true);
-    } catch {
-      setStatus("Failed to save to library.", false);
+    } catch (err) {
+      // The reason matters: a save fails on quota, a blocked upgrade, or
+      // private-mode storage, and "Failed to save" tells the user none of it.
+      setStatus(`Failed to save to library: ${errorMessage(err)}`, false);
     } finally {
       setSaving(false);
     }
