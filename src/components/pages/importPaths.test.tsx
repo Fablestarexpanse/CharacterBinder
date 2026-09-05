@@ -7,8 +7,12 @@ import { MINIMAL_PNG } from "../../lib/minimalPng";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 
 /**
- * Both panels read a real PNG built by the app's own encoder, so these cover
- * the decode → detect → route path end to end rather than a mocked stand-in.
+ * Deliberately spans two components: ImportPNG and DecodePNG share one
+ * decode-detect-route path, and the point of these cases is that both ends of
+ * it agree. Each panel's own behaviour is covered here too rather than split
+ * across two files that would need the same PNG fixtures.
+ *
+ * The PNGs are built with the app's own encoder, so the whole path runs.
  */
 
 function pngWith(key: Parameters<typeof encodeCharaToPng>[2], payload: unknown): File {

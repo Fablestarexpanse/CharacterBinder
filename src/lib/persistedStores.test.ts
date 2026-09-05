@@ -1,3 +1,9 @@
+/**
+ * The three localStorage-backed stores together: app settings, sorter settings
+ * and custom templates. They share one contract, and the cases that matter are
+ * mostly about how they behave when storage misbehaves, so they read better
+ * side by side than in three files repeating the same stub.
+ */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const store = new Map<string, string>();
