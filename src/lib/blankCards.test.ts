@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coerceCharacterData, coerceCardBody } from "../blankCards";
+import { coerceCharacterData, coerceCardBody } from "./blankCards";
 
 describe("coerceCharacterData", () => {
   it("keeps only v2 fields, dropping anything the peer invented", () => {

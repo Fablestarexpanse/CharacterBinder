@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePersonaText, isSeparatorLine, toCharacterFields } from "./index";
+import { parsePersonaText, isSeparatorLine, toCharacterFields } from "./personaParser";
 
 /**
  * The parser's job is to move an author's own words into the right fields

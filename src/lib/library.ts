@@ -1,7 +1,7 @@
 import { openDB, type IDBPDatabase } from "idb";
 import type {
   LibraryCard, LibraryCardBase, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
-} from "../../types";
+} from "../types";
 
 const DB_NAME = "characterbinder-library";
 const DB_VERSION = 2;

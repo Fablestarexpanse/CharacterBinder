@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { encodeCharaToPng, decodeCharaFromPng, isPng, getPngDimensions } from "./index";
-import { MINIMAL_PNG } from "../minimalPng";
+import { encodeCharaToPng, decodeCharaFromPng, isPng, getPngDimensions } from "./pngMetadata";
+import { MINIMAL_PNG } from "./minimalPng";
 
 /**
  * This module is the product: it writes the tEXt chunk that carries a card and

@@ -21,9 +21,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 import { startBridge, callApp, bridgeStatus } from "./bridge.js";
-import { validateTavernCardV2 } from "../../src/lib/validators/index.js";
+import { validateTavernCardV2 } from "../../src/lib/validators.js";
 import { PLATFORMS, type PlatformId } from "../../src/lib/platforms/index.js";
-import { parsePersonaText, toCharacterFields } from "../../src/lib/personaParser/index.js";
+import { parsePersonaText, toCharacterFields } from "../../src/lib/personaParser.js";
 import type { CardSummary, GetResult, MutationResult } from "../../src/lib/bridge/protocol.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });

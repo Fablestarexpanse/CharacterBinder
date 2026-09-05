@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseLorebook, toExportedLorebook } from "./index";
-import { coerceCardBody } from "../blankCards";
+import { parseLorebook, toExportedLorebook } from "./lorebook";
+import { coerceCardBody } from "./blankCards";
 
 describe("parseLorebook", () => {
   it("reads entries given as an object keyed by numeric strings", () => {

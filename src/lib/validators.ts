@@ -1,4 +1,4 @@
-import type { TavernCardV2, ValidationResult } from "../../types";
+import type { TavernCardV2, ValidationResult } from "../types";
 
 /** Fields the v2 spec requires to be present on `data`, with their expected shape. */
 const REQUIRED_STRING_FIELDS = [

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getCardTokenBreakdown, COUNTED_FIELDS, countTokens } from "./index";
-import { createBlankTavernCard } from "../tavernCard";
+import { getCardTokenBreakdown, COUNTED_FIELDS, countTokens } from "./tokenizer";
+import { createBlankTavernCard } from "./tavernCard";
 
 function cardWith(fields: Partial<Record<string, unknown>>) {
   const card = createBlankTavernCard();

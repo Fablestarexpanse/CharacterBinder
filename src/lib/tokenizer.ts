@@ -1,5 +1,5 @@
 import { encode } from "gpt-tokenizer";
-import type { TavernCardV2 } from "../../types";
+import type { TavernCardV2 } from "../types";
 
 export function countTokens(text: string): number {
   if (!text) return 0;

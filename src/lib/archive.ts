@@ -1,6 +1,6 @@
 import JSZip from "jszip";
-import type { LibraryCard } from "../../types";
-import { downloadBlob } from "../download";
+import type { LibraryCard } from "../types";
+import { downloadBlob } from "./download";
 
 export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
   const zip = new JSZip();

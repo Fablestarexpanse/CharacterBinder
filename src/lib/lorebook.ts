@@ -14,7 +14,7 @@
  * neither side can silently stand in for the other.
  */
 
-import type { LoreBook, LoreEntry } from "../../types";
+import type { LoreBook, LoreEntry } from "../types";
 
 /** An entry as written to a .json or PNG export: positional id, `extensions`. */
 export interface ExportedLoreEntry extends Omit<LoreEntry, "id"> {
