@@ -28,9 +28,9 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 // convention. mcp/tsconfig.json compiles all of src/shared, so a change over
 // there is a type error here.
 import { validateTavernCardV2 } from "../../src/shared/validators.js";
-import { PLATFORMS, type PlatformId } from "../../src/shared/platforms/index.js";
+import { PLATFORMS, PLATFORM_IDS } from "../../src/shared/platforms/index.js";
 import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
-import type { LibraryCardType } from "../../src/types/index.js";
+import { CARD_TYPES, type LibraryCardType } from "../../src/types/index.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });
 
@@ -86,7 +86,7 @@ server.registerTool(
     description: "Every card saved in the user's CharacterBinder library, newest first. Optionally filter by type.",
     inputSchema: {
       type: z
-        .enum(["character", "lorebook", "script", "scenario", "persona"])
+        .enum(CARD_TYPES)
         .optional()
         .describe("Only return cards of this type."),
     },
@@ -345,13 +345,11 @@ server.registerTool(
     description:
       "Which fields a target platform drops or renames, and whether it can import PNG cards at all. Use before telling a user to upload somewhere.",
     inputSchema: {
-      platform: z
-        .enum(["sillytavern", "janitorai", "chub", "agnai", "venus", "backyard", "risu", "generic"])
-        .describe("Target platform."),
+      platform: z.enum(PLATFORM_IDS).describe("Target platform."),
     },
   },
   async ({ platform }) => {
-    const p = PLATFORMS[platform as PlatformId];
+    const p = PLATFORMS[platform];
     return asTextContent({
       platform: p.name,
       readsPngCards: p.pngSupport,

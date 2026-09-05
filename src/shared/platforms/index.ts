@@ -1,14 +1,22 @@
 import type { TavernCardV2, MetadataKey } from "../../types";
 
-export type PlatformId =
-  | "sillytavern"
-  | "janitorai"
-  | "chub"
-  | "agnai"
-  | "venus"
-  | "backyard"
-  | "risu"
-  | "generic";
+/**
+ * Every platform the app converts for, in the order the picker shows them.
+ * Declared as a tuple so the type is derived from it — and so schemas that need
+ * the list (the MCP tools) can take it rather than restating the members.
+ */
+export const PLATFORM_IDS = [
+  "sillytavern",
+  "janitorai",
+  "chub",
+  "agnai",
+  "venus",
+  "backyard",
+  "risu",
+  "generic",
+] as const;
+
+export type PlatformId = (typeof PLATFORM_IDS)[number];
 
 export interface FieldSupport {
   field: keyof TavernCardV2["data"];

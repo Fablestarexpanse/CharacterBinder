@@ -167,11 +167,15 @@ export interface ScenarioCard {
 }
 
 /**
- * The five kinds of card this app understands. Declared once: every other module
- * imports this rather than restating the literals, so a new card type is a
- * compile error everywhere it needs handling instead of a silent gap.
+ * The five kinds of card this app understands, in the order the UI presents
+ * them. Declared once as a tuple: every other module imports this rather than
+ * restating the literals, so a new card type is a compile error everywhere it
+ * needs handling instead of a silent gap — and schemas that need the list (the
+ * MCP tools) can take it rather than spelling the members out again.
  */
-export type LibraryCardType = "character" | "lorebook" | "script" | "scenario" | "persona";
+export const CARD_TYPES = ["character", "lorebook", "script", "scenario", "persona"] as const;
+
+export type LibraryCardType = (typeof CARD_TYPES)[number];
 
 /**
  * Every kind but "character": the four cards stored as a plain body rather than
@@ -198,15 +202,6 @@ export type OpenDataCard = (
   imageSrc: string | null,
   libraryId?: string
 ) => void;
-
-/** Every card kind, in the order the UI presents them. */
-export const CARD_TYPES: readonly LibraryCardType[] = [
-  "character",
-  "lorebook",
-  "script",
-  "scenario",
-  "persona",
-] as const;
 
 export function isCardType(value: unknown): value is LibraryCardType {
   return typeof value === "string" && (CARD_TYPES as readonly string[]).includes(value);
