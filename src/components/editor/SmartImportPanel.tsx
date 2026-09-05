@@ -15,7 +15,7 @@ import {
 } from "../../shared/cardTextParser";
 import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../../lib/cardTextSorter";
 import { useEngineState } from "../../hooks/useEngineState";
-import { saveSorterSettings, type SorterSettings } from "../../lib/cardTextSorter/settings";
+import { saveSorterSettings } from "../../lib/cardTextSorter/settings";
 import { useSorterSettings } from "../../hooks/useSorterSettings";
 import { errorMessage } from "../../shared/errorMessage";
 import SorterSettingsPanel from "./SorterSettings";
@@ -131,14 +131,6 @@ export default function SmartImportPanel({
 
   function cancelSort() {
     abortRef.current?.abort();
-  }
-
-  function updateSettings(patch: Partial<SorterSettings>) {
-    saveSorterSettings(patch);
-  }
-
-  async function handleUnload() {
-    await unloadModel();
   }
 
   async function handlePasteFromClipboard() {
@@ -333,10 +325,10 @@ export default function SmartImportPanel({
           {showSettings && (
             <SorterSettingsPanel
               settings={settings}
-              onChange={updateSettings}
+              onChange={saveSorterSettings}
               webGpuAvailable={isWebGpuAvailable()}
               loadedModelId={engine.status === "ready" ? engine.modelId : null}
-              onUnload={handleUnload}
+              onUnload={unloadModel}
             />
           )}
 
