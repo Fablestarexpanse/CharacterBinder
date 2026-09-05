@@ -111,11 +111,13 @@ server.registerTool(
 // ── Creating ────────────────────────────────────────────────────────────────
 
 async function create(cardType: LibraryCardType, data: Record<string, unknown>, open?: boolean) {
-  const opened = open ?? false;
-  const res = await callApp("cards.create", { cardType, data, open: opened });
+  const res = await callApp("cards.create", { cardType, data, open: open ?? false });
+  // Worded from what the app reported, not from what was asked for: `open: true`
+  // can fail to show anything, and saying otherwise sends the user looking at a
+  // screen that never changed.
   return asTextContent({
     ...res,
-    saved: opened
+    saved: res.opened
       ? "Card saved to the library and opened in the app."
       : "Card saved to the library. It is in the Library view; pass open:true to bring it up in the editor.",
   });

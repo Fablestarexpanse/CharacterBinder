@@ -130,7 +130,8 @@ export function subscribeBridgeState(fn: (s: BridgeState) => void): () => void {
 // this module reaching up into component state.
 
 export interface BridgeHost {
-  openCard: (card: LibraryCard) => void;
+  /** @returns false when there was nothing to open — a record with no body. */
+  openCard: (card: LibraryCard) => boolean;
   onLibraryChanged?: () => void;
   /**
    * Ask the user to approve a destructive call before it happens.
@@ -533,8 +534,10 @@ async function createCard(params: CreateParams): Promise<BridgeCalls["cards.crea
   const saved = await persist(params.cardType, params.data ?? {}, requireInlineImageSrc(params.imageSrc));
   host?.onLibraryChanged?.();
   recordActivity({ at: Date.now(), method: "cards.create", cardId: saved.id, cardName: saved.name });
-  if (params.open) host?.openCard(saved);
-  return { id: saved.id, name: saved.name, cardType: saved.cardType };
+  // Reported rather than assumed: `open: true` with no host, or a card the
+  // editor cannot show, would otherwise be answered "opened in the app".
+  const opened = params.open ? host?.openCard(saved) ?? false : false;
+  return { id: saved.id, name: saved.name, cardType: saved.cardType, opened };
 }
 
 /**
@@ -586,8 +589,8 @@ async function updateCard(params: UpdateParams): Promise<BridgeCalls["cards.upda
   );
   host?.onLibraryChanged?.();
   recordActivity({ at: Date.now(), method: "cards.update", cardId: saved.id, cardName: saved.name });
-  if (params.open) host?.openCard(saved);
-  return { id: saved.id, name: saved.name, cardType: saved.cardType };
+  const opened = params.open ? host?.openCard(saved) ?? false : false;
+  return { id: saved.id, name: saved.name, cardType: saved.cardType, opened };
 }
 
 async function removeCard(params: DeleteParams): Promise<BridgeCalls["cards.delete"]["result"]> {
@@ -603,9 +606,15 @@ async function removeCard(params: DeleteParams): Promise<BridgeCalls["cards.dele
 
 async function openCard(params: OpenParams): Promise<BridgeCalls["app.open"]["result"]> {
   const card = await findCard(params.id);
-  host?.openCard(card);
+  if (!host) {
+    throw new Error("CharacterBinder is connected but has no editor to open cards in. Reload the app tab.");
+  }
+  const opened = host.openCard(card);
   // Recorded like the others: opening a card replaces whatever the user was
   // editing, so it belongs in the list of what the agent did.
   recordActivity({ at: Date.now(), method: "app.open", cardId: card.id, cardName: card.name });
-  return { id: card.id };
+  if (!opened) {
+    throw new Error(`"${card.name}" has no editable data, so nothing was opened.`);
+  }
+  return { id: card.id, opened };
 }

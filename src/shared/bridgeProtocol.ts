@@ -226,11 +226,13 @@ export interface BridgeCalls {
   "cards.create": { params: CreateParams; result: MutationResult };
   "cards.update": { params: UpdateParams; result: MutationResult };
   "cards.delete": { params: DeleteParams; result: { id: string } };
-  "app.open": { params: OpenParams; result: { id: string } };
+  "app.open": { params: OpenParams; result: { id: string; opened: boolean } };
 }
 
 export interface MutationResult {
   id: string;
   name: string;
   cardType: LibraryCardType;
+  /** Whether the card was actually brought up in the editor, when asked. */
+  opened?: boolean;
 }

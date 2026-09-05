@@ -34,7 +34,10 @@ beforeEach(async () => {
   library = await import("../library");
   client = await import("./client");
   client.initBridge({
-    openCard: (card) => void opened.push(card),
+    openCard: (card) => {
+      opened.push(card);
+      return true;
+    },
     confirmDestructive: () => confirmDestructive(),
   });
 });
@@ -180,5 +183,34 @@ describe("activity", () => {
     await expect(call("cards.delete", { id: created.id })).rejects.toThrow();
 
     expect(client.getBridgeState().activity[0]).toMatchObject({ method: "cards.delete", refused: true });
+  });
+});
+
+describe("opening a card reports what happened", () => {
+  it("says a card was opened when the editor took it", async () => {
+    const created = (await call("cards.create", characterParams)) as { id: string };
+    const result = (await call("app.open", { id: created.id })) as { opened: boolean };
+    expect(result.opened).toBe(true);
+  });
+
+  it("fails rather than claiming success when there is nothing to open", async () => {
+    const created = (await call("cards.create", characterParams)) as { id: string };
+    // A record whose body is gone: the editor has nothing to show.
+    opened.length = 0;
+    const host = { openCard: () => false };
+    client.initBridge(host);
+
+    await expect(call("app.open", { id: created.id })).rejects.toThrow(/nothing was opened/i);
+  });
+
+  it("reports open:false on create when the editor did not take the card", async () => {
+    client.initBridge({ openCard: () => false });
+    const result = (await call("cards.create", { ...characterParams, open: true })) as { opened: boolean };
+    expect(result.opened).toBe(false);
+  });
+
+  it("reports open:false when the caller never asked for it", async () => {
+    const result = (await call("cards.create", characterParams)) as { opened: boolean };
+    expect(result.opened).toBe(false);
   });
 });

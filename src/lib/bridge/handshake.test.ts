@@ -59,7 +59,7 @@ beforeEach(async () => {
   vi.resetModules();
   vi.stubGlobal("WebSocket", FakeSocket);
   client = await import("./client");
-  client.initBridge({ openCard: () => {} });
+  client.initBridge({ openCard: () => true });
   client.connectBridge();
   FakeSocket.last!.onopen?.();
 });
@@ -112,7 +112,7 @@ describe("app-side handshake", () => {
     store.set("cb_bridge", JSON.stringify({ token: "", enabled: true }));
     vi.resetModules();
     const fresh = await import("./client");
-    fresh.initBridge({ openCard: () => {} });
+    fresh.initBridge({ openCard: () => true });
     fresh.connectBridge();
     const socket = FakeSocket.last!;
     socket.onopen?.();
