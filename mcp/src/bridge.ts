@@ -134,6 +134,13 @@ export function startBridge(opts: { port?: number; token?: string } = {}): {
     return { close: () => {}, error: listenError };
   }
 
+  // With port 0 the OS picks a free one, so the bound port is only known once
+  // it is listening. Tests use that to avoid fighting over a fixed port.
+  wss.on("listening", () => {
+    const addr = wss.address();
+    if (addr && typeof addr === "object") boundPort = addr.port;
+  });
+
   wss.on("error", (err) => {
     listenError =
       (err as NodeJS.ErrnoException).code === "EADDRINUSE"

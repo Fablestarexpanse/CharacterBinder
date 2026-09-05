@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { createBlankTavernCard } from "../shared/tavernCard";
@@ -12,7 +12,23 @@ beforeEach(async () => {
   indexedDB = new IDBFactory();
   vi.resetModules();
   library = await import("./library");
+  // Timestamps are what "newest first" and "kept createdAt" are about, so the
+  // clock is driven rather than waited on: sleeping for 5ms made the ordering
+  // assertions depend on how loaded the machine was.
+  // Only Date: fake-indexeddb drives its own transactions through setTimeout,
+  // and freezing that hangs every query.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-01-02T03:04:05Z"));
 });
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Move the clock on, so the next save gets a later updatedAt. */
+function tick(ms = 1000) {
+  vi.setSystemTime(new Date(Date.now() + ms));
+}
 
 const characterBody = (name: string) => {
   const card = createBlankTavernCard(name);
@@ -54,7 +70,7 @@ describe("saveLibraryCard", () => {
 
   it("updates in place when given the existing id, keeping createdAt", async () => {
     const first = await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
-    await new Promise((r) => setTimeout(r, 5));
+    tick();
     const second = await library.saveLibraryCard({
       cardType: "character",
       body: characterBody("Rook the Elder"),
@@ -82,7 +98,7 @@ describe("saveLibraryCard", () => {
 describe("getAllCards", () => {
   it("returns newest first", async () => {
     const a = await library.saveLibraryCard({ cardType: "character", body: characterBody("First") });
-    await new Promise((r) => setTimeout(r, 5));
+    tick();
     const b = await library.saveLibraryCard({ cardType: "character", body: characterBody("Second") });
 
     const all = await library.getAllCards();
