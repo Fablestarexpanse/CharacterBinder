@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import SorterSettings from "./SorterSettings";
 import type { SorterSettings as Settings } from "../../lib/cardTextSorter/settings";
 
+const props = { webGpuAvailable: true, loadedModelId: null, onUnload: vi.fn() };
+
 const base: Settings = {
   backend: "webllm",
   modelId: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
@@ -18,7 +20,7 @@ beforeEach(() => vi.clearAllMocks());
 describe("SorterSettings", () => {
   it("switches between the in-browser model and a local server", async () => {
     const onChange = vi.fn();
-    render(<SorterSettings settings={base} onChange={onChange} />);
+    render(<SorterSettings settings={base} onChange={onChange} {...props} />);
 
     await userEvent.click(screen.getByRole("radio", { name: /local server/i }));
     expect(onChange).toHaveBeenCalledWith({ backend: "endpoint" });
@@ -27,7 +29,7 @@ describe("SorterSettings", () => {
   it("warns before persona text would be sent off this machine", async () => {
     const onChange = vi.fn();
     const { rerender } = render(
-      <SorterSettings settings={{ ...base, backend: "endpoint" }} onChange={onChange} />
+      <SorterSettings settings={{ ...base, backend: "endpoint" }} onChange={onChange} {...props} />
     );
     expect(screen.queryByText(/isn't on this machine/i)).not.toBeInTheDocument();
 
@@ -35,6 +37,7 @@ describe("SorterSettings", () => {
       <SorterSettings
         settings={{ ...base, backend: "endpoint", endpointUrl: "https://api.openai.com/v1" }}
         onChange={onChange}
+        {...props}
       />
     );
     // A remote endpoint means the user's persona text leaves their control, so
@@ -45,7 +48,7 @@ describe("SorterSettings", () => {
 
   it("reports the model the user picked", async () => {
     const onChange = vi.fn();
-    render(<SorterSettings settings={base} onChange={onChange} />);
+    render(<SorterSettings settings={base} onChange={onChange} {...props} />);
 
     const select = screen.getByRole("combobox");
     await userEvent.selectOptions(select, screen.getAllByRole("option")[0]);
