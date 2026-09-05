@@ -1,21 +1,18 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard, PersonaCard, LibraryCardType } from "../types";
+import type { TavernCardV2, MetadataInfo, LibraryCardType, OpenDataCard } from "../types";
 import type { PlatformId } from "../lib/platforms";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
 import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { detectCardShape, shapeForKey } from "../lib/cardShape";
-import { coerceCardBody } from "../lib/blankCards";
 
 type DetectedType = LibraryCardType | null;
 
 interface ImportPNGProps {
   onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
-  onLoadLorebook?: (book: LoreBook, imageSrc: string | null) => void;
-  onLoadScript?: (card: ScriptCard, imageSrc: string | null) => void;
-  onLoadScenario?: (card: ScenarioCard, imageSrc: string | null) => void;
-  onLoadPersona?: (card: PersonaCard, imageSrc: string | null) => void;
+  /** Open a lorebook, script, scenario or persona in the editor for its kind. */
+  onOpenDataCard: OpenDataCard;
 }
 
 const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
@@ -40,7 +37,7 @@ function uint8ToDataUrl(b: Uint8Array): string {
   return "data:image/png;base64," + btoa(bin);
 }
 
-export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoadScenario, onLoadPersona }: ImportPNGProps) {
+export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -130,7 +127,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           ? Object.keys(parsed.entries).length
           : 0;
         setMessage(`Loaded lorebook "${parsed.name || "Unnamed"}" — ${entryCount} entries${mismatchNote}. Opening in editor…`);
-        onLoadLorebook?.(coerceCardBody("lorebook", parsed), imageSrc);
+        onOpenDataCard("lorebook", parsed, imageSrc);
         return;
       }
 
@@ -139,7 +136,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         setDetectedType("script");
         setStatus("success");
         setMessage(`Loaded script "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onLoadScript?.(coerceCardBody("script", parsed), imageSrc);
+        onOpenDataCard("script", parsed, imageSrc);
         return;
       }
 
@@ -148,7 +145,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         setDetectedType("scenario");
         setStatus("success");
         setMessage(`Loaded scenario "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onLoadScenario?.(coerceCardBody("scenario", parsed), imageSrc);
+        onOpenDataCard("scenario", parsed, imageSrc);
         return;
       }
 
@@ -157,7 +154,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         setDetectedType("persona");
         setStatus("success");
         setMessage(`Loaded persona "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onLoadPersona?.(coerceCardBody("persona", parsed), imageSrc);
+        onOpenDataCard("persona", parsed, imageSrc);
         return;
       }
 
@@ -167,7 +164,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
       setStatus("error");
       setMessage(`Error: ${(err as Error).message}`);
     }
-  }, [onLoad, onLoadLorebook, onLoadScript, onLoadScenario, onLoadPersona]);
+  }, [onLoad, onOpenDataCard]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

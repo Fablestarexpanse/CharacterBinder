@@ -1,4 +1,6 @@
 import type { MetadataKey, PngChunkInfo } from "../../types";
+import { CARD_TYPES } from "../../types";
+import { CHARACTER_KEYS } from "../cardShape";
 
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 
@@ -114,6 +116,15 @@ function makeTextChunk(keyword: string, text: string): Uint8Array {
   return makeChunkBytes("tEXt", data);
 }
 
+/**
+ * The tEXt/iTXt keywords this encoder owns. Derived from the card vocabulary so
+ * a new card kind is carried by the PNG paths without a second list to update.
+ */
+const CARD_KEYS: readonly string[] = [
+  ...CHARACTER_KEYS,
+  ...CARD_TYPES.filter((t) => t !== "character"),
+];
+
 export function decodeCharaFromPng(bytes: Uint8Array): {
   json: string | null;
   key: string | null;
@@ -125,7 +136,7 @@ export function decodeCharaFromPng(bytes: Uint8Array): {
 
   const chunks = readChunks(bytes);
   const chunkInfos: PngChunkInfo[] = [];
-  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario", "persona"];
+  const knownKeys = CARD_KEYS;
   let foundJson: string | null = null;
   let corruptKey: string | null = null;
   let foundKey: string | null = null;
@@ -200,7 +211,7 @@ export function encodeCharaToPng(
   // "name" belongs here: it used to be absent, so preserveUnknown kept every
   // previous copy and appended a new one, leaving readers that take the first
   // `name` chunk showing the original name forever.
-  const knownKeys = ["chara", "character", "tavern", "tavern_card_v2", "lorebook", "script", "scenario", "persona", "name"];
+  const knownKeys = [...CARD_KEYS, "name"];
 
   const keepChunks: PngChunk[] = [];
   let ihdChunk: PngChunk | null = null;

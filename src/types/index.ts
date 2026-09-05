@@ -167,6 +167,32 @@ export interface ScenarioCard {
  */
 export type LibraryCardType = "character" | "lorebook" | "script" | "scenario" | "persona";
 
+/**
+ * Every kind but "character": the four cards stored as a plain body rather than
+ * a Tavern V2 card, and edited by the four non-character editors.
+ */
+export type DataCardType = Exclude<LibraryCardType, "character">;
+
+/**
+ * Open a non-character card in the editor for its kind.
+ *
+ * One callback carrying the kind, rather than one prop per kind: ImportPNG,
+ * DecodePNG and Library each used to take four structurally identical
+ * `onLoad*`/`onEdit*` props that App satisfied with eight near-identical
+ * handlers, so adding a sixth card kind meant editing four component
+ * signatures and their call sites.
+ *
+ * `payload` is whatever was decoded — from a PNG, a JSON file, or a library
+ * record — and is normalised by the receiver, so no caller has to know the
+ * shape of the kind it is opening.
+ */
+export type OpenDataCard = (
+  cardType: DataCardType,
+  payload: unknown,
+  imageSrc: string | null,
+  libraryId?: string
+) => void;
+
 /** Every card kind, in the order the UI presents them. */
 export const CARD_TYPES: readonly LibraryCardType[] = [
   "character",

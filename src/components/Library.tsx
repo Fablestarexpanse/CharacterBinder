@@ -5,8 +5,7 @@ import {
   SortAsc, SortDesc, CheckSquare, Square,
   type LucideIcon,
 } from "lucide-react";
-import { coerceCardBody } from "../lib/blankCards";
-import type { LibraryCard, LibraryCardType, TavernCardV2, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
+import { CARD_TYPES, type LibraryCard, type LibraryCardType, type TavernCardV2, type OpenDataCard } from "../types";
 import { getAllCards, deleteCard } from "../lib/library";
 import { exportCardsAsZip } from "../lib/archive";
 import ConfirmModal from "./ConfirmModal";
@@ -18,7 +17,7 @@ function getCardVersion(card: LibraryCard): string | null {
     const v = card.cardData?.data.character_version?.trim();
     return v || null;
   }
-  const raw = card.rawData as { version?: string } | null;
+  const raw: { version?: string } = card.rawData;
   const v = raw?.version?.trim();
   return v || null;
 }
@@ -32,19 +31,16 @@ const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; c
   persona:   { label: "Personas",         icon: UserCircle,  color: "text-accent-purple-light" },
 };
 
-const TYPE_ORDER: LibraryCardType[] = ["character", "lorebook", "script", "scenario", "persona"];
 
 interface LibraryProps {
   /** Bumped by the MCP bridge after it mutates the library; forces a reload. */
   refreshToken?: number;
   onEditCard:     (card: TavernCardV2,  pngData: Uint8Array | null, imageSrc: string | null, id: string) => void;
-  onEditLorebook: (data: LoreBook,      imageSrc: string | null,    id: string) => void;
-  onEditScript:   (data: ScriptCard,    imageSrc: string | null,    id: string) => void;
-  onEditScenario: (data: ScenarioCard,  imageSrc: string | null,    id: string) => void;
-  onEditPersona:  (data: PersonaCard,   imageSrc: string | null,    id: string) => void;
+  /** Open a lorebook, script, scenario or persona in the editor for its kind. */
+  onOpenDataCard: OpenDataCard;
 }
 
-export default function Library({ refreshToken = 0, onEditCard, onEditLorebook, onEditScript, onEditScenario, onEditPersona }: LibraryProps) {
+export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }: LibraryProps) {
   const [cards, setCards] = useState<LibraryCard[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
@@ -81,7 +77,7 @@ export default function Library({ refreshToken = 0, onEditCard, onEditLorebook, 
     });
 
   // Group into sections
-  const sections = TYPE_ORDER
+  const sections = CARD_TYPES
     .map((type) => ({ type, cards: filtered.filter((c) => (c.cardType ?? "character") === type) }))
     .filter((s) => s.cards.length > 0);
 
@@ -126,18 +122,8 @@ export default function Library({ refreshToken = 0, onEditCard, onEditLorebook, 
   }
 
   function handleEdit(card: LibraryCard) {
-    const type = card.cardType ?? "character";
-    if (type === "character" && card.cardData) {
-      onEditCard(card.cardData, card.pngData, card.imageSrc, card.id);
-    } else if (type === "lorebook" && card.rawData) {
-      onEditLorebook(coerceCardBody("lorebook", card.rawData), card.imageSrc, card.id);
-    } else if (type === "script" && card.rawData) {
-      onEditScript(coerceCardBody("script", card.rawData), card.imageSrc, card.id);
-    } else if (type === "scenario" && card.rawData) {
-      onEditScenario(coerceCardBody("scenario", card.rawData), card.imageSrc, card.id);
-    } else if (type === "persona" && card.rawData) {
-      onEditPersona(coerceCardBody("persona", card.rawData), card.imageSrc, card.id);
-    }
+    if (card.cardType === "character") onEditCard(card.cardData, card.pngData, card.imageSrc, card.id);
+    else onOpenDataCard(card.cardType, card.rawData, card.imageSrc, card.id);
   }
 
   const SortBtn = ({ label, k }: { label: string; k: SortKey }) => (

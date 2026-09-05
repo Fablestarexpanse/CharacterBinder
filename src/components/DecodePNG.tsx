@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
+import type { TavernCardV2, MetadataInfo, OpenDataCard } from "../types";
 import type { PlatformId } from "../lib/platforms";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
@@ -7,9 +7,7 @@ import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { convertCardFrom } from "../lib/platforms/converters";
 import FieldCompatibility from "./FieldCompatibility";
 import { useTimedFlag } from "../hooks/useTimedFlag";
-import { coerceCardBody } from "../lib/blankCards";
-
-const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
+import { CHARACTER_KEYS, shapeForKey } from "../lib/cardShape";
 
 type NonCharType = "lorebook" | "script" | "scenario" | "persona";
 const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {
@@ -21,13 +19,11 @@ const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode;
 
 interface DecodePNGProps {
   onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
-  onLoadLorebook?: (book: LoreBook, imageSrc: string | null) => void;
-  onLoadScript?: (card: ScriptCard, imageSrc: string | null) => void;
-  onLoadScenario?: (card: ScenarioCard, imageSrc: string | null) => void;
-  onLoadPersona?: (card: PersonaCard, imageSrc: string | null) => void;
+  /** Open a lorebook, script, scenario or persona in the editor for its kind. */
+  onOpenDataCard: OpenDataCard;
 }
 
-export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoadScenario, onLoadPersona }: DecodePNGProps) {
+export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
   const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<{
     json: string;
@@ -114,10 +110,10 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
       return;
     }
 
-    if (result.key === "lorebook") { onLoadLorebook?.(coerceCardBody("lorebook", parsed), result.imageSrc); return; }
-    if (result.key === "script")   { onLoadScript?.(coerceCardBody("script", parsed), result.imageSrc); return; }
-    if (result.key === "scenario") { onLoadScenario?.(coerceCardBody("scenario", parsed), result.imageSrc); return; }
-    if (result.key === "persona")  { onLoadPersona?.(coerceCardBody("persona", parsed), result.imageSrc); return; }
+    const shape = shapeForKey(result.key);
+    if (shape && shape !== "character") {
+      onOpenDataCard(shape, parsed, result.imageSrc);
+    }
   };
 
   const handleCopy = async () => {
