@@ -14,7 +14,10 @@
     "declaration": false,
     "sourceMap": false
   },
-  // One glob rather than a hand-maintained file list that goes stale: src/shared
-  // is precisely the browser-neutral surface this package may import.
-  "include": ["src/**/*.ts", "../src/shared/**/*.ts"]
+  // Globs rather than a hand-maintained file list that goes stale. src/shared is
+  // the card domain plus the bridge wire protocol — the two things both sides
+  // must agree on; src/types is the card-kind declarations it is written in.
+  // Everything else in src/ is app-side and stays out of this build, so an
+  // accidental import of IndexedDB or the DOM fails here rather than at runtime.
+  "include": ["src/**/*.ts", "../src/shared/**/*.ts", "../src/types/**/*.ts"]
 }

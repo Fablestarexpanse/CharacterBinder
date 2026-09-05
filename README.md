@@ -507,19 +507,24 @@ CharacterBinder/
 │   │   ├── editor/          # Panels owned by one page (card preview, export panel, smart import, lights)
 │   │   └── ui/              # Shared primitives (inputs, modals, dropzone, sidebar, error boundary)
 │   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
-│   ├── shared/              # Browser-neutral: the only code mcp/ may import
+│   ├── shared/              # The card domain and the wire protocol — the surface mcp/ compiles against
 │   │   ├── bridgeProtocol.ts # Wire protocol, shared by both sides of the bridge
 │   │   ├── platforms/       # registry.ts (definitions) + converters.ts
 │   │   ├── validators.ts    # Card validation logic
 │   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
 │   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
+│   │   ├── cardShape.ts     # What a decoded payload actually is, from its own shape
 │   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
 │   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   └── errorMessage.ts  # The message from a caught unknown
-│   ├── lib/                 # Browser-only: IndexedDB, localStorage, DOM, WebGPU
+│   ├── lib/                 # App-side infrastructure: IndexedDB, localStorage, DOM, WebGPU, the bridge client
 │   │   ├── cardTextSorter/  # Quick Import: engine, prompts, sorter, models, settings
-│   │   ├── bridgeClient.ts  # MCP bridge: the app-side client
+│   │   ├── bridgeState.ts   # MCP bridge: pairing token, connection state, activity log
+│   │   ├── bridgeHandlers.ts # MCP bridge: the RPC surface and the approval gate
+│   │   ├── bridgeClient.ts  # MCP bridge: socket lifecycle and handshake
 │   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
+│   │   ├── readCardPng.ts   # PNG bytes → a card, or why not
+│   │   ├── characterCardPng.ts # Card + cover art → PNG bytes
 │   │   ├── library.ts       # IndexedDB card storage (idb)
 │   │   ├── archive.ts       # ZIP export (jszip)
 │   │   ├── tokenizer.ts     # Token counting (cl100k)
@@ -531,12 +536,12 @@ CharacterBinder/
 │   │   ├── minimalPng.ts    # 1×1 fallback carrier image
 │   │   └── readImageFile.ts # Image file → data URL helper
 │   ├── data/                # Built-in character templates
-│   ├── types/               # TypeScript type definitions
+│   ├── types/               # Card type declarations, also importable by mcp/
 │   ├── index.css            # Tailwind layers + shared component classes
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations
 │   ├── main.tsx             # React entry point
 │   └── App.tsx              # Root component and app state
-├── mcp/                     # MCP server (own package; imports only src/shared)
+├── mcp/                     # MCP server (own package; imports src/shared and src/types only)
 │   └── src/
 │       ├── index.ts         # Tool definitions
 │       └── bridge.ts        # WebSocket server the app dials in on
@@ -544,6 +549,13 @@ CharacterBinder/
 ├── docs/                    # Screenshots and documentation assets
 └── start.bat / start.sh     # One-click launch
 ```
+
+**Where a module goes.** `src/shared` is the card domain and the bridge wire
+protocol — what the app and the MCP server must agree on, written against
+`src/types`. `mcp/tsconfig.json` compiles exactly those two directories, so a
+module that reaches for IndexedDB, `localStorage`, the DOM or WebGPU cannot live
+there; that is `src/lib`, the app-side infrastructure. The rule is what the two
+programs share, not merely what happens to be portable.
 
 ---
 
