@@ -14,7 +14,7 @@ beforeEach(async () => {
   library = await import("./library");
 });
 
-const character = (name: string) => {
+const characterBody = (name: string) => {
   const card = createBlankTavernCard(name);
   card.data.description = "A dockhand.";
   card.data.tags = ["harbour"];
@@ -23,7 +23,7 @@ const character = (name: string) => {
 
 describe("saveLibraryCard", () => {
   it("stores a character card and reads it back whole", async () => {
-    const saved = await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
+    const saved = await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
     const read = await library.getCard(saved.id);
 
     expect(read?.name).toBe("Rook");
@@ -52,11 +52,11 @@ describe("saveLibraryCard", () => {
   });
 
   it("updates in place when given the existing id, keeping createdAt", async () => {
-    const first = await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
+    const first = await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
     await new Promise((r) => setTimeout(r, 5));
     const second = await library.saveLibraryCard({
       cardType: "character",
-      body: character("Rook the Elder"),
+      body: characterBody("Rook the Elder"),
       existingId: first.id,
     });
 
@@ -67,8 +67,8 @@ describe("saveLibraryCard", () => {
   });
 
   it("stores a second card when no id is given, so a version bump forks", async () => {
-    await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
-    await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
+    await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
+    await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
     expect(await library.getAllCards()).toHaveLength(2);
   });
 
@@ -80,16 +80,16 @@ describe("saveLibraryCard", () => {
 
 describe("getAllCards", () => {
   it("returns newest first", async () => {
-    const a = await library.saveLibraryCard({ cardType: "character", body: character("First") });
+    const a = await library.saveLibraryCard({ cardType: "character", body: characterBody("First") });
     await new Promise((r) => setTimeout(r, 5));
-    const b = await library.saveLibraryCard({ cardType: "character", body: character("Second") });
+    const b = await library.saveLibraryCard({ cardType: "character", body: characterBody("Second") });
 
     const all = await library.getAllCards();
     expect(all.map((c) => c.id)).toEqual([b.id, a.id]);
   });
 
   it("treats a record written before card types existed as a character", async () => {
-    const saved = await library.saveLibraryCard({ cardType: "character", body: character("Legacy") });
+    const saved = await library.saveLibraryCard({ cardType: "character", body: characterBody("Legacy") });
     // Strip the field the way an old record would have been stored.
     const db = await new Promise<IDBDatabase>((resolve) => {
       const req = indexedDB.open("characterbinder-library");
@@ -118,8 +118,8 @@ describe("getCard and deleteCard", () => {
   });
 
   it("removes only the card asked for", async () => {
-    const a = await library.saveLibraryCard({ cardType: "character", body: character("Keep") });
-    const b = await library.saveLibraryCard({ cardType: "character", body: character("Drop") });
+    const a = await library.saveLibraryCard({ cardType: "character", body: characterBody("Keep") });
+    const b = await library.saveLibraryCard({ cardType: "character", body: characterBody("Drop") });
 
     await library.deleteCard(b.id);
 

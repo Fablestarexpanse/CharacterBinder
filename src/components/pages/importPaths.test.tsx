@@ -19,7 +19,7 @@ function pngWith(key: Parameters<typeof encodeCharaToPng>[2], payload: unknown):
   return file;
 }
 
-const character = () => {
+const characterPayload = () => {
   const card = createBlankTavernCard("Rook");
   card.data.description = "A dockhand.";
   return card;
@@ -42,7 +42,7 @@ describe("ImportPNG", () => {
     const onLoad = vi.fn();
     const { container } = render(<ImportPNG onLoad={onLoad} onOpenDataCard={vi.fn()} />);
 
-    drop(container, pngWith("chara", character()));
+    drop(container, pngWith("chara", characterPayload()));
 
     await waitFor(() => expect(onLoad).toHaveBeenCalled());
     expect(onLoad.mock.calls[0][0].data.name).toBe("Rook");
@@ -79,7 +79,7 @@ describe("DecodePNG", () => {
   it("lists the chunks it found and offers to open the card", async () => {
     const { container } = render(<DecodePNG onLoad={vi.fn()} onOpenDataCard={vi.fn()} />);
 
-    drop(container, pngWith("chara", character()));
+    drop(container, pngWith("chara", characterPayload()));
 
     expect(await screen.findByText(/detection result/i)).toBeInTheDocument();
     expect(screen.getByText(/text chunk/i)).toBeInTheDocument();

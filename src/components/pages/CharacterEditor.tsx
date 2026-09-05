@@ -6,7 +6,7 @@ import { errorMessage } from "../../shared/errorMessage";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
 import ResizableTextArea from "../ui/ResizableTextArea";
-import SmartImportPanel from "./SmartImportPanel";
+import SmartImportPanel from "../editor/SmartImportPanel";
 import type { CardField } from "../../shared/cardTextParser";
 
 interface CharacterEditorProps {

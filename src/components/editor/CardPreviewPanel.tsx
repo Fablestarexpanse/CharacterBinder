@@ -1,3 +1,12 @@
+/**
+ * The character card's export panel — deliberately not built on
+ * useDataCardEditor.
+ *
+ * A character card is converted per target platform, validated against the v2
+ * spec before export, and versioned so a version bump forks a library record.
+ * The other four kinds do none of that, and folding both paths into one shell
+ * would mean a shell whose larger half is conditional on one kind.
+ */
 import { useState, useCallback, useEffect, useMemo, useId } from "react";
 import type { AppSettings, CardProject } from "../../types";
 import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
@@ -91,7 +100,7 @@ export default function CardPreviewPanel({
   const lossCount = usedFields.filter((f) => f.support === "none").length;
   const partialCount = usedFields.filter((f) => f.support === "partial" || f.support === "renamed").length;
 
-  const handleExportPng = useCallback(async () => {
+  const exportPng = useCallback(async () => {
     // PNG export is never blocked. Platforms that can't read card PNGs still
     // produce a perfectly valid file — it just has to be imported somewhere
     // else, so the UI warns rather than refusing.
@@ -128,7 +137,7 @@ export default function CardPreviewPanel({
     }
   }, [project, settings, validation, platform, targetPlatform, setStatus]);
 
-  const handleExportJson = useCallback(() => {
+  const exportJson = useCallback(() => {
     const converted = convertCardTo(project.card, targetPlatform);
     const name = project.outputFileName.replace(/\.png$/i, "") + `_${targetPlatform}`;
     downloadJson(converted, name, settings.prettyPrintJson);
@@ -143,7 +152,7 @@ export default function CardPreviewPanel({
     }
   };
 
-  const handleSaveToLibrary = useCallback(async () => {
+  const save = useCallback(async () => {
     setSaving(true);
     const currentVersion = project.card.data.character_version ?? "";
     const hasExistingId = project.id !== "default";
@@ -409,7 +418,7 @@ export default function CardPreviewPanel({
       {/* Export buttons */}
       <div className="p-4 border-t border-border space-y-2 shrink-0">
         <button
-          onClick={handleExportPng}
+          onClick={exportPng}
           disabled={exporting}
           className="w-full btn-primary justify-center py-3 text-sm font-semibold"
         >
@@ -442,7 +451,7 @@ export default function CardPreviewPanel({
 
         {/* Save to Library / Update in Library */}
         <button
-          onClick={handleSaveToLibrary}
+          onClick={save}
           disabled={saving}
           className="w-full btn-secondary justify-center py-2 text-sm"
         >
@@ -466,7 +475,7 @@ export default function CardPreviewPanel({
             <button onClick={handleValidate} className="btn-secondary flex-1 justify-center text-xs py-1.5">
               <Shield size={13} /> Validate
             </button>
-            <button onClick={handleExportJson} className="btn-secondary flex-1 justify-center text-xs py-1.5">
+            <button onClick={exportJson} className="btn-secondary flex-1 justify-center text-xs py-1.5">
               <FileJson size={13} /> Export JSON
             </button>
           </div>

@@ -504,7 +504,7 @@ CharacterBinder/
 ├── src/
 │   ├── components/
 │   │   ├── pages/           # The views App mounts (editors, library, import, settings)
-│   │   ├── editor/          # Panels owned by one page (card preview, smart import, lights)
+│   │   ├── editor/          # Panels owned by one page (card preview, export panel, smart import, lights)
 │   │   └── ui/              # Shared primitives (inputs, modals, dropzone, JSON views)
 │   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
 │   ├── shared/              # Browser-neutral: the only code mcp/ may import

@@ -17,7 +17,7 @@ const exportCardsAsZip = vi.fn(async (_cards: LibraryCard[]) => {});
 vi.mock("../../lib/archive", () => ({ exportCardsAsZip: (cards: LibraryCard[]) => exportCardsAsZip(cards) }));
 
 const base = { pngData: null, imageSrc: null, createdAt: 1, updatedAt: 2 };
-const character = (id: string, name: string): LibraryCard => ({
+const libraryCharacter = (id: string, name: string): LibraryCard => ({
   ...base, id, name, cardType: "character", cardData: createBlankTavernCard(name), platform: "sillytavern", tags: ["harbour"],
 });
 const persona = (id: string, name: string): LibraryCard => ({
@@ -26,7 +26,7 @@ const persona = (id: string, name: string): LibraryCard => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  getAllCards.mockResolvedValue([character("c1", "Rook"), persona("p1", "Kael")]);
+  getAllCards.mockResolvedValue([libraryCharacter("c1", "Rook"), persona("p1", "Kael")]);
 });
 
 const props = { onEditCard: vi.fn(), onOpenDataCard: vi.fn() };
@@ -97,7 +97,7 @@ describe("Library", () => {
   });
 
   it("refuses to open a character record with no card body, and says which", async () => {
-    const broken = { ...character("c2", "Damaged"), cardData: undefined } as unknown as LibraryCard;
+    const broken = { ...libraryCharacter("c2", "Damaged"), cardData: undefined } as unknown as LibraryCard;
     getAllCards.mockResolvedValue([broken]);
     const onEditCard = vi.fn();
     const user = userEvent.setup();
