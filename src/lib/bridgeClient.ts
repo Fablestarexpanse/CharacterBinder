@@ -200,6 +200,73 @@ function scheduleReconnect() {
   }, 4000);
 }
 
+/**
+ * Take one pre-authentication frame.
+ *
+ * Kept apart from the socket wiring: this is the whole security decision — what
+ * the app will and will not talk to — and it reads better as a state machine of
+ * its own than as a branch inside the message handler.
+ *
+ * @returns true when the handshake has completed and RPCs may begin.
+ */
+async function advanceHandshake(
+  ws: WebSocket,
+  msg: unknown,
+  ctx: { clientNonce: string; serverProved: () => boolean; prove: () => void }
+): Promise<boolean> {
+  const frame = msg as { type?: string; serverNonce?: string; proof?: string; reason?: string };
+
+  const refuse = (error: string, code?: number, reason?: string) => {
+    manualDisconnect = true;
+    setState({ status: "error", error });
+    if (code) ws.close(code, reason);
+    else ws.close();
+  };
+
+  if (frame.type === "challenge") {
+    const token = getBridgeToken();
+    // Checked before proving anything: WebCrypto rejects an empty key, and that
+    // rejection inside an async handler left the light stuck on "connecting"
+    // with no explanation at all.
+    if (!token) {
+      refuse("No pairing token set. Copy it from the MCP server output into Settings → MCP bridge.");
+      return false;
+    }
+
+    const expected = await proveToken(token, PROOF_SERVER + ctx.clientNonce);
+    if (!safeEqual(String(frame.proof ?? ""), expected)) {
+      // Whatever is on that port does not hold the token. Say nothing more.
+      refuse("The server on that port failed to prove it holds your pairing token. Not sending anything to it.");
+      return false;
+    }
+
+    ctx.prove();
+    ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, PROOF_CLIENT + String(frame.serverNonce ?? "")) }));
+    return false;
+  }
+
+  if (frame.type === "ready") {
+    // Only after the server has proved it holds the token. Without this check a
+    // process that grabbed the port could skip the challenge entirely, send
+    // "ready", and be served the whole card library.
+    if (!ctx.serverProved()) {
+      refuse(
+        "The server on that port skipped the pairing check. Not sending anything to it.",
+        CLOSE_PROTOCOL,
+        "Ready before challenge"
+      );
+      return false;
+    }
+    return true;
+  }
+
+  if (frame.type === "auth_failed") {
+    manualDisconnect = true;
+    setState({ status: "error", error: `Pairing rejected: ${frame.reason ?? "bad token"}. Check the token in Settings.` });
+  }
+  return false;
+}
+
 function openSocket() {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
 
@@ -243,64 +310,10 @@ function openSocket() {
     } catch {
       return;
     }
-    // ── Handshake ────────────────────────────────────────────────────────
     if (!authed) {
-      const frame = msg as { type?: string; serverNonce?: string; proof?: string; reason?: string };
-
-      if (frame.type === "challenge") {
-        const token = getBridgeToken();
-        // Checked before proving anything: WebCrypto rejects an empty key, and
-        // that rejection inside this async handler left the light stuck on
-        // "connecting" with no explanation at all.
-        if (!token) {
-          manualDisconnect = true;
-          setState({
-            status: "error",
-            error: "No pairing token set. Copy it from the MCP server output into Settings → MCP bridge.",
-          });
-          ws.close();
-          return;
-        }
-        const expected = await proveToken(token, PROOF_SERVER + clientNonce);
-        if (!safeEqual(String(frame.proof ?? ""), expected)) {
-          // Whatever is on that port does not hold the token. Say nothing more.
-          // Whatever is on that port does not hold the token. Say nothing more.
-          manualDisconnect = true;
-          setState({
-            status: "error",
-            error: "The server on that port failed to prove it holds your pairing token. Not sending anything to it.",
-          });
-          ws.close();
-          return;
-        }
-        serverProved = true;
-        ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, PROOF_CLIENT + String(frame.serverNonce ?? "")) }));
-        return;
-      }
-
-      if (frame.type === "ready") {
-        // Only after the server has proved it holds the token. Without this
-        // check a process that grabbed the port could skip the challenge
-        // entirely, send "ready", and be served the whole card library — the
-        // handshake would be there and prove nothing.
-        if (!serverProved) {
-          manualDisconnect = true;
-          setState({
-            status: "error",
-            error: "The server on that port skipped the pairing check. Not sending anything to it.",
-          });
-          ws.close(CLOSE_PROTOCOL, "Ready before challenge");
-          return;
-        }
+      if (await advanceHandshake(ws, msg, { clientNonce, serverProved: () => serverProved, prove: () => { serverProved = true; } })) {
         authed = true;
         setState({ status: "connected", error: null });
-        return;
-      }
-
-      if (frame.type === "auth_failed") {
-        manualDisconnect = true;
-        setState({ status: "error", error: `Pairing rejected: ${frame.reason ?? "bad token"}. Check the token in Settings.` });
-        return;
       }
       return;
     }
