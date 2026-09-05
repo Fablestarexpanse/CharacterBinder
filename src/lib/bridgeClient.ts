@@ -38,8 +38,6 @@ import {
   type BridgeHost,
 } from "./bridgeState";
 
-/** Same read/patch contract as the app's other persisted settings. */
-
 // ── Connection ──────────────────────────────────────────────────────────────
 
 let socket: WebSocket | null = null;

@@ -70,8 +70,6 @@ export function detectCardShape(parsed: unknown): LibraryCardType | null {
 export function effectiveShape(key: string, parsed: unknown): {
   /** What the card actually is, whatever its keyword claimed. */
   cardType: LibraryCardType | null;
-  claimed: LibraryCardType | null;
-  actual: LibraryCardType | null;
   /** The keyword and the payload disagree; the payload wins and the UI says so. */
   mismatch: boolean;
 } {
@@ -81,5 +79,5 @@ export function effectiveShape(key: string, parsed: unknown): {
   // Shape wins wherever the two disagree, and also where the keyword says
   // nothing: a payload that is plainly a lorebook under an unrecognised key
   // used to come back as "no idea" and be refused.
-  return { cardType: actual ?? claimed, claimed, actual, mismatch };
+  return { cardType: actual ?? claimed, mismatch };
 }

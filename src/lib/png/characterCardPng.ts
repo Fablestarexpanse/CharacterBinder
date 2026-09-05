@@ -32,7 +32,7 @@ export async function encodeCharacterCardPng(
   return encodeCharaToPng(
     carrier,
     json,
-    metadataKeyFor(platformId) as Parameters<typeof encodeCharaToPng>[2],
+    metadataKeyFor(platformId),
     settings.preserveUnknownChunks
   );
 }

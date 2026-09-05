@@ -206,7 +206,6 @@ export function convertCardFrom(
     case "agnai":      return convertFromAgnai(obj);
     case "backyard":   return convertFromBackyard(obj);
     default: {
-      // SillyTavern, Chub, Venus, RisuAI, Generic — all basically Tavern v2 shape.
       // v3 is read here too: its `data` block is a superset of v2's, so the
       // spread below keeps every field this app knows and drops the v3-only
       // ones. cardShape has always detected v3, and without this gate those

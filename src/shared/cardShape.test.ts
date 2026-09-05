@@ -63,7 +63,8 @@ describe("effectiveShape", () => {
   it("trusts the payload when the keyword disagrees", () => {
     const r = effectiveShape("chara", { entries: [{ keys: ["a"], content: "b" }] });
     expect(r.cardType).toBe("lorebook");
-    expect(r.claimed).toBe("character");
+    // What the keyword claimed is shapeForKey's job, asserted there.
+    expect(shapeForKey("chara")).toBe("character");
     expect(r.mismatch).toBe(true);
   });
 
@@ -76,7 +77,7 @@ describe("effectiveShape", () => {
   it("falls back to the keyword when the payload says nothing", () => {
     const r = effectiveShape("script", { name: "S" });
     expect(r.cardType).toBe("script");
-    expect(r.actual).toBeNull();
+    expect(detectCardShape({ name: "S" })).toBeNull();
     expect(r.mismatch).toBe(false);
   });
 
@@ -91,7 +92,7 @@ describe("effectiveShape under an unrecognised keyword", () => {
     // this can read; refusing it because the label is unfamiliar helps nobody.
     const result = effectiveShape("some_other_tool", { entries: [] });
     expect(result.cardType).toBe("lorebook");
-    expect(result.claimed).toBeNull();
+    expect(shapeForKey("some_other_tool")).toBeNull();
     // Nothing to disagree with, so nothing to warn the user about.
     expect(result.mismatch).toBe(false);
   });
