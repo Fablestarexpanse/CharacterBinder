@@ -359,8 +359,8 @@ Then:
 | `create_lorebook` | A world info book, entries and all |
 | `create_scenario` | A standalone situation card |
 | `create_script` | A script card |
-| `update_card` | Shallow-merge edits into an existing card |
-| `delete_card` | Remove a card — no undo |
+| `update_card` | Shallow-merge edits into an existing card — you approve each one |
+| `delete_card` | Remove a card — no undo, and you approve each one |
 | `open_card` | Bring a card up in the app's editor |
 | `validate_character` | Check against the Tavern v2 spec |
 | `platform_compatibility` | What a given platform drops or renames |
@@ -383,6 +383,11 @@ and delete. What keeps that bounded:
   allowed to displace a live session.
 - **Origin checking.** Connections from a browser origin that isn't the app are
   rejected at the HTTP upgrade.
+- **You approve every destructive call.** Overwriting or deleting a card raises the
+  same confirmation the app itself uses, naming the card; declining returns an
+  error to the agent. Creating a new card does not prompt — nothing is lost by it.
+  If the bridge drops while a prompt is open, the prompt is refused rather than
+  applied to a caller that has gone away.
 - **Loopback only**, off by default, with the sidebar light as the only switch and
   a running count of requests served.
 

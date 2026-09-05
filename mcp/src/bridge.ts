@@ -43,6 +43,15 @@ interface Pending {
 const pending = new Map<string, Pending>();
 
 const CALL_TIMEOUT_MS = 20_000;
+/**
+ * Calls the app answers only after asking the user. A person reading a
+ * confirmation dialog routinely takes longer than the normal timeout, and
+ * timing out early told the agent the write had failed while the prompt was
+ * still on screen — so an approval a moment later applied a change the agent
+ * believed had not happened.
+ */
+const USER_GATED_TIMEOUT_MS = 5 * 60_000;
+const USER_GATED: ReadonlySet<BridgeMethod> = new Set<BridgeMethod>(["cards.update", "cards.delete"]);
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 /** Card bodies are text; a megabyte is generous and bounds a hostile peer. */
 const MAX_PAYLOAD = 4 * 1024 * 1024;
@@ -237,10 +246,17 @@ export function callApp<T = unknown>(method: BridgeMethod, params?: unknown): Pr
     }
 
     const id = randomUUID();
+    const timeout = USER_GATED.has(method) ? USER_GATED_TIMEOUT_MS : CALL_TIMEOUT_MS;
     const timer = setTimeout(() => {
       pending.delete(id);
-      reject(new Error(`The app didn't answer ${method} within ${CALL_TIMEOUT_MS / 1000}s.`));
-    }, CALL_TIMEOUT_MS);
+      reject(
+        new Error(
+          USER_GATED.has(method)
+            ? `The user did not answer the confirmation for ${method} within ${timeout / 60_000} minutes.`
+            : `The app didn't answer ${method} within ${timeout / 1000}s.`
+        )
+      );
+    }, timeout);
 
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
     appSocket!.send(JSON.stringify({ id, method, params }));

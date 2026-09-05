@@ -35,6 +35,15 @@ function App() {
   const [settings, setSettings] = useState<AppSettings>(getAppSettings);
   const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  // A destructive bridge call waiting on the user. The agent's RPC is parked on
+  // this promise until they answer, so nothing is deleted or overwritten
+  // without the same confirmation the UI itself requires.
+  const [bridgeAsk, setBridgeAsk] = useState<{
+    action: "delete" | "overwrite";
+    cardName: string;
+    decide: (approved: boolean) => void;
+  } | null>(null);
+
   // Bumped whenever the MCP bridge mutates the library, so an open Library view
   // reloads instead of showing a stale list until the user navigates away.
   const [libraryRevision, setLibraryRevision] = useState(0);
@@ -179,6 +188,17 @@ function App() {
   useEffect(() => {
     registerBridgeHost({
       onLibraryChanged: () => setLibraryRevision((n) => n + 1),
+      confirmDestructive: ({ action, card }) =>
+        new Promise<boolean>((resolve) => {
+          setBridgeAsk({
+            action,
+            cardName: card.name,
+            decide: (approved) => {
+              setBridgeAsk(null);
+              resolve(approved);
+            },
+          });
+        }),
       openCard: (card) => {
         const image = card.imageSrc ?? null;
         if (card.cardType === "character") loadFromLibrary(card.cardData, null, image, card.id);
@@ -200,6 +220,22 @@ function App() {
           destructive
           onConfirm={clearCard}
           onCancel={() => setShowClearConfirm(false)}
+        />
+      )}
+
+      {bridgeAsk && (
+        <ConfirmModal
+          title={bridgeAsk.action === "delete" ? "Let the agent delete this card?" : "Let the agent overwrite this card?"}
+          message={
+            bridgeAsk.action === "delete"
+              ? `A connected coding agent wants to permanently delete "${bridgeAsk.cardName}" from your library. This cannot be undone.`
+              : `A connected coding agent wants to change "${bridgeAsk.cardName}" in your library. The current version is replaced.`
+          }
+          confirmLabel={bridgeAsk.action === "delete" ? "Delete Card" : "Allow Change"}
+          cancelLabel="Refuse"
+          destructive={bridgeAsk.action === "delete"}
+          onConfirm={() => bridgeAsk.decide(true)}
+          onCancel={() => bridgeAsk.decide(false)}
         />
       )}
 

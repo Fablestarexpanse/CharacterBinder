@@ -99,11 +99,12 @@ export function validateTavernCardV2(card: TavernCardV2): ValidationResult {
   return { valid: errors.length === 0, errors, warnings };
 }
 
-export function validateJson(jsonStr: string): { valid: boolean; error?: string } {
+/** Same result shape as validateTavernCardV2, so callers read both the same way. */
+export function validateJson(jsonStr: string): ValidationResult {
   try {
     JSON.parse(jsonStr);
-    return { valid: true };
+    return { valid: true, errors: [], warnings: [] };
   } catch (e) {
-    return { valid: false, error: (e as Error).message };
+    return { valid: false, errors: [(e as Error).message], warnings: [] };
   }
 }

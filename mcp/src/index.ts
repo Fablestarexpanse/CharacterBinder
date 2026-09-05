@@ -267,7 +267,7 @@ server.registerTool(
   {
     title: "Edit an existing card",
     description:
-      "Shallow-merge changes into a card already in the library. Only the fields you pass are touched; everything else is left alone. Read the card first with get_card if you need its current contents.",
+      "Shallow-merge changes into a card already in the library. Only the fields you pass are touched; everything else is left alone. Read the card first with get_card if you need its current contents. The app asks the user to approve the change before it is written, and returns an error if they decline.",
     inputSchema: {
       id: z.string().describe("Card id from list_cards."),
       patch: z
@@ -283,7 +283,7 @@ server.registerTool(
   "delete_card",
   {
     title: "Delete a card",
-    description: "Permanently remove a card from the library. There is no undo — confirm with the user first.",
+    description: "Permanently remove a card from the library. There is no undo. The app also asks the user to approve the deletion and returns an error if they decline, but ask first rather than relying on that prompt.",
     inputSchema: { id: z.string().describe("Card id from list_cards.") },
   },
   async ({ id }) => text(await callApp<{ id: string }>("cards.delete", { id }))

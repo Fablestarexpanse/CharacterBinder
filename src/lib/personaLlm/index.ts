@@ -275,8 +275,17 @@ export interface SortOptions {
   settings?: SorterSettings;
   /** Which field shape to extract into. Defaults to persona. */
   target?: SortTarget;
+  /** Model-download progress. Only the in-browser backend loads a model. */
   onProgress?: (p: LoadProgress) => void;
+  /** Cancels the sort on either backend. */
   signal?: AbortSignal;
+}
+
+/** Rejection shape the DOM uses for a cancelled operation, so callers can `err.name === "AbortError"`. */
+function abortError(): Error {
+  return typeof DOMException === "function"
+    ? new DOMException("The sort was cancelled.", "AbortError")
+    : Object.assign(new Error("The sort was cancelled."), { name: "AbortError" });
 }
 
 export async function sortPersonaWithAi(raw: string, opts: SortOptions = {}): Promise<ParsedPersona> {
@@ -294,7 +303,7 @@ export async function sortPersonaWithAi(raw: string, opts: SortOptions = {}): Pr
   const rawJson =
     settings.backend === "endpoint"
       ? await runEndpoint(input, settings, target, opts.signal)
-      : await runWebLlm(input, settings, target, opts.onProgress);
+      : await runWebLlm(input, settings, target, opts.onProgress, opts.signal);
 
   const parsed = coerceJson(rawJson);
   if (!parsed) throw new Error("The model didn't return usable JSON. Try Quick sort, or a larger model.");
@@ -327,26 +336,48 @@ export async function sortPersonaAuto(raw: string, opts: SortOptions = {}): Prom
   return sortPersonaWithAi(raw, opts);
 }
 
-async function runWebLlm(input: string, settings: SorterSettings, target: SortTarget, onProgress?: (p: LoadProgress) => void): Promise<string> {
+async function runWebLlm(
+  input: string,
+  settings: SorterSettings,
+  target: SortTarget,
+  onProgress?: (p: LoadProgress) => void,
+  signal?: AbortSignal
+): Promise<string> {
   if (!isWebGpuAvailable()) {
     throw new Error(
       "This browser has no WebGPU, so the in-browser model can't run. Use Chrome or Edge, or point the sorter at a local server in Settings."
     );
   }
 
+  if (signal?.aborted) throw abortError();
   const eng = await getEngine(settings.modelId, onProgress);
-  const reply = (await eng.chat.completions.create({
-    messages: [
-      { role: "system", content: buildSystemPrompt(target) },
-      { role: "user", content: buildUserPrompt(input) },
-    ],
-    temperature: 0.2,
-    max_tokens: MAX_OUTPUT_TOKENS,
-    // Constrains decoding to the schema — the model cannot emit anything else.
-    response_format: { type: "json_object", schema: buildSchema(target) },
-  })) as { choices?: Array<{ message?: { content?: string } }> };
+  if (signal?.aborted) throw abortError();
 
-  return reply.choices?.[0]?.message?.content ?? "";
+  // Generation runs on the GPU and cannot be dropped mid-token, but WebLLM can
+  // be told to stop early; without this, cancelling only stopped the caller
+  // waiting while the model kept generating.
+  const stop = () => {
+    void (eng as { interruptGenerate?: () => void }).interruptGenerate?.();
+  };
+  signal?.addEventListener("abort", stop, { once: true });
+
+  try {
+    const reply = (await eng.chat.completions.create({
+      messages: [
+        { role: "system", content: buildSystemPrompt(target) },
+        { role: "user", content: buildUserPrompt(input) },
+      ],
+      temperature: 0.2,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      // Constrains decoding to the schema — the model cannot emit anything else.
+      response_format: { type: "json_object", schema: buildSchema(target) },
+    })) as { choices?: Array<{ message?: { content?: string } }> };
+
+    if (signal?.aborted) throw abortError();
+    return reply.choices?.[0]?.message?.content ?? "";
+  } finally {
+    signal?.removeEventListener("abort", stop);
+  }
 }
 
 async function runEndpoint(input: string, settings: SorterSettings, target: SortTarget, signal?: AbortSignal): Promise<string> {

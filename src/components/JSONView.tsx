@@ -30,7 +30,7 @@ export default function JSONView({ card, onUpdate }: JSONViewProps) {
     setJsonText(val);
     setIsDirty(true);
     const result = validateJson(val);
-    setValidationError(result.valid ? null : result.error ?? "Invalid JSON");
+    setValidationError(result.valid ? null : result.errors[0] ?? "Invalid JSON");
   };
 
   const handleApply = () => {

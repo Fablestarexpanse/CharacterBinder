@@ -22,6 +22,7 @@ import {
   safeEqual,
   PROOF_SERVER,
   PROOF_CLIENT,
+  type BridgeMethod,
   type BridgeRequest,
   type BridgeResponse,
   type CardType,
@@ -76,15 +77,35 @@ export function setBridgeToken(token: string) {
 
 export type BridgeStatus = "off" | "connecting" | "connected" | "error";
 
+/** One served call, for the activity list the user can look at after the fact. */
+export interface BridgeActivity {
+  at: number;
+  method: BridgeMethod;
+  /** The card the call touched, when it named one. */
+  cardId?: string;
+  cardName?: string;
+  /** Set when the user was asked and said no. */
+  refused?: boolean;
+}
+
+/** Most recent calls kept in memory. Enough to answer "what did it just do?". */
+const ACTIVITY_LIMIT = 50;
+
 export interface BridgeState {
   status: BridgeStatus;
   error: string | null;
   /** Rolling count of RPCs served, so the UI can show that something happened. */
   served: number;
   lastMethod: string | null;
+  /** Newest first. A counter alone could not tell the user what was changed. */
+  activity: BridgeActivity[];
 }
 
-let state: BridgeState = { status: "off", error: null, served: 0, lastMethod: null };
+let state: BridgeState = { status: "off", error: null, served: 0, lastMethod: null, activity: [] };
+
+function recordActivity(entry: BridgeActivity) {
+  setState({ activity: [entry, ...state.activity].slice(0, ACTIVITY_LIMIT) });
+}
 const listeners = new Set<(s: BridgeState) => void>();
 
 function setState(patch: Partial<BridgeState>) {
@@ -111,6 +132,16 @@ export function subscribeBridgeState(fn: (s: BridgeState) => void): () => void {
 export interface BridgeHost {
   openCard: (card: LibraryCard) => void;
   onLibraryChanged?: () => void;
+  /**
+   * Ask the user to approve a destructive call before it happens.
+   *
+   * A paired agent is trusted to write cards, but deleting one and overwriting
+   * an existing one are irreversible — the library has no undo — and every
+   * equivalent path in the UI confirms first. Without this the bridge was the
+   * one way to destroy a card silently. Absent host: the call is refused rather
+   * than allowed, so a missing hook cannot quietly widen what an agent may do.
+   */
+  confirmDestructive?: (request: { action: "delete" | "overwrite"; card: LibraryCard }) => Promise<boolean>;
 }
 
 let host: BridgeHost | null = null;
@@ -255,6 +286,7 @@ function open() {
 
   ws.onclose = (event) => {
     socket = null;
+    cancelPendingApprovals();
     if (manualDisconnect) return;
 
     // These are deliberate refusals; retrying in a loop would be noise.
@@ -408,12 +440,51 @@ async function createCard(params: CreateParams): Promise<MutationResult> {
   }
   const saved = await persist(params.cardType, params.data ?? {}, safeImageSrc(params.imageSrc));
   host?.onLibraryChanged?.();
+  recordActivity({ at: Date.now(), method: "cards.update", cardId: saved.id, cardName: saved.name });
   if (params.open) host?.openCard(saved);
-  return { id: saved.id, name: saved.name, cardType: saved.cardType as CardType };
+  return { id: saved.id, name: saved.name, cardType: saved.cardType };
+}
+
+/**
+ * Approvals still waiting on the user. If the bridge drops while a prompt is
+ * open, they are refused: the agent is gone, so applying the change afterwards
+ * would destroy a card on behalf of nobody.
+ */
+const pendingApprovals = new Set<(approved: boolean) => void>();
+
+function cancelPendingApprovals() {
+  for (const decide of pendingApprovals) decide(false);
+  pendingApprovals.clear();
+}
+
+/** Throws unless the user approves; the agent sees the refusal as an error. */
+async function requireApproval(action: "delete" | "overwrite", card: LibraryCard): Promise<void> {
+  const ask = host?.confirmDestructive;
+  if (!ask) {
+    throw new Error(
+      `Refusing to ${action} "${card.name}": the app cannot ask the user to confirm right now. Try again with the app window in focus.`
+    );
+  }
+  let settle: (approved: boolean) => void = () => {};
+  const cancelled = new Promise<boolean>((resolve) => {
+    settle = resolve;
+    pendingApprovals.add(resolve);
+  });
+  let approved: boolean;
+  try {
+    approved = await Promise.race([ask({ action, card }), cancelled]);
+  } finally {
+    pendingApprovals.delete(settle);
+  }
+  if (!approved) {
+    recordActivity({ at: Date.now(), method: action === "delete" ? "cards.delete" : "cards.update", cardId: card.id, cardName: card.name, refused: true });
+    throw new Error(`The user declined to ${action} "${card.name}".`);
+  }
 }
 
 async function updateCard(params: UpdateParams): Promise<MutationResult> {
   const existing = await findCard(params.id);
+  await requireApproval("overwrite", existing);
   const merged = { ...(bodyOf(existing) ?? {}), ...(params.patch ?? {}) };
   const saved = await persist(
     existing.cardType as CardType,
@@ -422,14 +493,19 @@ async function updateCard(params: UpdateParams): Promise<MutationResult> {
     existing
   );
   host?.onLibraryChanged?.();
+  recordActivity({ at: Date.now(), method: "cards.update", cardId: saved.id, cardName: saved.name });
   if (params.open) host?.openCard(saved);
-  return { id: saved.id, name: saved.name, cardType: saved.cardType as CardType };
+  return { id: saved.id, name: saved.name, cardType: saved.cardType };
 }
 
 async function removeCard(params: DeleteParams): Promise<{ id: string }> {
-  await findCard(params.id); // 404 with a useful message rather than silently succeeding
+  // Look it up first: a 404 with a useful message rather than silently
+  // succeeding, and the confirmation can name the card being destroyed.
+  const card = await findCard(params.id);
+  await requireApproval("delete", card);
   await deleteCard(params.id);
   host?.onLibraryChanged?.();
+  recordActivity({ at: Date.now(), method: "cards.delete", cardId: card.id, cardName: card.name });
   return { id: params.id };
 }
 
