@@ -132,7 +132,11 @@ function TemplateCard({
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="shrink-0 p-1 rounded text-text-muted hover:text-status-danger hover:bg-status-danger-soft transition-colors opacity-0 group-hover:opacity-100"
-            title="Delete template"
+            title={`Delete ${name}`}
+            // Named after the template, the way the Library's delete is: a
+            // screen reader listing bare "Delete template" buttons cannot say
+            // which one it is on.
+            aria-label={`Delete ${name}`}
           >
             <Trash2 size={13} />
           </button>
