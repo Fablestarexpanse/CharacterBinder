@@ -431,3 +431,38 @@ and then some further rambling text that carries on for a while.`);
     expect(isSeparatorLine("* a bullet")).toBe(false);
   });
 });
+
+describe("W++ keeps the text around the attribute blocks", () => {
+  const wpp = `Kael is a physicist who never sleeps.
+
+[character("Kael")
+{
+Age("28")
+Personality("blunt" + "curious")
+Appearance("wiry" + "ink-stained")
+Body("tall" + "lean")
+Likes("coffee" + "silence")
+}]
+
+He was last seen in Anvale.`;
+
+  it("reads the attributes", () => {
+    const parsed = parsePersonaText(wpp);
+    expect(parsed.method).toBe("wpp");
+    expect(parsed.fields.personality).toContain("blunt");
+    expect(parsed.fields.appearance).toContain("wiry");
+  });
+
+  it("keeps the prose outside the blocks, rather than dropping it", () => {
+    // The parser's promise is that nothing is ever dropped; this strategy used
+    // to discard everything outside the attribute blocks.
+    const parsed = parsePersonaText(wpp);
+    const all = Object.values(parsed.fields).join("\n");
+    expect(all).toContain("never sleeps");
+    expect(all).toContain("Anvale");
+  });
+
+  it("says it kept the surrounding text", () => {
+    expect(parsePersonaText(wpp).notes.join(" ")).toMatch(/outside the attribute blocks/i);
+  });
+});

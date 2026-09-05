@@ -324,6 +324,8 @@ function parseWpp(text: string): ParsedPersona | null {
   const leftovers: string[] = [];
   let matched = 0;
   let covered = 0;
+  /** Character spans the attribute blocks occupy, so the rest can be kept. */
+  const spans: Array<[number, number]> = [];
 
   for (const m of text.matchAll(WPP_BLOCK_RE)) {
     const rawLabel = m[1].trim();
@@ -332,6 +334,7 @@ function parseWpp(text: string): ParsedPersona | null {
 
     matched++;
     covered += m[0].length;
+    spans.push([m.index ?? 0, (m.index ?? 0) + m[0].length]);
 
     const joined = values.join(", ");
     const target = lookupLabel(rawLabel);
@@ -351,7 +354,22 @@ function parseWpp(text: string): ParsedPersona | null {
   const meaningful = text.replace(/\s+/g, " ").trim().length;
   if (!meaningful || covered / meaningful < WPP_MIN_COVERAGE) return null;
 
+  // Text between the blocks — a preamble, a stray sentence — is content the
+  // author wrote, and this parser promises to keep everything it is given.
+  const outside: string[] = [];
+  let cursor = 0;
+  for (const [start, end] of spans) {
+    if (start > cursor) outside.push(text.slice(cursor, start));
+    cursor = Math.max(cursor, end);
+  }
+  outside.push(text.slice(cursor));
+  const remainder = outside.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+
   const notes = ["Read as a W++ / attribute list."];
+  if (remainder) {
+    fields.description = joinSections(fields.description, remainder);
+    notes.push("Kept the text outside the attribute blocks in Description.");
+  }
   if (leftovers.length) {
     fields.description = joinSections(fields.description, leftovers.join("\n"));
     notes.push(`Kept ${leftovers.length} unrecognised attribute${leftovers.length === 1 ? "" : "s"} in Description.`);
