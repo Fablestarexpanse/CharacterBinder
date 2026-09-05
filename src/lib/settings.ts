@@ -1,6 +1,5 @@
 import type { AppSettings } from "../types";
-
-const SETTINGS_KEY = "cb_settings_v1";
+import { createPersistedSettings } from "./persistedSettings";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   autoValidateBeforeExport: true,
@@ -8,17 +7,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   prettyPrintJson: true,
 };
 
-/** Stored settings merged over the defaults, so new keys pick up their default. */
-export function loadStoredSettings(): AppSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
+const store = createPersistedSettings("cb_settings_v1", DEFAULT_SETTINGS);
 
-export function saveSettings(settings: AppSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
+/** Stored settings merged over the defaults, so a new key picks up its default. */
+export const getAppSettings = store.get;
+/** Merge a patch into the stored settings and return the result. */
+export const saveAppSettings = store.save;
+export const subscribeAppSettings = store.subscribe;

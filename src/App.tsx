@@ -4,7 +4,7 @@ import type {
   LoreBook, ScriptCard, ScenarioCard, PersonaCard, OpenDataCard,
 } from "./types";
 import type { PlatformId } from "./lib/platforms";
-import { loadStoredSettings, saveSettings } from "./lib/settings";
+import { getAppSettings, saveAppSettings } from "./lib/settings";
 import { registerBridgeHost, initBridge } from "./lib/bridge/client";
 import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
 import { blankTemplate } from "./data/templates/ronalVoss";
@@ -32,7 +32,7 @@ function defaultFileName(name: string): string {
 
 function App() {
   const [activePage, setActivePage] = useState<NavPage>("create");
-  const [settings, setSettings] = useState<AppSettings>(loadStoredSettings);
+  const [settings, setSettings] = useState<AppSettings>(getAppSettings);
   const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   // Bumped whenever the MCP bridge mutates the library, so an open Library view
@@ -266,7 +266,7 @@ function App() {
             onOpenDataCard={openDataCard}
           />
         )}
-        {activePage === "settings" && <Settings settings={settings} onSave={(s) => { setSettings(s); saveSettings(s); }} />}
+        {activePage === "settings" && <Settings settings={settings} onSave={(s) => setSettings(saveAppSettings(s))} />}
         {activePage === "help" && <HelpAbout />}
         </ErrorBoundary>
       </main>

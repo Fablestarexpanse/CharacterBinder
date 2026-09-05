@@ -1,4 +1,5 @@
 import { DEFAULT_MODEL_ID } from "./models";
+import { createPersistedSettings } from "../persistedSettings";
 
 /** Where the AI sorter runs. */
 export type SorterBackend = "webllm" | "endpoint";
@@ -15,46 +16,25 @@ export interface SorterSettings {
   remoteAcknowledged: boolean;
 }
 
-const KEY = "cb_sorter_settings";
-
-const DEFAULTS: SorterSettings = {
+const store = createPersistedSettings("cb_sorter_settings", {
   backend: "webllm",
   modelId: DEFAULT_MODEL_ID,
   endpointUrl: "http://localhost:11434/v1",
   endpointModel: "llama3.2",
   endpointKey: "",
   remoteAcknowledged: false,
-};
+} as SorterSettings);
 
-export function getSorterSettings(): SorterSettings {
-  try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") };
-  } catch {
-    return { ...DEFAULTS };
-  }
-}
-
-const listeners = new Set<(s: SorterSettings) => void>();
+export const getSorterSettings = store.get;
 
 /**
- * These settings are edited in the Quick Import panel but also read by the
- * sidebar AI light. Without a notification the light kept a stale copy, so
- * clicking it could start downloading a model the user had just deselected —
- * potentially several GB.
+ * Saves notify subscribers because these settings are edited in the Quick
+ * Import panel but also read by the sidebar AI light. Without that the light
+ * kept a stale copy, so clicking it could start downloading a model the user
+ * had just deselected — potentially several GB.
  */
-export function subscribeSorterSettings(fn: (s: SorterSettings) => void): () => void {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
-}
-
-export function saveSorterSettings(patch: Partial<SorterSettings>): SorterSettings {
-  const next = { ...getSorterSettings(), ...patch };
-  localStorage.setItem(KEY, JSON.stringify(next));
-  for (const fn of listeners) fn(next);
-  return next;
-}
+export const saveSorterSettings = store.save;
+export const subscribeSorterSettings = store.subscribe;
 
 /**
  * True when the URL points somewhere off this machine. Persona text sent there

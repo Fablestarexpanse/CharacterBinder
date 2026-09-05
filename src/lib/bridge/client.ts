@@ -38,17 +38,40 @@ import {
 import { getAllCards, getCard as readCard, saveLibraryCard, deleteCard } from "../library";
 import { createBlankTavernCard } from "../tavernCard";
 import { coerceCardBody } from "../blankCards";
+import { createPersistedSettings } from "../persistedSettings";
 import { CARD_TYPES, type LibraryCard, type TavernCardV2 } from "../../types";
 
-const ENABLED_KEY = "cb_bridge_enabled";
-const TOKEN_KEY = "cb_bridge_token";
+/** Same read/patch contract as the app's other persisted settings. */
+const bridgeStore = createPersistedSettings("cb_bridge", { token: "", enabled: false });
+
+/**
+ * The token and the on/off flag used to be two bare localStorage keys. Carry
+ * them into the store once, so an existing user is not silently logged out of
+ * their own bridge and left retyping a token they already pasted.
+ */
+(function migrateLegacyBridgeKeys() {
+  try {
+    const token = localStorage.getItem("cb_bridge_token");
+    const enabled = localStorage.getItem("cb_bridge_enabled");
+    if (token === null && enabled === null) return;
+    bridgeStore.save({
+      ...(token !== null ? { token } : {}),
+      ...(enabled !== null ? { enabled: enabled === "1" } : {}),
+    });
+    localStorage.removeItem("cb_bridge_token");
+    localStorage.removeItem("cb_bridge_enabled");
+  } catch {
+    // Storage blocked; the user pastes the token again, which is the same
+    // position they would be in with no storage at all.
+  }
+})();
 
 export function getBridgeToken(): string {
-  return localStorage.getItem(TOKEN_KEY) ?? "";
+  return bridgeStore.get().token;
 }
 
 export function setBridgeToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token.trim());
+  bridgeStore.save({ token: token.trim() });
 }
 
 export type BridgeStatus = "off" | "connecting" | "connected" | "error";
@@ -103,17 +126,17 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let manualDisconnect = false;
 
 export function isBridgeEnabled(): boolean {
-  return localStorage.getItem(ENABLED_KEY) === "1";
+  return bridgeStore.get().enabled;
 }
 
 export function connectBridge() {
-  localStorage.setItem(ENABLED_KEY, "1");
+  bridgeStore.save({ enabled: true });
   manualDisconnect = false;
   open();
 }
 
 export function disconnectBridge() {
-  localStorage.setItem(ENABLED_KEY, "0");
+  bridgeStore.save({ enabled: false });
   manualDisconnect = true;
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;
