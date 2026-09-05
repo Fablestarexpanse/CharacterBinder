@@ -1,13 +1,13 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, LibraryCardType, OpenDataCard } from "../types";
-import type { PlatformId } from "../lib/platforms";
+import type { TavernCardV2, MetadataInfo, LibraryCardType, OpenDataCard } from "../../types";
+import type { PlatformId } from "../../lib/platforms";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
-import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
-import { convertCardFrom } from "../lib/platforms/converters";
-import { detectPlatform, PLATFORMS } from "../lib/platforms";
-import { effectiveShape } from "../lib/cardShape";
-import { pngBytesToDataUrl } from "../lib/carrierImage";
-import { errorMessage } from "../lib/errorMessage";
+import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
+import { convertCardFrom } from "../../lib/platforms/converters";
+import { detectPlatform, PLATFORMS } from "../../lib/platforms";
+import { effectiveShape } from "../../lib/cardShape";
+import { pngBytesToDataUrl } from "../../lib/carrierImage";
+import { errorMessage } from "../../lib/errorMessage";
 
 type DetectedType = LibraryCardType | null;
 

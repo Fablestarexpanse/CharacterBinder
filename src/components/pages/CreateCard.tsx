@@ -1,10 +1,10 @@
 import { useState } from "react";
-import type { TavernCardV2, AppSettings, CardProject } from "../types";
-import type { PlatformId } from "../lib/platforms";
-import CharacterEditor from "./CharacterEditor";
-import JSONView from "./JSONView";
-import RawPreview from "./RawPreview";
-import CardPreviewPanel from "./CardPreviewPanel";
+import type { TavernCardV2, AppSettings, CardProject } from "../../types";
+import type { PlatformId } from "../../lib/platforms";
+import CharacterEditor from "../editor/CharacterEditor";
+import JSONView from "../ui/JSONView";
+import RawPreview from "../ui/RawPreview";
+import CardPreviewPanel from "../editor/CardPreviewPanel";
 
 interface CreateCardProps {
   project: CardProject;

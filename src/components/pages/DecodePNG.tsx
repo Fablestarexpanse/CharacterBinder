@@ -1,15 +1,15 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType } from "../types";
-import type { PlatformId } from "../lib/platforms";
+import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType } from "../../types";
+import type { PlatformId } from "../../lib/platforms";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
-import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
-import { detectPlatform, PLATFORMS } from "../lib/platforms";
-import { convertCardFrom } from "../lib/platforms/converters";
-import FieldCompatibility from "./FieldCompatibility";
-import { useTimedFlag } from "../hooks/useTimedFlag";
-import { effectiveShape } from "../lib/cardShape";
-import { pngBytesToDataUrl } from "../lib/carrierImage";
-import { errorMessage } from "../lib/errorMessage";
+import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
+import { detectPlatform, PLATFORMS } from "../../lib/platforms";
+import { convertCardFrom } from "../../lib/platforms/converters";
+import FieldCompatibility from "../editor/FieldCompatibility";
+import { useTimedFlag } from "../../hooks/useTimedFlag";
+import { effectiveShape } from "../../lib/cardShape";
+import { pngBytesToDataUrl } from "../../lib/carrierImage";
+import { errorMessage } from "../../lib/errorMessage";
 
 type NonCharType = "lorebook" | "script" | "scenario" | "persona";
 const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {

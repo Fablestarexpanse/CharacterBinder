@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useId } from "react";
-import type { AppSettings, CardProject } from "../types";
+import type { AppSettings, CardProject } from "../../types";
 import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
-import { saveLibraryCard } from "../lib/library";
-import { saveCustomTemplate } from "../lib/customTemplates";
+import { saveLibraryCard } from "../../lib/library";
+import { saveCustomTemplate } from "../../lib/customTemplates";
 import {
   getCardTokenBreakdown,
   getTokenBudgetLevel,
@@ -10,17 +10,17 @@ import {
   TOKEN_BUDGET_LABELS,
   TOKEN_BUDGET_COLORS,
   TOKEN_BUDGET_BAR_COLORS,
-} from "../lib/tokenizer";
-import { validateTavernCardV2 } from "../lib/validators";
-import { encodeCharaToPng } from "../lib/pngMetadata";
-import { getCarrierPng } from "../lib/carrierImage";
-import { downloadJson, downloadPng } from "../lib/download";
-import { useStatusMessage } from "../hooks/useStatusMessage";
-import { PLATFORMS, type PlatformId } from "../lib/platforms";
-import { convertCardTo } from "../lib/platforms/converters";
+} from "../../lib/tokenizer";
+import { validateTavernCardV2 } from "../../lib/validators";
+import { encodeCharaToPng } from "../../lib/pngMetadata";
+import { getCarrierPng } from "../../lib/carrierImage";
+import { downloadJson, downloadPng } from "../../lib/download";
+import { useStatusMessage } from "../../hooks/useStatusMessage";
+import { PLATFORMS, type PlatformId } from "../../lib/platforms";
+import { convertCardTo } from "../../lib/platforms/converters";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";
-import { errorMessage } from "../lib/errorMessage";
+import { errorMessage } from "../../lib/errorMessage";
 
 /**
  * Chunk key used when the target platform declares none of its own — i.e. the

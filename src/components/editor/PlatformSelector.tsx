@@ -1,4 +1,4 @@
-import { PLATFORM_LIST, type PlatformId, type PlatformDef } from "../lib/platforms";
+import { PLATFORM_LIST, type PlatformId, type PlatformDef } from "../../lib/platforms";
 import { Check, Image, FileJson } from "lucide-react";
 
 interface PlatformSelectorProps {

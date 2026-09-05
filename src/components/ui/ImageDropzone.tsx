@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { readImageFile } from "../lib/readImageFile";
-import { errorMessage } from "../lib/errorMessage";
+import { readImageFile } from "../../lib/readImageFile";
+import { errorMessage } from "../../lib/errorMessage";
 
 interface ImageDropzoneProps {
   imageSrc: string | null;

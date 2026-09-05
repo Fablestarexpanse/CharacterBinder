@@ -1,10 +1,10 @@
 import { useState } from "react";
-import type { AppSettings } from "../types";
-import { DEFAULT_SETTINGS } from "../lib/settings";
+import type { AppSettings } from "../../types";
+import { DEFAULT_SETTINGS } from "../../lib/settings";
 import { Save, RotateCcw, Plug, Check } from "lucide-react";
-import { getBridgeToken, setBridgeToken } from "../lib/bridge/client";
-import { BRIDGE_PORT } from "../lib/bridge/protocol";
-import { useTimedFlag } from "../hooks/useTimedFlag";
+import { getBridgeToken, setBridgeToken } from "../../lib/bridge/client";
+import { BRIDGE_PORT } from "../../lib/bridge/protocol";
+import { useTimedFlag } from "../../hooks/useTimedFlag";
 
 interface SettingsProps {
   settings: AppSettings;

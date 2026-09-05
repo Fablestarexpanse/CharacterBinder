@@ -1,18 +1,18 @@
 import { useState, useRef, useMemo } from "react";
-import ResizableTextArea from "./ResizableTextArea";
+import ResizableTextArea from "../ui/ResizableTextArea";
 import {
   Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
   ChevronDown, ChevronUp,
   ToggleLeft, ToggleRight,
 } from "lucide-react";
-import type { LoreBook, LoreEntry } from "../types";
-import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
-import { parseLorebook, toExportedLorebook } from "../lib/lorebook";
-import { blankLoreBook } from "../lib/blankCards";
-import { useDataCardEditor } from "../hooks/useDataCardEditor";
-import ImageDropzone from "./ImageDropzone";
-import ConfirmClearPanel from "./ConfirmClearPanel";
-import TagInput from "./TagInput";
+import type { LoreBook, LoreEntry } from "../../types";
+import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../../lib/tokenizer";
+import { parseLorebook, toExportedLorebook } from "../../lib/lorebook";
+import { blankLoreBook } from "../../lib/blankCards";
+import { useDataCardEditor } from "../../hooks/useDataCardEditor";
+import ImageDropzone from "../ui/ImageDropzone";
+import ConfirmClearPanel from "../ui/ConfirmClearPanel";
+import TagInput from "../ui/TagInput";
 
 const DEFAULT_ENTRY = (): LoreEntry => ({
   id: crypto.randomUUID(),

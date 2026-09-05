@@ -1,8 +1,8 @@
 import { useRef, useMemo, useId } from "react";
 import { Copy, ClipboardPaste, Check } from "lucide-react";
-import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
+import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../../lib/tokenizer";
 import ResizableTextArea from "./ResizableTextArea";
-import { useTimedFlag } from "../hooks/useTimedFlag";
+import { useTimedFlag } from "../../hooks/useTimedFlag";
 
 interface TextAreaFieldProps {
   label: string;

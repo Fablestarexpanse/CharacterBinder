@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { NavPage } from "../types";
-import LlmStatusLight from "./LlmStatusLight";
-import BridgeStatusLight from "./BridgeStatusLight";
+import type { NavPage } from "../../types";
+import LlmStatusLight from "../editor/LlmStatusLight";
+import BridgeStatusLight from "../editor/BridgeStatusLight";
 import {
   PlusSquare,
   Library,

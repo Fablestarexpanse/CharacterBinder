@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import { Download, FileJson, Map, Save } from "lucide-react";
-import type { ScenarioCard } from "../types";
-import ResizableTextArea from "./ResizableTextArea";
-import { countTokens, getTokenBudgetLevel, tokenBudgetPercent, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
-import ImageDropzone from "./ImageDropzone";
-import ConfirmClearPanel from "./ConfirmClearPanel";
-import TagInput from "./TagInput";
-import TextAreaField from "./TextAreaField";
-import { blankScenarioCard } from "../lib/blankCards";
-import { useDataCardEditor } from "../hooks/useDataCardEditor";
+import type { ScenarioCard } from "../../types";
+import ResizableTextArea from "../ui/ResizableTextArea";
+import { countTokens, getTokenBudgetLevel, tokenBudgetPercent, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../../lib/tokenizer";
+import ImageDropzone from "../ui/ImageDropzone";
+import ConfirmClearPanel from "../ui/ConfirmClearPanel";
+import TagInput from "../ui/TagInput";
+import TextAreaField from "../ui/TextAreaField";
+import { blankScenarioCard } from "../../lib/blankCards";
+import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 
 
 interface ScenarioEditorProps {

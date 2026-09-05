@@ -1,13 +1,13 @@
 import { Download, FileJson, UserCircle, Save } from "lucide-react";
-import type { PersonaCard } from "../types";
-import ImageDropzone from "./ImageDropzone";
-import ConfirmClearPanel from "./ConfirmClearPanel";
-import TagInput from "./TagInput";
-import TextAreaField from "./TextAreaField";
-import SmartImportPanel from "./SmartImportPanel";
-import type { CardField } from "../lib/cardTextParser";
-import { blankPersonaCard } from "../lib/blankCards";
-import { useDataCardEditor } from "../hooks/useDataCardEditor";
+import type { PersonaCard } from "../../types";
+import ImageDropzone from "../ui/ImageDropzone";
+import ConfirmClearPanel from "../ui/ConfirmClearPanel";
+import TagInput from "../ui/TagInput";
+import TextAreaField from "../ui/TextAreaField";
+import SmartImportPanel from "../editor/SmartImportPanel";
+import type { CardField } from "../../lib/cardTextParser";
+import { blankPersonaCard } from "../../lib/blankCards";
+import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 
 
 interface PersonaEditorProps {

@@ -12,13 +12,13 @@ import {
   CHARACTER_FIELD_ORDER,
   type ParsedPersona,
   type CardField,
-} from "../lib/cardTextParser";
-import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../lib/cardTextSorter";
-import { useEngineState } from "../hooks/useEngineState";
-import { saveSorterSettings, type SorterSettings as Settings } from "../lib/cardTextSorter/settings";
-import { useSorterSettings } from "../hooks/useSorterSettings";
-import { errorMessage } from "../lib/errorMessage";
-import SorterSettings from "./SorterSettings";
+} from "../../lib/cardTextParser";
+import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../../lib/cardTextSorter";
+import { useEngineState } from "../../hooks/useEngineState";
+import { saveSorterSettings, type SorterSettings } from "../../lib/cardTextSorter/settings";
+import { useSorterSettings } from "../../hooks/useSorterSettings";
+import { errorMessage } from "../../lib/errorMessage";
+import SorterSettingsPanel from "./SorterSettings";
 
 interface SmartImportPanelProps {
   /** Which card shape this editor wants back. Defaults to persona. */
@@ -133,7 +133,7 @@ export default function SmartImportPanel({
     abortRef.current?.abort();
   }
 
-  function updateSettings(patch: Partial<Settings>) {
+  function updateSettings(patch: Partial<SorterSettings>) {
     saveSorterSettings(patch);
   }
 
@@ -331,7 +331,7 @@ export default function SmartImportPanel({
           )}
 
           {showSettings && (
-            <SorterSettings
+            <SorterSettingsPanel
               settings={settings}
               onChange={updateSettings}
               webGpuAvailable={isWebGpuAvailable()}

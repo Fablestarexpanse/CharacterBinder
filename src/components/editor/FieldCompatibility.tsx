@@ -1,5 +1,5 @@
-import { PLATFORMS, type PlatformId } from "../lib/platforms";
-import type { FieldSupport } from "../lib/platforms";
+import { PLATFORMS, type PlatformId } from "../../lib/platforms";
+import type { FieldSupport } from "../../lib/platforms";
 
 interface FieldCompatibilityProps {
   platformId: PlatformId;

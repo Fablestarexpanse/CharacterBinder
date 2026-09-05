@@ -1,4 +1,4 @@
-import type { TavernCardV2 } from "../types";
+import type { TavernCardV2 } from "../../types";
 
 interface RawPreviewProps {
   card: TavernCardV2;
