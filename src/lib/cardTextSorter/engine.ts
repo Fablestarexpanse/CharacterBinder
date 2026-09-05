@@ -3,6 +3,7 @@
  * doing. Nothing here knows about personas — see sorter.ts for that.
  */
 
+import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import { CONTEXT_TOKENS } from "./modelIo";
 import { errorMessage } from "../../shared/errorMessage";
 import { createObservable } from "../observable";
@@ -13,10 +14,16 @@ export interface LoadProgress {
   text: string;
 }
 
-type WebLlmEngine = {
-  chat: { completions: { create: (req: unknown) => Promise<unknown> } };
-  unload?: () => Promise<void>;
-};
+/**
+ * The vendor's own engine type, imported for its types only so the package
+ * itself stays out of the entry bundle — it is loaded on demand, and it is
+ * several hundred kilobytes.
+ *
+ * A hand-rolled shape used to stand in for it, with `create(req: unknown)`,
+ * which meant neither the request nor the reply was checked against what WebLLM
+ * actually accepts.
+ */
+export type WebLlmEngine = MLCEngineInterface;
 
 let engine: WebLlmEngine | null = null;
 let engineModelId: string | null = null;
@@ -104,7 +111,7 @@ export async function ensureEngine(modelId: string, onProgress?: (p: LoadProgres
       },
       { context_window_size: CONTEXT_TOKENS }
     );
-    engine = created as unknown as WebLlmEngine;
+    engine = created;
     return engine;
   })();
 

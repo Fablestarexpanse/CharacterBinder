@@ -103,12 +103,12 @@ async function runWebLlm(
   // be told to stop early; without this, cancelling only stopped the caller
   // waiting while the model kept generating.
   const stop = () => {
-    void (eng as { interruptGenerate?: () => void }).interruptGenerate?.();
+    void eng.interruptGenerate();
   };
   signal?.addEventListener("abort", stop, { once: true });
 
   try {
-    const reply = (await eng.chat.completions.create({
+    const reply = await eng.chat.completions.create({
       messages: [
         { role: "system", content: buildSystemPrompt(target) },
         { role: "user", content: buildUserPrompt(input) },
@@ -117,10 +117,11 @@ async function runWebLlm(
       max_tokens: MAX_OUTPUT_TOKENS,
       // Constrains decoding to the schema — the model cannot emit anything else.
       response_format: { type: "json_object", schema: buildSchema(target) },
-    })) as { choices?: Array<{ message?: { content?: string } }> };
+      stream: false,
+    });
 
     if (signal?.aborted) throw abortError();
-    return reply.choices?.[0]?.message?.content ?? "";
+    return reply.choices[0]?.message?.content ?? "";
   } finally {
     signal?.removeEventListener("abort", stop);
   }
