@@ -112,7 +112,8 @@ describe("Library", () => {
   });
 
   it("refuses to open a character record with no card body, and says which", async () => {
-    const broken = { ...libraryCharacter("c2", "Damaged"), cardData: undefined } as unknown as LibraryCard;
+    // The type allows this now, because the store really can hold it.
+    const broken: LibraryCard = { ...libraryCharacter("c2", "Damaged"), cardData: undefined };
     getAllCards.mockResolvedValue([broken]);
     const onEditCard = vi.fn();
     const user = userEvent.setup();

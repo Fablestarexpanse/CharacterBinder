@@ -1,6 +1,7 @@
 import type { TavernCardV2 } from "../../types";
 import type { PlatformId } from "./registry";
 import { createBlankTavernCard } from "../tavernCard";
+import { coerceCharacterData } from "../blankCards";
 
 // ─── Master → Platform ───────────────────────────────────────────────────────
 //
@@ -212,13 +213,15 @@ export function convertCardFrom(
       // cards fell through to the loose field mapping below and imported blank,
       // since a v3 card carries nothing at its top level but `spec` and `data`.
       if (obj.spec === "chara_card_v2" || obj.spec === "chara_card_v3") {
-        // Normalise rather than trusting the shape. A third-party card that
-        // declares v2 with a partial `data` block used to come back with
-        // undefined string fields, and the first converter to call .replace()
-        // or .slice() on one threw at export time.
-        const incoming = (obj.data ?? {}) as Partial<TavernCardV2["data"]>;
-        const card = createBlankTavernCard(String(incoming.name ?? ""));
-        card.data = { ...card.data, ...incoming, name: String(incoming.name ?? "") };
+        // Coerced, not spread. A third-party card that declares v2 with a
+        // partial or wrongly-typed `data` block used to come back with
+        // undefined or non-string fields, and the first converter to call
+        // .replace() or .slice() on one threw at export time. This is the same
+        // coercion the bridge applies to a card an agent sends, so a card is
+        // read one way whichever door it arrives through.
+        const incoming = obj.data && typeof obj.data === "object" ? (obj.data as Record<string, unknown>) : {};
+        const card = createBlankTavernCard();
+        card.data = coerceCharacterData(incoming);
         return card;
       }
       // Fallback: try to map common field names

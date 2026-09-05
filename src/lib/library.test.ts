@@ -46,7 +46,7 @@ describe("saveLibraryCard", () => {
     expect(read?.cardType).toBe("character");
     // Narrow the union the way a caller would, rather than reaching past it.
     if (read?.cardType !== "character") throw new Error("expected a character card");
-    expect(read.cardData.data.description).toBe("A dockhand.");
+    expect(read.cardData!.data.description).toBe("A dockhand.");
     // Tags come from the card itself, so the library can index on them.
     expect(read?.tags).toEqual(["harbour"]);
   });

@@ -1,4 +1,4 @@
-import type { AppSettings, TavernCardV2 } from "../../types";
+import type { AppSettings, MetadataKey, TavernCardV2 } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { PLATFORMS } from "../../shared/platforms/registry";
 import { convertCardTo } from "../../shared/platforms/converters";
@@ -15,12 +15,9 @@ import { getCarrierPng } from "./carrierImage";
  * writes into the ZIP.
  */
 
-/** Platforms that cannot read card PNGs still get a valid, importable file. */
-export const FALLBACK_METADATA_KEY = "chara" as const;
-
 /** The chunk keyword a card exported for this platform is written under. */
-export function metadataKeyFor(platformId: PlatformId): string {
-  return PLATFORMS[platformId].metadataKey ?? FALLBACK_METADATA_KEY;
+export function metadataKeyFor(platformId: PlatformId): MetadataKey {
+  return PLATFORMS[platformId].metadataKey;
 }
 
 export async function encodeCharacterCardPng(

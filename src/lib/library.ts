@@ -149,12 +149,7 @@ function withCardType(record: StoredCard): LibraryCard {
   // A typeless record predates the other four kinds, so it is a character card
   // and carries no rawData; the assertion says only that.
   const { rawData: _unused, ...rest } = record;
-  return {
-    ...rest,
-    cardType: "character",
-    cardData: record.cardData ?? ({} as TavernCardV2),
-    platform: record.platform ?? "sillytavern",
-  };
+  return { ...rest, cardType: "character", platform: record.platform ?? "sillytavern" };
 }
 
 /** Return all cards, newest first. */
@@ -182,7 +177,9 @@ export async function deleteCard(id: string): Promise<void> {
  * the plain body for the other four. This is what an export writes out.
  */
 export function cardPayload(card: LibraryCard): object {
-  return card.cardType === "character" ? card.cardData : card.rawData;
+  // A character record with no body exports as an empty object rather than
+  // aborting the archive: the rest of the library still has to come out.
+  return card.cardType === "character" ? card.cardData ?? {} : card.rawData;
 }
 
 /**

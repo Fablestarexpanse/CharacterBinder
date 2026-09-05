@@ -289,14 +289,12 @@ export default function CardPreviewPanel({
                 />
               </div>
             </div>
-            {platform.metadataKey && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">Metadata key</span>
-                <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">
-                  {platform.metadataKey}
-                </code>
-              </div>
-            )}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-text-muted">Metadata key</span>
+              <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">
+                {platform.metadataKey}
+              </code>
+            </div>
           </div>
         </div>
       </div>

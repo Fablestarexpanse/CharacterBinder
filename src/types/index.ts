@@ -146,6 +146,12 @@ export interface LoreBook {
   token_budget: number;
   recursive_scanning: boolean;
   entries: LoreEntry[];
+  /**
+   * A lorebook has no tags of its own in the interchange format, but the
+   * library indexes every card by tags, and an agent may send some. Optional so
+   * a book written without them still typechecks.
+   */
+  tags?: string[];
 }
 
 export interface ScriptCard {
@@ -274,7 +280,12 @@ export type LibraryCard =
   // `platform` is on this arm alone: it is the app a character card is
   // converted for. The other four kinds are stored as-is and have no target,
   // and used to carry their own cardType in this field to fill it.
-  | (LibraryCardBase & { cardType: "character"; cardData: TavernCardV2; platform: PlatformId; rawData?: never })
+  // `cardData` is optional because the store really can hold a character record
+  // without one — a truncated write, or an older build — and the library has to
+  // list it in order to say what is wrong with it. Optional here means the
+  // compiler requires the check at every read, rather than each reader
+  // remembering.
+  | (LibraryCardBase & { cardType: "character"; cardData?: TavernCardV2; platform: PlatformId; rawData?: never })
   | (LibraryCardBase & { cardType: "lorebook"; rawData: LoreBook; cardData?: never; platform?: never })
   | (LibraryCardBase & { cardType: "script"; rawData: ScriptCard; cardData?: never; platform?: never })
   | (LibraryCardBase & { cardType: "scenario"; rawData: ScenarioCard; cardData?: never; platform?: never })

@@ -355,7 +355,7 @@ server.registerTool(
       platform: p.name,
       readsPngCards: p.pngSupport,
       readsJson: p.jsonSupport,
-      metadataKey: p.metadataKey ?? "chara (fallback — this platform declares none)",
+      metadataKey: p.metadataKey,
       dropped: p.fields.filter((f) => f.support === "none").map((f) => f.label),
       renamedOrPartial: p.fields
         .filter((f) => f.support === "renamed" || f.support === "partial")

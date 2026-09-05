@@ -82,8 +82,8 @@ describe("cards.create", () => {
 
     const stored = await library.getCard(result.id);
     if (stored?.cardType !== "character") throw new Error("expected a character card");
-    expect(stored.cardData.data).not.toHaveProperty("evil_key");
-    expect(stored.cardData.data.personality).toBe("");
+    expect(stored.cardData!.data).not.toHaveProperty("evil_key");
+    expect(stored.cardData!.data.personality).toBe("");
   });
 });
 
@@ -95,8 +95,8 @@ describe("cards.update", () => {
     expect(confirmDestructive).toHaveBeenCalledTimes(1);
     const stored = await library.getCard(created.id);
     if (stored?.cardType !== "character") throw new Error("expected a character card");
-    expect(stored.cardData.data.personality).toBe("terse");
-    expect(stored.cardData.data.description).toBe("A dockhand.");
+    expect(stored.cardData!.data.personality).toBe("terse");
+    expect(stored.cardData!.data.description).toBe("A dockhand.");
   });
 
   it("leaves the card alone when the user refuses", async () => {
@@ -106,7 +106,7 @@ describe("cards.update", () => {
     await expect(call("cards.update", { id: created.id, patch: { personality: "terse" } })).rejects.toThrow(/declined/i);
     const stored = await library.getCard(created.id);
     if (stored?.cardType !== "character") throw new Error("expected a character card");
-    expect(stored.cardData.data.personality).toBe("");
+    expect(stored.cardData!.data.personality).toBe("");
   });
 
   it("needs an id", async () => {

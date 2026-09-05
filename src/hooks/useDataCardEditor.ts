@@ -138,7 +138,7 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
       const target = resolveSaveTarget(libraryId, card.version, savedVersion);
       const common = {
         imageSrc,
-        tags: tagsOf ? tagsOf(card) : (card as { tags?: string[] }).tags ?? [],
+        tags: tagsOf ? tagsOf(card) : card.tags ?? [],
         existingId: target.existingId,
       };
 

@@ -34,7 +34,14 @@ export interface PlatformDef {
   description: string;
   pngSupport: boolean;
   jsonSupport: boolean;
-  metadataKey?: MetadataKey;  // PNG chunk key, present iff pngSupport
+  /**
+   * The PNG chunk key a card for this platform is written under.
+   *
+   * Required even where `pngSupport` is false: the app will still build a PNG
+   * for archiving, and it has to put the card somewhere. That used to be an
+   * absent field and a fallback invented at each of four call sites.
+   */
+  metadataKey: MetadataKey;
   templateVars: { user: string; char: string };
   fields: FieldSupport[];
   importKeys: string[];    // JSON keys that identify this format
@@ -80,6 +87,8 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
     borderColor: "border-cyan-200",
     description: "JSON import only — description maps to 'persona'",
     pngSupport: false,
+    // No PNG import of its own, but an archive PNG still has to carry the card.
+    metadataKey: "chara",
     jsonSupport: true,
     templateVars: { user: "{{user}}", char: "{{bot}}" },
     importKeys: ["persona", "greeting"],
@@ -139,6 +148,8 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
     borderColor: "border-purple-200",
     description: "JSON only — different schema with persona.attributes",
     pngSupport: false,
+    // No PNG import of its own, but an archive PNG still has to carry the card.
+    metadataKey: "chara",
     jsonSupport: true,
     templateVars: { user: "{{user}}", char: "{{char}}" },
     importKeys: ["kind", "persona", "sampleChat"],
@@ -201,6 +212,8 @@ export const PLATFORMS: Record<PlatformId, PlatformDef> = {
     borderColor: "border-green-200",
     description: "Own schema — name/description/prompt remapped",
     pngSupport: false,
+    // No PNG import of its own, but an archive PNG still has to carry the card.
+    metadataKey: "chara",
     jsonSupport: true,
     templateVars: { user: "{{user}}", char: "{{char}}" },
     importKeys: ["aiName", "basePrompt", "initialMessage"],
