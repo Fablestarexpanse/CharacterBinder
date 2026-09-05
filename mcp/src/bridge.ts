@@ -80,8 +80,13 @@ function randomNonce(): string {
   return randomUUID().replace(/-/g, "");
 }
 
-export function startBridge(): void {
-  token = loadOrCreateToken();
+/**
+ * @param opts Overrides for tests, which need their own port and token rather
+ * than binding the real one and reading the user's pairing file.
+ */
+export function startBridge(opts: { port?: number; token?: string } = {}): { close: () => void } {
+  token = opts.token ?? loadOrCreateToken();
+  const port = opts.port ?? BRIDGE_PORT;
 
   let wss: WebSocketServer;
   try {
@@ -89,7 +94,7 @@ export function startBridge(): void {
     // reachable from off the machine.
     wss = new WebSocketServer({
       host: "127.0.0.1",
-      port: BRIDGE_PORT,
+      port,
       maxPayload: MAX_PAYLOAD,
       verifyClient: ({ origin }: { origin?: string }) => {
         // A browser always sends Origin; the app itself is the only browser
@@ -104,13 +109,13 @@ export function startBridge(): void {
     });
   } catch (err) {
     listenError = err instanceof Error ? err.message : String(err);
-    return;
+    return { close: () => {} };
   }
 
   wss.on("error", (err) => {
     listenError =
       (err as NodeJS.ErrnoException).code === "EADDRINUSE"
-        ? `Port ${BRIDGE_PORT} is already in use — another CharacterBinder MCP server is probably running.`
+        ? `Port ${port} is already in use — another CharacterBinder MCP server is probably running.`
         : err.message;
     // Logs go to stderr; stdout belongs to the MCP transport.
     console.error(`[characterbinder-mcp] ${listenError}`);
@@ -225,9 +230,21 @@ export function startBridge(): void {
     });
   });
 
-  console.error(`[characterbinder-mcp] bridge listening on 127.0.0.1:${BRIDGE_PORT}`);
+  console.error(`[characterbinder-mcp] bridge listening on 127.0.0.1:${port}`);
   console.error(`[characterbinder-mcp] pairing token: ${token}`);
-  console.error(`[characterbinder-mcp] (also at ${tokenPath()} — paste it into the app's Settings once)`);
+  // Only the token that came from the file lives at that path; an injected one
+  // does not, and saying otherwise would send a reader to the wrong value.
+  if (!opts.token) {
+    console.error(`[characterbinder-mcp] (also at ${tokenPath()} — paste it into the app's Settings once)`);
+  }
+
+  return {
+    close: () => {
+      for (const client of wss.clients) client.terminate();
+      wss.close();
+      appSocket = null;
+    },
+  };
 }
 
 export function isAppConnected(): boolean {

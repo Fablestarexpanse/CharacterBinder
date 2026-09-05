@@ -55,6 +55,13 @@ opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 npm test
 ```
 
+The MCP server is its own package with its own suite — the bridge handshake is
+driven over a real socket there:
+
+```bash
+npm --prefix mcp test
+```
+
 ---
 
 ## What Is CharacterBinder?
