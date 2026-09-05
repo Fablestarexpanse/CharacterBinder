@@ -160,7 +160,25 @@ export interface ScenarioCard {
   creator_notes: string;
 }
 
+/**
+ * The five kinds of card this app understands. Declared once: every other module
+ * imports this rather than restating the literals, so a new card type is a
+ * compile error everywhere it needs handling instead of a silent gap.
+ */
 export type LibraryCardType = "character" | "lorebook" | "script" | "scenario" | "persona";
+
+/** Every card kind, in the order the UI presents them. */
+export const CARD_TYPES: readonly LibraryCardType[] = [
+  "character",
+  "lorebook",
+  "script",
+  "scenario",
+  "persona",
+] as const;
+
+export function isCardType(value: unknown): value is LibraryCardType {
+  return typeof value === "string" && (CARD_TYPES as readonly string[]).includes(value);
+}
 
 export interface PersonaCard {
   spec: "persona_card_v1";
@@ -175,13 +193,10 @@ export interface PersonaCard {
   creator_notes: string;
 }
 
-export interface LibraryCard {
+/** Everything every stored card carries, regardless of kind. */
+export interface LibraryCardBase {
   id: string;
   name: string;
-  /** Defaults to "character" for legacy records that pre-date this field. */
-  cardType: LibraryCardType;
-  cardData?: TavernCardV2;   // present when cardType === "character"
-  rawData?: unknown;          // present when cardType is lorebook | script | scenario
   pngData: Uint8Array | null;
   imageSrc: string | null;
   platform: string;
@@ -189,3 +204,24 @@ export interface LibraryCard {
   createdAt: number;
   updatedAt: number;
 }
+
+/**
+ * A stored card, discriminated on `cardType`.
+ *
+ * The payload slot used to depend on cardType by convention, documented in a
+ * comment — so every read re-asserted the type with a cast the compiler could
+ * not check. Narrowing on `cardType` now does that work.
+ */
+export type LibraryCard =
+  | (LibraryCardBase & { cardType: "character"; cardData: TavernCardV2; rawData?: never })
+  | (LibraryCardBase & { cardType: "lorebook"; rawData: LoreBook; cardData?: never })
+  | (LibraryCardBase & { cardType: "script"; rawData: ScriptCard; cardData?: never })
+  | (LibraryCardBase & { cardType: "scenario"; rawData: ScenarioCard; cardData?: never })
+  | (LibraryCardBase & { cardType: "persona"; rawData: PersonaCard; cardData?: never });
+
+/** The non-character payload for a given card type. */
+export type RawCardFor<T extends Exclude<LibraryCardType, "character">> =
+  T extends "lorebook" ? LoreBook
+  : T extends "script" ? ScriptCard
+  : T extends "scenario" ? ScenarioCard
+  : PersonaCard;

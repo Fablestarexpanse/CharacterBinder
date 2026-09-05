@@ -12,19 +12,9 @@ import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
 import SmartImportPanel from "./SmartImportPanel";
 import type { PersonaField } from "../lib/personaParser";
+import { blankPersonaCard } from "../lib/blankCards";
 
-const DEFAULT: PersonaCard = {
-  spec: "persona_card_v1",
-  name: "",
-  description: "",
-  personality: "",
-  appearance: "",
-  background: "",
-  tags: [],
-  creator: "",
-  version: "1.0",
-  creator_notes: "",
-};
+const DEFAULT = blankPersonaCard();
 
 interface PersonaEditorProps {
   initialCard?: PersonaCard;

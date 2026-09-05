@@ -10,17 +10,9 @@ import { useStatusMessage } from "../hooks/useStatusMessage";
 import ImageDropzone from "./ImageDropzone";
 import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
+import { blankScriptCard } from "../lib/blankCards";
 
-const DEFAULT: ScriptCard = {
-  spec: "script_card_v1",
-  name: "",
-  description: "",
-  content: "",
-  tags: [],
-  author: "",
-  version: "1.0",
-  creator_notes: "",
-};
+const DEFAULT = blankScriptCard();
 
 interface ScriptEditorProps {
   initialCard?: ScriptCard;

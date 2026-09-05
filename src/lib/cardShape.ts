@@ -10,7 +10,10 @@
  * Shape is the more reliable signal, so we check it and let the caller reconcile.
  */
 
-export type CardShape = "character" | "lorebook" | "script" | "scenario" | "persona";
+import type { LibraryCardType } from "../types";
+
+/** Alias kept for readability at call sites; the vocabulary lives in ../types. */
+export type CardShape = LibraryCardType;
 
 /** Metadata keywords that are meant to carry a character card. */
 export const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);

@@ -5,6 +5,7 @@ import {
   SortAsc, SortDesc, CheckSquare, Square,
   type LucideIcon,
 } from "lucide-react";
+import { parseLorebook } from "../lib/lorebook";
 import type { LibraryCard, LibraryCardType, TavernCardV2, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
 import { getAllCards, deleteCard } from "../lib/library";
 import { exportCardsAsZip } from "../lib/archive";
@@ -129,7 +130,7 @@ export default function Library({ refreshToken = 0, onEditCard, onEditLorebook, 
     if (type === "character" && card.cardData) {
       onEditCard(card.cardData, card.pngData, card.imageSrc, card.id);
     } else if (type === "lorebook" && card.rawData) {
-      onEditLorebook(card.rawData as LoreBook, card.imageSrc, card.id);
+      onEditLorebook(parseLorebook(card.rawData), card.imageSrc, card.id);
     } else if (type === "script" && card.rawData) {
       onEditScript(card.rawData as ScriptCard, card.imageSrc, card.id);
     } else if (type === "scenario" && card.rawData) {

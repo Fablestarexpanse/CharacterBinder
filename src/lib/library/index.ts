@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from "idb";
-import type { LibraryCard, LibraryCardType, TavernCardV2 } from "../../types";
+import type { LibraryCard, LibraryCardType, RawCardFor, TavernCardV2 } from "../../types";
 
 const DB_NAME = "characterbinder-library";
 const DB_VERSION = 2;
@@ -30,7 +30,17 @@ async function getDb() {
   return _db;
 }
 
-/** Save / update a character card. */
+/**
+ * Read the createdAt of an existing record, so an update keeps its original
+ * creation time rather than resetting it.
+ */
+async function originalCreatedAt(db: IDBPDatabase, existingId: string | undefined, fallback: number): Promise<number> {
+  if (!existingId) return fallback;
+  const prior = await db.get(STORE, existingId);
+  return prior?.createdAt ?? fallback;
+}
+
+/** Save or update a character card. Name and tags come from the card itself. */
 export async function saveCard(
   cardData: TavernCardV2,
   pngData: Uint8Array | null,
@@ -45,55 +55,68 @@ export async function saveCard(
     name: cardData.data.name || "Unnamed Character",
     cardType: "character",
     cardData,
-    rawData: undefined,
     pngData,
     imageSrc,
     platform,
     tags: cardData.data.tags ?? [],
-    createdAt: existingId ? ((await db.get(STORE, existingId))?.createdAt ?? now) : now,
+    createdAt: await originalCreatedAt(db, existingId, now),
     updatedAt: now,
   };
   await db.put(STORE, card);
   return card;
 }
 
-/** Save / update a lorebook, script, or scenario card. */
-export async function saveAnyCard(
-  cardType: Exclude<LibraryCardType, "character">,
+/**
+ * Save or update a lorebook, script, scenario, or persona card.
+ *
+ * Generic over the card type so `rawData` is checked against the payload that
+ * type actually stores, rather than being accepted as `unknown` and cast back
+ * out at every read.
+ */
+export async function saveAnyCard<T extends Exclude<LibraryCardType, "character">>(
+  cardType: T,
   name: string,
-  rawData: unknown,
+  rawData: RawCardFor<T>,
   imageSrc: string | null,
   tags: string[],
   existingId?: string
 ): Promise<LibraryCard> {
   const db = await getDb();
   const now = Date.now();
-  const card: LibraryCard = {
+  const card = {
     id: existingId ?? crypto.randomUUID(),
     name: name || `Unnamed ${cardType}`,
     cardType,
-    cardData: undefined,
     rawData,
     pngData: null,
     imageSrc,
     platform: cardType,
     tags,
-    createdAt: existingId ? ((await db.get(STORE, existingId))?.createdAt ?? now) : now,
+    createdAt: await originalCreatedAt(db, existingId, now),
     updatedAt: now,
-  };
+  } as LibraryCard;
   await db.put(STORE, card);
   return card;
 }
 
-/** Return all cards, sorted newest-first, with legacy cardType normalised to "character". */
+/** Return all cards, newest first, with legacy records normalised to "character". */
 export async function getAllCards(): Promise<LibraryCard[]> {
   const db = await getDb();
   const all: LibraryCard[] = await db.getAll(STORE);
   return all
-    .map((c) => ({ ...c, cardType: c.cardType ?? "character" }))
+    .map((c) => ({ ...c, cardType: c.cardType ?? "character" }) as LibraryCard)
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+/**
+ * One card by id. Callers previously scanned getAllCards() to find one, which
+ * reads and deserialises the entire library to answer a point lookup.
+ */
+export async function getCard(id: string): Promise<LibraryCard | null> {
+  const db = await getDb();
+  const card = await db.get(STORE, id);
+  return card ? ({ ...card, cardType: card.cardType ?? "character" } as LibraryCard) : null;
+}
 
 export async function deleteCard(id: string): Promise<void> {
   const db = await getDb();

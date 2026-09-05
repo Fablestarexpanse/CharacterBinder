@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
+import { parseLorebook } from "../lib/lorebook";
+import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard, PersonaCard, LibraryCardType } from "../types";
 import type { PlatformId } from "../lib/platforms";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
@@ -7,7 +8,7 @@ import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { detectCardShape, shapeForKey } from "../lib/cardShape";
 
-type DetectedType = "character" | "lorebook" | "script" | "scenario" | "persona" | null;
+type DetectedType = LibraryCardType | null;
 
 interface ImportPNGProps {
   onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
@@ -129,7 +130,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           ? Object.keys(parsed.entries).length
           : 0;
         setMessage(`Loaded lorebook "${parsed.name || "Unnamed"}" — ${entryCount} entries${mismatchNote}. Opening in editor…`);
-        onLoadLorebook?.(parsed as LoreBook, imageSrc);
+        onLoadLorebook?.(parseLorebook(parsed), imageSrc);
         return;
       }
 

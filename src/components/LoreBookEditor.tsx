@@ -9,6 +9,7 @@ import type { LoreBook, LoreEntry } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { saveAnyCard } from "../lib/library";
+import { parseLorebook, toExportedLorebook } from "../lib/lorebook";
 import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
 import { useStatusMessage } from "../hooks/useStatusMessage";
@@ -43,48 +44,6 @@ const DEFAULT_BOOK: LoreBook = {
   recursive_scanning: false,
   entries: [],
 };
-
-// ─── SillyTavern lorebook JSON parser ───────────────────────────────────────
-// ST entries can be an object keyed by numeric strings OR a plain array.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseSillyTavernLorebook(raw: any): LoreBook {
-  const name: string                = raw.name              ?? "";
-  const description: string         = raw.description       ?? "";
-  const creator: string             = raw.creator           ?? raw.author ?? "";
-  const version: string             = raw.version           ?? "1.0";
-  const creator_notes: string       = raw.creator_notes     ?? "";
-  const scan_depth: number          = raw.scan_depth        ?? 50;
-  const token_budget: number        = raw.token_budget      ?? 512;
-  const recursive_scanning: boolean = raw.recursive_scanning ?? false;
-
-  let rawEntries: unknown[];
-  if (Array.isArray(raw.entries)) {
-    rawEntries = raw.entries;
-  } else if (raw.entries && typeof raw.entries === "object") {
-    rawEntries = Object.values(raw.entries);
-  } else {
-    rawEntries = [];
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const entries: LoreEntry[] = rawEntries.map((e: any) => ({
-    id:               crypto.randomUUID(),
-    name:             e.name             ?? e.comment ?? "",
-    comment:          e.comment          ?? e.name    ?? "",
-    keys:             Array.isArray(e.keys)           ? e.keys           : [],
-    secondary_keys:   Array.isArray(e.secondary_keys) ? e.secondary_keys : [],
-    content:          e.content          ?? "",
-    enabled:          e.enabled          ?? true,
-    insertion_order:  e.insertion_order  ?? 100,
-    case_sensitive:   e.case_sensitive   ?? false,
-    priority:         e.priority         ?? 10,
-    selective:        e.selective        ?? false,
-    constant:         e.constant         ?? false,
-    position:         (e.position === "after_char" ? "after_char" : "before_char") as LoreEntry["position"],
-  }));
-
-  return { name, description, creator, version, creator_notes, scan_depth, token_budget, recursive_scanning, entries };
-}
 
 interface LoreBookEditorProps {
   initialBook?: LoreBook;
@@ -149,7 +108,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     reader.onload = (e) => {
       try {
         const raw = JSON.parse(e.target?.result as string);
-        const parsed = parseSillyTavernLorebook(raw);
+        const parsed = parseLorebook(raw);
         setBook(parsed);
         setSelectedId(parsed.entries[0]?.id ?? null);
         setLibraryId(undefined);
@@ -170,35 +129,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     setOutputFileName("lorebook.png");
   }
 
-  function buildExportData() {
-    return {
-      name: book.name,
-      description: book.description,
-      creator: book.creator,
-      version: book.version,
-      creator_notes: book.creator_notes,
-      scan_depth: book.scan_depth,
-      token_budget: book.token_budget,
-      recursive_scanning: book.recursive_scanning,
-      extensions: {},
-      entries: book.entries.map((e, i) => ({
-        id: i,
-        keys: e.keys,
-        secondary_keys: e.secondary_keys,
-        comment: e.comment || e.name,
-        content: e.content,
-        constant: e.constant,
-        selective: e.selective,
-        insertion_order: e.insertion_order,
-        enabled: e.enabled,
-        position: e.position,
-        case_sensitive: e.case_sensitive,
-        name: e.name,
-        priority: e.priority,
-        extensions: {},
-      })),
-    };
-  }
+  const buildExportData = () => toExportedLorebook(book);
 
   function exportJson() {
     downloadJson(buildExportData(), outputFileName);
@@ -221,7 +152,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     try {
       const allKeys = book.entries.flatMap((e) => e.keys);
       const versionChanged = !!libraryId && book.version.trim() !== savedVersion;
-      const saved = await saveAnyCard("lorebook", book.name || "Unnamed Lorebook", buildExportData(), imageSrc, allKeys.slice(0, 10), versionChanged ? undefined : libraryId);
+      const saved = await saveAnyCard("lorebook", book.name || "Unnamed Lorebook", book, imageSrc, allKeys.slice(0, 10), versionChanged ? undefined : libraryId);
       setLibraryId(saved.id);
       setSavedVersion(book.version);
       setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);

@@ -35,9 +35,10 @@ import {
   type OpenParams,
   type UpdateParams,
 } from "./protocol";
-import { getAllCards, saveCard, saveAnyCard, deleteCard } from "../library";
+import { getAllCards, getCard as readCard, saveCard, saveAnyCard, deleteCard } from "../library";
 import { createBlankTavernCard } from "../tavernCard";
-import type { LibraryCard, TavernCardV2 } from "../../types";
+import { coerceCardBody } from "../blankCards";
+import { CARD_TYPES, type LibraryCard, type TavernCardV2 } from "../../types";
 
 const ENABLED_KEY = "cb_bridge_enabled";
 const TOKEN_KEY = "cb_bridge_token";
@@ -280,18 +281,23 @@ function summarise(c: LibraryCard): CardSummary {
   return {
     id: c.id,
     name: c.name,
-    cardType: c.cardType as CardType,
+    cardType: c.cardType,
     tags: c.tags ?? [],
     hasImage: !!c.imageSrc,
     updatedAt: c.updatedAt,
-    version: bodyOf(c)?.character_version ?? bodyOf(c)?.version,
+    version: stringField(bodyOf(c), "character_version") ?? stringField(bodyOf(c), "version"),
   };
 }
 
 /** The editable body of a card, whichever slot it lives in. */
-function bodyOf(c: LibraryCard): Record<string, string> | undefined {
-  if (c.cardType === "character") return c.cardData?.data as unknown as Record<string, string>;
-  return c.rawData as Record<string, string> | undefined;
+function bodyOf(c: LibraryCard): Record<string, unknown> {
+  return c.cardType === "character" ? { ...c.cardData.data } : { ...c.rawData };
+}
+
+/** A body field, when it holds a string. Card bodies come from disk and agents. */
+function stringField(body: Record<string, unknown>, key: string): string | undefined {
+  const v = body[key];
+  return typeof v === "string" ? v : undefined;
 }
 
 async function listCards(params: ListParams = {}): Promise<{ cards: CardSummary[] }> {
@@ -301,7 +307,7 @@ async function listCards(params: ListParams = {}): Promise<{ cards: CardSummary[
 }
 
 async function findCard(id: string): Promise<LibraryCard> {
-  const card = (await getAllCards()).find((c) => c.id === id);
+  const card = await readCard(id);
   if (!card) throw new Error(`No card with id ${id}. Call list_cards to see what exists.`);
   return card;
 }
@@ -311,7 +317,7 @@ async function getCard(params: GetParams): Promise<GetResult> {
   return {
     id: c.id,
     name: c.name,
-    cardType: c.cardType as CardType,
+    cardType: c.cardType,
     tags: c.tags ?? [],
     data: c.cardType === "character" ? c.cardData : c.rawData,
     hasImage: !!c.imageSrc,
@@ -338,7 +344,7 @@ async function persist(
 
   const name = String(body.name ?? "") || `Unnamed ${cardType}`;
   const tags = Array.isArray(body.tags) ? (body.tags as string[]) : [];
-  return saveAnyCard(cardType, name, body, imageSrc, tags, existingId);
+  return saveAnyCard(cardType, name, coerceCardBody(cardType, body), imageSrc, tags, existingId);
 }
 
 /**
@@ -354,12 +360,12 @@ function safeImageSrc(src: unknown): string | null {
   return src;
 }
 
-const ALLOWED_CARD_TYPES: CardType[] = ["character", "lorebook", "script", "scenario", "persona"];
+
 
 async function createCard(params: CreateParams): Promise<MutationResult> {
   if (!params?.cardType) throw new Error("cardType is required.");
-  if (!ALLOWED_CARD_TYPES.includes(params.cardType)) {
-    throw new Error(`Unknown cardType "${params.cardType}". Expected one of: ${ALLOWED_CARD_TYPES.join(", ")}.`);
+  if (!CARD_TYPES.includes(params.cardType)) {
+    throw new Error(`Unknown cardType "${params.cardType}". Expected one of: ${CARD_TYPES.join(", ")}.`);
   }
   const saved = await persist(params.cardType, params.data ?? {}, safeImageSrc(params.imageSrc));
   host?.onLibraryChanged?.();
