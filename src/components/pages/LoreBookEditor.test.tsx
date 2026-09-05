@@ -42,13 +42,13 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("LoreBookEditor", () => {
   it("opens with the first entry of a loaded book selected", () => {
-    render(<LoreBookEditor initialBook={book(2)} />);
+    render(<LoreBookEditor initialCard={book(2)} />);
     expect(screen.getByPlaceholderText("Dragon Lore...")).toHaveValue("Entry 0");
   });
 
   it("adds an entry and selects it", async () => {
     const user = userEvent.setup();
-    render(<LoreBookEditor initialBook={book(1)} />);
+    render(<LoreBookEditor initialCard={book(1)} />);
     await user.click(screen.getByRole("button", { name: /add entry/i }));
     // The new entry is blank and selected, so the detail pane shows empty fields.
     expect(screen.getByPlaceholderText("Dragon Lore...")).toHaveValue("");
@@ -56,7 +56,7 @@ describe("LoreBookEditor", () => {
 
   it("edits the selected entry's name in the list as you type", async () => {
     const user = userEvent.setup();
-    render(<LoreBookEditor initialBook={book(1)} />);
+    render(<LoreBookEditor initialCard={book(1)} />);
     const nameField = screen.getByPlaceholderText("Dragon Lore...");
     await user.clear(nameField);
     await user.type(nameField, "Dragons");
@@ -65,7 +65,7 @@ describe("LoreBookEditor", () => {
 
   it("derives the output filename from the book name, then leaves a typed one alone", async () => {
     const user = userEvent.setup();
-    render(<LoreBookEditor initialBook={book(1)} />);
+    render(<LoreBookEditor initialCard={book(1)} />);
     const fileField = screen.getByDisplayValue("World_lorebook.png");
 
     await user.clear(fileField);
@@ -79,7 +79,7 @@ describe("LoreBookEditor", () => {
 
   it("counts the entries it holds", async () => {
     const user = userEvent.setup();
-    render(<LoreBookEditor initialBook={book(2)} />);
+    render(<LoreBookEditor initialCard={book(2)} />);
     await user.click(screen.getByRole("button", { name: /add entry/i }));
     const aside = screen.getByText("Entries").closest("div")!;
     expect(within(aside).getByText("3")).toBeInTheDocument();

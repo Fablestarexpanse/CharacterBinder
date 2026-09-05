@@ -267,7 +267,7 @@ function App() {
         {activePage === "lorebook" && (
           <LoreBookEditor
             key={editorKey}
-            initialBook={editorInit.lorebook?.card}
+            initialCard={editorInit.lorebook?.card}
             initialImageSrc={editorInit.lorebook?.imageSrc}
             initialLibraryId={editorInit.lorebook?.id}
           />

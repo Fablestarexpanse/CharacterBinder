@@ -32,12 +32,12 @@ const DEFAULT_ENTRY = (): LoreEntry => ({
 
 
 interface LoreBookEditorProps {
-  initialBook?: LoreBook;
+  initialCard?: LoreBook;
   initialImageSrc?: string | null;
   initialLibraryId?: string;
 }
 
-export default function LoreBookEditor({ initialBook, initialImageSrc, initialLibraryId }: LoreBookEditorProps) {
+export default function LoreBookEditor({ initialCard, initialImageSrc, initialLibraryId }: LoreBookEditorProps) {
   const {
     card: book, update: updateBook, setCard: setBook,
     imageSrc, setImageSrc, libraryId, saving, status, setMsg,
@@ -46,7 +46,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   } = useDataCardEditor({
     cardType: "lorebook",
     blank: blankLoreBook,
-    initialCard: initialBook,
+    initialCard: initialCard,
     initialImageSrc,
     initialLibraryId,
     // Files carry SillyTavern's positional entry format; the editor holds its
@@ -57,7 +57,7 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     tagsOf: (b) => b.entries.flatMap((e) => e.keys).slice(0, 10),
   });
 
-  const [selectedId, setSelectedId] = useState<string | null>(initialBook?.entries[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialCard?.entries[0]?.id ?? null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draggingJson, setDraggingJson] = useState(false);
   const jsonInputRef = useRef<HTMLInputElement>(null);
