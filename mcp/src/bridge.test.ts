@@ -137,3 +137,21 @@ describe("bridge handshake", () => {
     expect(isAppConnected()).toBe(true);
   });
 });
+
+describe("startBridge", () => {
+  it("reports the port it actually bound, not the default", async () => {
+    server = startBridge({ port: PORT, token: TOKEN });
+    const { bridgeStatus } = await import("./bridge.js");
+    expect(bridgeStatus().port).toBe(PORT);
+  });
+
+  it("says so when the port is already taken, rather than looking started", async () => {
+    server = startBridge({ port: PORT, token: TOKEN });
+    const second = startBridge({ port: PORT, token: TOKEN });
+    // ws reports EADDRINUSE asynchronously, so the failure shows up in status.
+    await new Promise((r) => setTimeout(r, 50));
+    const { bridgeStatus } = await import("./bridge.js");
+    expect(bridgeStatus().error).toMatch(/already in use/i);
+    second.close();
+  });
+});

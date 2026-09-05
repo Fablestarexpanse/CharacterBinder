@@ -36,6 +36,8 @@ import { loadOrCreateToken, tokenPath } from "./token.js";
 
 let appSocket: WebSocket | null = null;
 let listenError: string | null = null;
+/** The port actually bound, which is not the default one under test. */
+let boundPort = BRIDGE_PORT;
 let token = "";
 
 interface Pending {
@@ -83,7 +85,11 @@ function randomNonce(): string {
  * @param opts Overrides for tests, which need their own port and token rather
  * than binding the real one and reading the user's pairing file.
  */
-export function startBridge(opts: { port?: number; token?: string } = {}): { close: () => void } {
+export function startBridge(opts: { port?: number; token?: string } = {}): {
+  close: () => void;
+  /** Set when the port could not be bound; the caller can say so up front. */
+  error: string | null;
+} {
   let tokenIsNew = false;
   if (opts.token) {
     token = opts.token;
@@ -93,6 +99,7 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
     tokenIsNew = loaded.created;
   }
   const port = opts.port ?? BRIDGE_PORT;
+  boundPort = port;
 
   let wss: WebSocketServer;
   try {
@@ -115,7 +122,7 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
     });
   } catch (err) {
     listenError = err instanceof Error ? err.message : String(err);
-    return { close: () => {} };
+    return { close: () => {}, error: listenError };
   }
 
   wss.on("error", (err) => {
@@ -253,6 +260,9 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
       wss.close();
       appSocket = null;
     },
+    // A bind failure arrives on the 'error' event, after this returns; the
+    // caller reads bridgeStatus() for that.
+    error: null,
   };
 }
 
@@ -261,7 +271,7 @@ export function isAppConnected(): boolean {
 }
 
 export function bridgeStatus(): { connected: boolean; port: number; error: string | null; tokenPath: string } {
-  return { connected: isAppConnected(), port: BRIDGE_PORT, error: listenError, tokenPath: tokenPath() };
+  return { connected: isAppConnected(), port: boundPort, error: listenError, tokenPath: tokenPath() };
 }
 
 const NOT_CONNECTED =
