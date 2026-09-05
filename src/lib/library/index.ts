@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from "idb";
 import type {
-  LibraryCard, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
+  LibraryCard, LibraryCardBase, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
 } from "../../types";
 
 const DB_NAME = "characterbinder-library";
@@ -120,13 +120,22 @@ export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard
   return card;
 }
 
-/** Return all cards, newest first, with legacy records normalised to "character". */
+/**
+ * Records written before card types existed have no `cardType`; they are all
+ * character cards. Both reads apply this, so nothing downstream needs to repeat
+ * the fallback — a card that has been through here always has a type.
+ */
+function withCardType(record: LibraryCard): LibraryCard {
+  if (record.cardType) return record;
+  const legacy = record as LibraryCardBase & { cardData: TavernCardV2 };
+  return { ...legacy, cardType: "character" };
+}
+
+/** Return all cards, newest first. */
 export async function getAllCards(): Promise<LibraryCard[]> {
   const db = await getDb();
   const all: LibraryCard[] = await db.getAll(STORE);
-  return all
-    .map((c) => ({ ...c, cardType: c.cardType ?? "character" }) as LibraryCard)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+  return all.map(withCardType).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /**
@@ -136,7 +145,7 @@ export async function getAllCards(): Promise<LibraryCard[]> {
 export async function getCard(id: string): Promise<LibraryCard | null> {
   const db = await getDb();
   const card = await db.get(STORE, id);
-  return card ? ({ ...card, cardType: card.cardType ?? "character" } as LibraryCard) : null;
+  return card ? withCardType(card) : null;
 }
 
 export async function deleteCard(id: string): Promise<void> {

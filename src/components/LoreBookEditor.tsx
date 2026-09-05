@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import ResizableTextArea from "./ResizableTextArea";
 import {
   Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
@@ -7,12 +7,9 @@ import {
 } from "lucide-react";
 import type { LoreBook, LoreEntry } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
-import { encodeCharaToPng } from "../lib/pngMetadata";
-import { saveLibraryCard } from "../lib/library";
 import { parseLorebook, toExportedLorebook } from "../lib/lorebook";
-import { getCarrierPng } from "../lib/carrierImage";
-import { downloadJson, downloadPng } from "../lib/download";
-import { useStatusMessage } from "../hooks/useStatusMessage";
+import { blankLoreBook } from "../lib/blankCards";
+import { useDataCardEditor } from "../hooks/useDataCardEditor";
 import ImageDropzone from "./ImageDropzone";
 import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
@@ -33,17 +30,6 @@ const DEFAULT_ENTRY = (): LoreEntry => ({
   comment: "",
 });
 
-const DEFAULT_BOOK: LoreBook = {
-  name: "",
-  description: "",
-  creator: "",
-  version: "1.0",
-  creator_notes: "",
-  scan_depth: 50,
-  token_budget: 512,
-  recursive_scanning: false,
-  entries: [],
-};
 
 interface LoreBookEditorProps {
   initialBook?: LoreBook;
@@ -52,54 +38,52 @@ interface LoreBookEditorProps {
 }
 
 export default function LoreBookEditor({ initialBook, initialImageSrc, initialLibraryId }: LoreBookEditorProps) {
-  const [book, setBook] = useState<LoreBook>(initialBook ?? DEFAULT_BOOK);
+  const {
+    card: book, update: updateBook, setCard: setBook,
+    imageSrc, setImageSrc, libraryId, saving, status, setMsg,
+    outputFileName, setOutputFileName,
+    save: handleSaveToLibrary, exportJson, exportPng, clear,
+  } = useDataCardEditor({
+    cardType: "lorebook",
+    blank: blankLoreBook,
+    initialCard: initialBook,
+    initialImageSrc,
+    initialLibraryId,
+    // Files carry SillyTavern's positional entry format; the editor holds its
+    // own UUID-keyed one.
+    toExport: toExportedLorebook,
+    // A lorebook has no tags of its own, so the library indexes it by the keys
+    // its entries trigger on.
+    tagsOf: (b) => b.entries.flatMap((e) => e.keys).slice(0, 10),
+  });
+
   const [selectedId, setSelectedId] = useState<string | null>(initialBook?.entries[0]?.id ?? null);
-  const { status, setMsg } = useStatusMessage();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
-  const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
-  const [saving, setSaving] = useState(false);
-  const [savedVersion, setSavedVersion] = useState<string>(initialBook?.version ?? "1.0");
   const [draggingJson, setDraggingJson] = useState(false);
-  const [outputFileName, setOutputFileName] = useState(
-    ((initialBook?.name || "lorebook").replace(/\s+/g, "_")) + "_lorebook.png"
-  );
   const jsonInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-sync filename to lorebook name
-  useEffect(() => {
-    const name = book.name.trim();
-    setOutputFileName(name ? name.replace(/\s+/g, "_") + "_lorebook.png" : "lorebook.png");
-  }, [book.name]);
-
-  function updateBook(patch: Partial<LoreBook>) {
-    setBook((b) => ({ ...b, ...patch }));
-  }
 
   function addEntry() {
     const entry = DEFAULT_ENTRY();
-    setBook((b) => ({ ...b, entries: [...b.entries, entry] }));
+    setBook({ ...book, entries: [...book.entries, entry] });
     setSelectedId(entry.id);
   }
 
   function deleteEntry(id: string) {
-    setBook((b) => ({ ...b, entries: b.entries.filter((e) => e.id !== id) }));
-    if (selectedId === id) setSelectedId(book.entries.find((e) => e.id !== id)?.id ?? null);
+    const remaining = book.entries.filter((e) => e.id !== id);
+    setBook({ ...book, entries: remaining });
+    // Select the entry that took its place, or the new last one.
+    if (selectedId === id) {
+      const removedAt = book.entries.findIndex((e) => e.id === id);
+      setSelectedId(remaining[Math.min(removedAt, remaining.length - 1)]?.id ?? null);
+    }
   }
 
   function updateEntry(id: string, patch: Partial<LoreEntry>) {
-    setBook((b) => ({
-      ...b,
-      entries: b.entries.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-    }));
+    updateBook({ entries: book.entries.map((e) => (e.id === id ? { ...e, ...patch } : e)) });
   }
 
-  // Use functional updater to avoid stale-closure on book.entries
   function toggleEnabled(id: string) {
-    setBook((b) => ({
-      ...b,
-      entries: b.entries.map((e) => e.id === id ? { ...e, enabled: !e.enabled } : e),
-    }));
+    updateEntry(id, { enabled: !book.entries.find((e) => e.id === id)?.enabled });
   }
 
   function handleJsonFile(file: File) {
@@ -107,11 +91,9 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const raw = JSON.parse(e.target?.result as string);
-        const parsed = parseLorebook(raw);
+        const parsed = parseLorebook(JSON.parse(e.target?.result as string));
         setBook(parsed);
         setSelectedId(parsed.entries[0]?.id ?? null);
-        setLibraryId(undefined);
         setMsg(`Imported "${parsed.name || file.name}" — ${parsed.entries.length} entries`, true);
       } catch {
         setMsg("Failed to parse lorebook JSON.", false);
@@ -121,51 +103,8 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
   }
 
   function clearForNew() {
-    setBook(DEFAULT_BOOK);
+    clear();
     setSelectedId(null);
-    setImageSrc(null);
-    setLibraryId(undefined);
-    setSavedVersion("1.0");
-    setOutputFileName("lorebook.png");
-  }
-
-  const buildExportData = () => toExportedLorebook(book);
-
-  function exportJson() {
-    downloadJson(buildExportData(), outputFileName);
-    setMsg("Lorebook JSON exported!", true);
-  }
-
-  async function exportPng() {
-    try {
-      const pngBytes = await getCarrierPng(imageSrc);
-      const json = JSON.stringify(buildExportData());
-      downloadPng(encodeCharaToPng(pngBytes, json, "lorebook", false), outputFileName);
-      setMsg("PNG exported!", true);
-    } catch (err) {
-      setMsg(`PNG export failed: ${(err as Error).message}`, false);
-    }
-  }
-
-  async function handleSaveToLibrary() {
-    setSaving(true);
-    try {
-      const allKeys = book.entries.flatMap((e) => e.keys);
-      const versionChanged = !!libraryId && book.version.trim() !== savedVersion;
-      const saved = await saveLibraryCard({
-        cardType: "lorebook",
-        body: book,
-        imageSrc,
-        tags: allKeys.slice(0, 10),
-        existingId: versionChanged ? undefined : libraryId,
-      });
-      setLibraryId(saved.id);
-      setSavedVersion(book.version);
-      setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
-    } catch {
-      setMsg("Failed to save to library.", false);
-    }
-    setSaving(false);
   }
 
   const selected = book.entries.find((e) => e.id === selectedId) ?? null;

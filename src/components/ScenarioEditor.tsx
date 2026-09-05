@@ -1,20 +1,15 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Download, FileJson, Map, Save } from "lucide-react";
 import type { ScenarioCard } from "../types";
 import ResizableTextArea from "./ResizableTextArea";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
-import { encodeCharaToPng } from "../lib/pngMetadata";
-import { saveLibraryCard } from "../lib/library";
-import { getCarrierPng } from "../lib/carrierImage";
-import { downloadJson, downloadPng } from "../lib/download";
-import { useStatusMessage } from "../hooks/useStatusMessage";
 import ImageDropzone from "./ImageDropzone";
 import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
 import { blankScenarioCard } from "../lib/blankCards";
+import { useDataCardEditor } from "../hooks/useDataCardEditor";
 
-const DEFAULT = blankScenarioCard();
 
 interface ScenarioEditorProps {
   initialCard?: ScenarioCard;
@@ -23,69 +18,17 @@ interface ScenarioEditorProps {
 }
 
 export default function ScenarioEditor({ initialCard, initialImageSrc, initialLibraryId }: ScenarioEditorProps) {
-  const [card, setCard] = useState<ScenarioCard>(initialCard ?? DEFAULT);
-  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
-  const { status, setMsg } = useStatusMessage();
-  const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
-  const [saving, setSaving] = useState(false);
-  const [savedVersion, setSavedVersion] = useState<string>(initialCard?.version ?? "1.0");
-  const [outputFileName, setOutputFileName] = useState(
-    ((initialCard?.name || "scenario").replace(/\s+/g, "_")) + "_scenario.png"
-  );
-
-  // Auto-sync filename to scenario name
-  useEffect(() => {
-    const name = card.name.trim();
-    setOutputFileName(name ? name.replace(/\s+/g, "_") + "_scenario.png" : "scenario.png");
-  }, [card.name]);
-
-  function update(patch: Partial<ScenarioCard>) {
-    setCard((c) => ({ ...c, ...patch }));
-  }
-
-  function clearForNew() {
-    setCard(DEFAULT);
-    setImageSrc(null);
-    setLibraryId(undefined);
-    setSavedVersion("1.0");
-    setOutputFileName("scenario.png");
-  }
-
-  function exportJson() {
-    downloadJson(card, outputFileName);
-    setMsg("JSON exported!", true);
-  }
-
-  async function exportPng() {
-    try {
-      const pngBytes = await getCarrierPng(imageSrc);
-      const json = JSON.stringify(card);
-      downloadPng(encodeCharaToPng(pngBytes, json, "scenario", false), outputFileName);
-      setMsg("PNG exported!", true);
-    } catch (err) {
-      setMsg(`PNG export failed: ${(err as Error).message}`, false);
-    }
-  }
-
-  async function handleSaveToLibrary() {
-    setSaving(true);
-    try {
-      const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
-      const saved = await saveLibraryCard({
-        cardType: "scenario",
-        body: card,
-        imageSrc,
-        tags: card.tags,
-        existingId: versionChanged ? undefined : libraryId,
-      });
-      setLibraryId(saved.id);
-      setSavedVersion(card.version);
-      setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
-    } catch {
-      setMsg("Failed to save to library.", false);
-    }
-    setSaving(false);
-  }
+  const {
+    card, update, imageSrc, setImageSrc, libraryId, saving,
+    status, outputFileName, setOutputFileName,
+    save: handleSaveToLibrary, exportJson, exportPng, clear: clearForNew,
+  } = useDataCardEditor({
+    cardType: "scenario",
+    blank: blankScenarioCard,
+    initialCard,
+    initialImageSrc,
+    initialLibraryId,
+  });
 
   // Tokenizing is a full BPE encode. Unmemoized these ran on every render, so
   // every keystroke in the Name field re-tokenized the whole scenario.

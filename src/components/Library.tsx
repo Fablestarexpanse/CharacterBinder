@@ -65,7 +65,7 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
       return (
         c.name.toLowerCase().includes(q) ||
         c.platform.toLowerCase().includes(q) ||
-        (c.cardType ?? "character").includes(q) ||
+        c.cardType.includes(q) ||
         c.tags.some((t) => t.toLowerCase().includes(q))
       );
     })
@@ -78,7 +78,7 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
 
   // Group into sections
   const sections = CARD_TYPES
-    .map((type) => ({ type, cards: filtered.filter((c) => (c.cardType ?? "character") === type) }))
+    .map((type) => ({ type, cards: filtered.filter((c) => c.cardType === type) }))
     .filter((s) => s.cards.length > 0);
 
   function toggleSort(key: SortKey) {
@@ -270,7 +270,7 @@ function CardTile({
 }) {
   const [hover, setHover] = useState(false);
   const updated = new Date(card.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  const type = card.cardType ?? "character";
+  const type = card.cardType;
   const meta = SECTION_META[type];
   const PlaceholderIcon = meta.icon;
   const version = getCardVersion(card);

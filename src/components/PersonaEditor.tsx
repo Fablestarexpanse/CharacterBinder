@@ -1,11 +1,5 @@
-import { useState, useEffect } from "react";
 import { Download, FileJson, UserCircle, Save } from "lucide-react";
 import type { PersonaCard } from "../types";
-import { encodeCharaToPng } from "../lib/pngMetadata";
-import { saveLibraryCard } from "../lib/library";
-import { getCarrierPng } from "../lib/carrierImage";
-import { downloadJson, downloadPng } from "../lib/download";
-import { useStatusMessage } from "../hooks/useStatusMessage";
 import ImageDropzone from "./ImageDropzone";
 import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
@@ -13,8 +7,8 @@ import TextAreaField from "./TextAreaField";
 import SmartImportPanel from "./SmartImportPanel";
 import type { PersonaField } from "../lib/personaParser";
 import { blankPersonaCard } from "../lib/blankCards";
+import { useDataCardEditor } from "../hooks/useDataCardEditor";
 
-const DEFAULT = blankPersonaCard();
 
 interface PersonaEditorProps {
   initialCard?: PersonaCard;
@@ -23,74 +17,22 @@ interface PersonaEditorProps {
 }
 
 export default function PersonaEditor({ initialCard, initialImageSrc, initialLibraryId }: PersonaEditorProps) {
-  const [card, setCard] = useState<PersonaCard>(initialCard ?? DEFAULT);
-  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc ?? null);
-  const { status, setMsg } = useStatusMessage();
-  const [libraryId, setLibraryId] = useState<string | undefined>(initialLibraryId);
-  const [saving, setSaving] = useState(false);
-  const [savedVersion, setSavedVersion] = useState<string>(initialCard?.version ?? "1.0");
-  const [outputFileName, setOutputFileName] = useState(
-    ((initialCard?.name || "persona").replace(/\s+/g, "_")) + "_persona.png"
-  );
-
-  // Auto-sync filename to persona name
-  useEffect(() => {
-    const name = card.name.trim();
-    setOutputFileName(name ? name.replace(/\s+/g, "_") + "_persona.png" : "persona.png");
-  }, [card.name]);
-
-  function update(patch: Partial<PersonaCard>) {
-    setCard((c) => ({ ...c, ...patch }));
-  }
+  const {
+    card, update, imageSrc, setImageSrc, libraryId, saving,
+    status, setMsg, outputFileName, setOutputFileName,
+    save: handleSaveToLibrary, exportJson, exportPng, clear: clearForNew,
+  } = useDataCardEditor({
+    cardType: "persona",
+    blank: blankPersonaCard,
+    initialCard,
+    initialImageSrc,
+    initialLibraryId,
+  });
 
   function applySmartImport(fields: Partial<Record<PersonaField, string>>, tags: string[]) {
     update({ ...fields, tags });
     const count = Object.keys(fields).length;
     setMsg(`Sorted into ${count} field${count === 1 ? "" : "s"}.`, true);
-  }
-
-  function clearForNew() {
-    setCard(DEFAULT);
-    setImageSrc(null);
-    setLibraryId(undefined);
-    setSavedVersion("1.0");
-    setOutputFileName("persona.png");
-  }
-
-  function exportJson() {
-    downloadJson(card, outputFileName);
-    setMsg("JSON exported!", true);
-  }
-
-  async function exportPng() {
-    try {
-      const pngBytes = await getCarrierPng(imageSrc);
-      const json = JSON.stringify(card);
-      downloadPng(encodeCharaToPng(pngBytes, json, "persona", false), outputFileName);
-      setMsg("PNG exported!", true);
-    } catch (err) {
-      setMsg(`PNG export failed: ${(err as Error).message}`, false);
-    }
-  }
-
-  async function handleSaveToLibrary() {
-    setSaving(true);
-    try {
-      const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
-      const saved = await saveLibraryCard({
-        cardType: "persona",
-        body: card,
-        imageSrc,
-        tags: card.tags,
-        existingId: versionChanged ? undefined : libraryId,
-      });
-      setLibraryId(saved.id);
-      setSavedVersion(card.version);
-      setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
-    } catch {
-      setMsg("Failed to save to library.", false);
-    }
-    setSaving(false);
   }
 
   // A fresh, untouched card opens with the importer expanded; an existing one doesn't.

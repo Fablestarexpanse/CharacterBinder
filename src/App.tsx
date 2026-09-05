@@ -182,7 +182,9 @@ function App() {
       openCard: (card) => {
         const image = card.imageSrc ?? null;
         if (card.cardType === "character") loadFromLibrary(card.cardData, null, image, card.id);
-        else openDataCard(card.cardType, card.rawData, image);
+        // Pass the library id: without it the editor would treat an agent-opened
+        // card as new, and the next save would fork a duplicate record.
+        else openDataCard(card.cardType, card.rawData, image, card.id);
       },
     });
     initBridge();

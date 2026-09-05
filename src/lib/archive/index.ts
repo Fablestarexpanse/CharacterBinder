@@ -28,7 +28,7 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
     manifest.push({
       id: card.id,
       name: card.name,
-      cardType: card.cardType ?? "character",
+      cardType: card.cardType,
       platform: card.platform,
       tags: card.tags,
       createdAt: new Date(card.createdAt).toISOString(),
