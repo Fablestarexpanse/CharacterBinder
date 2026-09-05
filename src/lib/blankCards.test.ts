@@ -47,3 +47,15 @@ describe("script cards stored before the creator rename", () => {
     expect(card.creator).toBe("New");
   });
 });
+
+describe("coerceCharacterData keeps optional v2 fields", () => {
+  it("carries an embedded lorebook through", () => {
+    const book = { name: "Harbour", entries: [{ keys: ["dock"], content: "old" }] };
+    expect(coerceCharacterData({ name: "Rook", character_book: book }).character_book).toEqual(book);
+  });
+
+  it("drops a character_book that is not an object", () => {
+    expect(coerceCharacterData({ character_book: "nope" }).character_book).toBeUndefined();
+    expect(coerceCharacterData({ character_book: [1] }).character_book).toBeUndefined();
+  });
+});

@@ -117,5 +117,12 @@ export function coerceCharacterData(body: Record<string, unknown>): TavernCardV2
       : str(value, fallback as string);
   }
 
+  // character_book is optional, so it is not on the blank card the loop walks —
+  // and dropping it would silently strip a character's embedded lorebook on
+  // every bridge write.
+  if (body.character_book && typeof body.character_book === "object" && !Array.isArray(body.character_book)) {
+    out.character_book = body.character_book;
+  }
+
   return out as unknown as TavernCardV2["data"];
 }

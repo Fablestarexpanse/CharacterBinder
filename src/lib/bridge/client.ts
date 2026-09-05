@@ -24,15 +24,14 @@ import {
   PROOF_SERVER,
   PROOF_CLIENT,
   type BridgeMethod,
+  type BridgeCalls,
   type BridgeRequest,
   type BridgeResponse,
   type CardSummary,
   type CreateParams,
   type DeleteParams,
   type GetParams,
-  type GetResult,
   type ListParams,
-  type MutationResult,
   type OpenParams,
   type UpdateParams,
 } from "../../shared/bridgeProtocol";
@@ -447,7 +446,7 @@ function stringField(body: Record<string, unknown>, key: string): string | undef
   return typeof v === "string" ? v : undefined;
 }
 
-async function listCards(params: ListParams = {}): Promise<{ cards: CardSummary[] }> {
+async function listCards(params: ListParams = {}): Promise<BridgeCalls["cards.list"]["result"]> {
   const all = await getAllCards();
   const filtered = params.type ? all.filter((c) => c.cardType === params.type) : all;
   return { cards: filtered.map(summarise) };
@@ -459,7 +458,7 @@ async function findCard(id: string): Promise<LibraryCard> {
   return card;
 }
 
-async function getCard(params: GetParams): Promise<GetResult> {
+async function getCard(params: GetParams): Promise<BridgeCalls["cards.get"]["result"]> {
   const c = await findCard(params.id);
   return {
     id: c.id,
@@ -526,7 +525,7 @@ function requireInlineImageSrc(src: unknown): string | null {
 
 
 
-async function createCard(params: CreateParams): Promise<MutationResult> {
+async function createCard(params: CreateParams): Promise<BridgeCalls["cards.create"]["result"]> {
   if (!params?.cardType) throw new Error("cardType is required.");
   if (!CARD_TYPES.includes(params.cardType)) {
     throw new Error(`Unknown cardType "${params.cardType}". Expected one of: ${CARD_TYPES.join(", ")}.`);
@@ -575,7 +574,7 @@ async function requireApproval(action: "delete" | "overwrite", card: LibraryCard
   }
 }
 
-async function updateCard(params: UpdateParams): Promise<MutationResult> {
+async function updateCard(params: UpdateParams): Promise<BridgeCalls["cards.update"]["result"]> {
   const existing = await findCard(params.id);
   await requireApproval("overwrite", existing);
   const merged = { ...(bodyOf(existing) ?? {}), ...(params.patch ?? {}) };
@@ -591,7 +590,7 @@ async function updateCard(params: UpdateParams): Promise<MutationResult> {
   return { id: saved.id, name: saved.name, cardType: saved.cardType };
 }
 
-async function removeCard(params: DeleteParams): Promise<{ id: string }> {
+async function removeCard(params: DeleteParams): Promise<BridgeCalls["cards.delete"]["result"]> {
   // Look it up first: a 404 with a useful message rather than silently
   // succeeding, and the confirmation can name the card being destroyed.
   const card = await findCard(params.id);
@@ -602,7 +601,7 @@ async function removeCard(params: DeleteParams): Promise<{ id: string }> {
   return { id: params.id };
 }
 
-async function openCard(params: OpenParams): Promise<{ id: string }> {
+async function openCard(params: OpenParams): Promise<BridgeCalls["app.open"]["result"]> {
   const card = await findCard(params.id);
   host?.openCard(card);
   // Recorded like the others: opening a card replaces whatever the user was
