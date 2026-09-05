@@ -17,6 +17,7 @@ import {
   type BridgeResponse,
 } from "../../src/shared/bridgeProtocol.js";
 import { loadOrCreateToken, tokenPath } from "./token.js";
+import { errorMessage } from "../../src/shared/errorMessage.js";
 
 /**
  * The server half of the bridge.
@@ -125,7 +126,7 @@ export function startBridge(opts: { port?: number; token?: string } = {}): {
       },
     });
   } catch (err) {
-    listenError = err instanceof Error ? err.message : String(err);
+    listenError = errorMessage(err);
     return { close: () => {}, error: listenError };
   }
 

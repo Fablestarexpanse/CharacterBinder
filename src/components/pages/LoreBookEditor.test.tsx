@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoreBookEditor from "./LoreBookEditor";
 
@@ -83,5 +83,44 @@ describe("LoreBookEditor", () => {
     await user.click(screen.getByRole("button", { name: /add entry/i }));
     const aside = screen.getByText("Entries").closest("div")!;
     expect(within(aside).getByText("3")).toBeInTheDocument();
+  });
+});
+
+describe("importing a lorebook JSON file", () => {
+  const drop = async (container: HTMLElement, file: File) => {
+    const input = container.querySelector('input[type="file"]')!;
+    fireEvent.change(input, { target: { files: [file] } });
+  };
+
+  const jsonFile = (name: string, text: string) => {
+    const file = new File([text], name, { type: "application/json" });
+    // jsdom's File has no text() in this version.
+    Object.defineProperty(file, "text", { value: async () => text });
+    return file;
+  };
+
+  it("reads a SillyTavern book and reports what it found", async () => {
+    const { container } = render(<LoreBookEditor />);
+    const book = { name: "Harbour", entries: [{ keys: ["dock"], content: "old" }] };
+
+    await drop(container, jsonFile("book.json", JSON.stringify(book)));
+
+    expect(await screen.findByText(/imported "Harbour" — 1 entries/i)).toBeInTheDocument();
+  });
+
+  it("says why a file it cannot parse failed, rather than ignoring the drop", async () => {
+    const { container } = render(<LoreBookEditor />);
+
+    await drop(container, jsonFile("book.json", "{ not json"));
+
+    expect(await screen.findByText(/couldn't read that lorebook/i)).toBeInTheDocument();
+  });
+
+  it("refuses a file that is not JSON at all", async () => {
+    const { container } = render(<LoreBookEditor />);
+
+    await drop(container, jsonFile("book.png", "{}"));
+
+    expect(await screen.findByText(/please drop a \.json file/i)).toBeInTheDocument();
   });
 });

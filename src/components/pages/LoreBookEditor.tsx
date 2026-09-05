@@ -14,6 +14,7 @@ import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 import ImageDropzone from "../ui/ImageDropzone";
 import CardExportPanel from "../editor/CardExportPanel";
 import TagInput from "../ui/TagInput";
+import { errorMessage } from "../../shared/errorMessage";
 
 const DEFAULT_ENTRY = (): LoreEntry => ({
   id: crypto.randomUUID(),
@@ -87,20 +88,18 @@ export default function LoreBookEditor({ initialCard, initialImageSrc, initialLi
     updateEntry(id, { enabled: !book.entries.find((e) => e.id === id)?.enabled });
   }
 
-  function handleJsonFile(file: File) {
+  async function handleJsonFile(file: File) {
     if (!file.name.endsWith(".json")) { setMsg("Please drop a .json file.", false); return; }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const parsed = parseLorebook(JSON.parse(e.target?.result as string));
-        setBook(parsed);
-        setSelectedId(parsed.entries[0]?.id ?? null);
-        setMsg(`Imported "${parsed.name || file.name}" — ${parsed.entries.length} entries`, true);
-      } catch {
-        setMsg("Failed to parse lorebook JSON.", false);
-      }
-    };
-    reader.readAsText(file);
+    try {
+      // file.text() rejects on an unreadable file, where the bare FileReader
+      // this used simply never fired and the drop looked ignored.
+      const parsed = parseLorebook(JSON.parse(await file.text()));
+      setBook(parsed);
+      setSelectedId(parsed.entries[0]?.id ?? null);
+      setMsg(`Imported "${parsed.name || file.name}" — ${parsed.entries.length} entries`, true);
+    } catch (err) {
+      setMsg(`Couldn't read that lorebook: ${errorMessage(err)}`, false);
+    }
   }
 
   function clearForNew() {
