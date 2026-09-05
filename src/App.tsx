@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import type {
-  TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject,
+  TavernCardV2, NavPage, MetadataInfo, CardProject,
   LoreBook, ScriptCard, ScenarioCard, PersonaCard, OpenDataCard,
 } from "./types";
 import type { PlatformId } from "./shared/platforms";
-import { getAppSettings, saveAppSettings } from "./lib/settings";
+import { saveAppSettings } from "./lib/settings";
+import { useAppSettings } from "./hooks/useAppSettings";
 import { initBridge } from "./lib/bridge/client";
 import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
 import { blankTemplate } from "./data/builtinTemplates";
@@ -32,7 +33,7 @@ function defaultFileName(name: string): string {
 
 function App() {
   const [activePage, setActivePage] = useState<NavPage>("create");
-  const [settings, setSettings] = useState<AppSettings>(getAppSettings);
+  const settings = useAppSettings();
   const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   // A destructive bridge call waiting on the user. The agent's RPC is parked on
@@ -309,7 +310,7 @@ function App() {
             onOpenDataCard={openDataCard}
           />
         )}
-        {activePage === "settings" && <Settings settings={settings} onSave={(s) => setSettings(saveAppSettings(s))} />}
+        {activePage === "settings" && <Settings settings={settings} onSave={saveAppSettings} />}
         {activePage === "help" && <HelpAbout />}
         </ErrorBoundary>
       </main>
