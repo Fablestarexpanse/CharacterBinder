@@ -70,16 +70,25 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
   const [libraryId, setLibraryId] = useState<string | undefined>(opts.initialLibraryId);
   const [saving, setSaving] = useState(false);
   const [savedVersion, setSavedVersion] = useState(opts.initialCard?.version ?? "1.0");
-  const [outputFileName, setOutputFileName] = useState(() =>
+  const [outputFileName, setFileName] = useState(() =>
     fileNameFor(opts.initialCard?.name ?? "", cardType)
   );
+  // Once the user names the file themselves, stop deriving it from the card
+  // name — otherwise the next keystroke in the Name field throws their filename
+  // away. The character editor has guarded this since it was reported there.
+  const [fileNameTouched, setFileNameTouched] = useState(false);
   const { status, setMsg } = useStatusMessage();
 
-  // Keep the filename in step with the card's name. The user can still type
-  // their own; the next name change overwrites it, as it always has.
+  // Keep the filename in step with the card's name, until the user edits it.
   useEffect(() => {
-    setOutputFileName(fileNameFor(card.name, cardType));
-  }, [card.name, cardType]);
+    if (fileNameTouched) return;
+    setFileName(fileNameFor(card.name, cardType));
+  }, [card.name, cardType, fileNameTouched]);
+
+  const setOutputFileName = useCallback((name: string) => {
+    setFileNameTouched(true);
+    setFileName(name);
+  }, []);
 
   // Whatever is in an editor is plain React state until it is saved or
   // exported. The character editor warned before the tab closed on unsaved
@@ -105,7 +114,8 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
     setImageSrc(null);
     setLibraryId(undefined);
     setSavedVersion("1.0");
-    setOutputFileName(fileNameFor("", cardType));
+    setFileName(fileNameFor("", cardType));
+    setFileNameTouched(false);
   }, [blank, cardType]);
 
   const payload = useCallback(() => (toExport ? toExport(card) : card), [card, toExport]);
