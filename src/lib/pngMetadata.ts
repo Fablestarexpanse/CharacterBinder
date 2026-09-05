@@ -125,6 +125,57 @@ const CARD_KEYS: readonly string[] = [
   ...CARD_TYPES.filter((t) => t !== "character"),
 ];
 
+/**
+ * The keyword and text bytes of a tEXt or iTXt chunk, or null when the chunk
+ * has no null separator and so no keyword at all.
+ *
+ * iTXt's layout is the reason this is worth its own function: keyword, null,
+ * compression flag, compression method, language tag, null, translated
+ * keyword, null, and only then the text.
+ */
+function textChunkPayload(chunk: PngChunk): { keyword: string; text: Uint8Array } | null {
+  const nullIdx = chunk.data.indexOf(0);
+  if (nullIdx === -1) return null;
+  const keyword = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
+
+  if (chunk.type !== "iTXt") return { keyword, text: chunk.data.slice(nullIdx + 1) };
+
+  let pos = nullIdx + 1;
+  const compressionFlag = chunk.data[pos];
+  pos += 2; // compression flag + compression method
+  // Language tag and translated keyword, each null-terminated.
+  for (let skipped = 0; skipped < 2; skipped++) {
+    while (pos < chunk.data.length && chunk.data[pos] !== 0) pos++;
+    pos++;
+  }
+  // Compressed text is not something this app writes, and inflating it here
+  // would mean shipping a decompressor for a case no card format uses.
+  return { keyword, text: compressionFlag === 0 ? chunk.data.slice(pos) : new Uint8Array(0) };
+}
+
+/**
+ * The card JSON inside a chunk's text, or null when it does not hold any.
+ *
+ * Card payloads are conventionally base64 but plain JSON appears in the wild,
+ * so both are tried and the result must parse as JSON to count.
+ */
+function decodeCardPayload(text: Uint8Array): string | null {
+  const raw = new TextDecoder().decode(text);
+  let decoded: string;
+  try {
+    // Base64 first, through a UTF-8 round-trip so non-ASCII names survive.
+    decoded = decodeURIComponent(escape(atob(raw.trim())));
+  } catch {
+    decoded = raw;
+  }
+  try {
+    JSON.parse(decoded);
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
 export function decodeCharaFromPng(bytes: Uint8Array): {
   json: string | null;
   key: string | null;
@@ -134,63 +185,30 @@ export function decodeCharaFromPng(bytes: Uint8Array): {
 } {
   if (!isPng(bytes)) return { json: null, key: null, chunks: [], corruptKey: null };
 
-  const chunks = readChunks(bytes);
   const chunkInfos: PngChunkInfo[] = [];
-  const knownKeys = CARD_KEYS;
   let foundJson: string | null = null;
-  let corruptKey: string | null = null;
   let foundKey: string | null = null;
+  let corruptKey: string | null = null;
 
-  for (const chunk of chunks) {
-    if (chunk.type === "tEXt" || chunk.type === "iTXt") {
-      const nullIdx = chunk.data.indexOf(0);
-      if (nullIdx === -1) continue;
-      const keyword = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
+  for (const chunk of readChunks(bytes)) {
+    if (chunk.type !== "tEXt" && chunk.type !== "iTXt") continue;
+    const payload = textChunkPayload(chunk);
+    if (!payload) continue;
 
-      let textData: Uint8Array;
-      if (chunk.type === "iTXt") {
-        // iTXt: keyword + null + compression_flag + compression_method + language_tag + null + translated_keyword + null + text
-        let pos = nullIdx + 1;
-        const compressionFlag = chunk.data[pos];
-        pos += 2; // skip compression method
-        // skip language tag (find next null)
-        while (pos < chunk.data.length && chunk.data[pos] !== 0) pos++;
-        pos++; // skip null
-        // skip translated keyword (find next null)
-        while (pos < chunk.data.length && chunk.data[pos] !== 0) pos++;
-        pos++; // skip null
-        textData = compressionFlag === 0 ? chunk.data.slice(pos) : new Uint8Array(0);
-      } else {
-        textData = chunk.data.slice(nullIdx + 1);
-      }
+    chunkInfos.push({ keyword: payload.keyword, dataLength: payload.text.length, chunkType: chunk.type });
 
-      chunkInfos.push({
-        keyword,
-        dataLength: textData.length,
-        chunkType: chunk.type,
-      });
+    if (foundJson || !CARD_KEYS.includes(payload.keyword)) continue;
 
-      if (!foundJson && knownKeys.includes(keyword)) {
-        try {
-          const text = new TextDecoder().decode(textData);
-          // Try base64 decode first (handles Unicode via UTF-8 round-trip)
-          let decoded: string;
-          try {
-            decoded = decodeURIComponent(escape(atob(text.trim())));
-          } catch {
-            decoded = text;
-          }
-          JSON.parse(decoded); // validate
-          foundJson = decoded;
-          foundKey = keyword;
-        } catch {
-          // The chunk is there and carries the right keyword, but its payload
-          // won't decode. Remember that: reporting it as "no card found" sends
-          // the user looking for the wrong problem, when the chunk is listed
-          // right there in Decode PNG's own table.
-          corruptKey = keyword;
-        }
-      }
+    const json = decodeCardPayload(payload.text);
+    if (json) {
+      foundJson = json;
+      foundKey = payload.keyword;
+    } else {
+      // The chunk is there and carries the right keyword, but its payload
+      // won't decode. Remember that: reporting it as "no card found" sends the
+      // user looking for the wrong problem, when the chunk is listed right
+      // there in Decode PNG's own table.
+      corruptKey = payload.keyword;
     }
   }
 
@@ -215,7 +233,7 @@ export function encodeCharaToPng(
 
   const keepChunks: PngChunk[] = [];
   let ihdChunk: PngChunk | null = null;
-  let idatChunks: PngChunk[] = [];
+  const idatChunks: PngChunk[] = [];
   let iendChunk: PngChunk | null = null;
 
   for (const chunk of chunks) {
@@ -232,7 +250,7 @@ export function encodeCharaToPng(
         if (knownKeys.includes(keyword)) continue; // remove old chara chunks
         if (preserveUnknown) keepChunks.push(chunk);
       }
-    } else if (chunk.type !== "IHDR") {
+    } else {
       keepChunks.push(chunk);
     }
   }
