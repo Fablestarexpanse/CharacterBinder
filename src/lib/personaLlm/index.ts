@@ -417,8 +417,11 @@ async function runEndpoint(input: string, settings: SorterSettings, target: Sort
         response_format: { type: "json_object" },
       }),
     });
-  } catch {
-    throw new Error(`Couldn't reach ${base}. Is the server running?`);
+  } catch (err) {
+    // A cancellation is not a connection problem, and telling the user their
+    // server is down because they pressed stop sends them debugging nothing.
+    if (err instanceof Error && err.name === "AbortError") throw err;
+    throw new Error(`Couldn't reach ${base}. Is the server running?`, { cause: err });
   }
 
   if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {

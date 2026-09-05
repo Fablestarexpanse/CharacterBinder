@@ -49,22 +49,26 @@ if not errorlevel 1 (
     exit /b 0
 )
 
-REM --- 4. First run? Install dependencies. --------------------------------
+REM --- 4. Install dependencies. -------------------------------------------
+REM Unconditionally, not only when node_modules is missing: after a `git pull`
+REM that changes package.json, an existing install is stale and the app fails at
+REM import time with something that looks nothing like "run npm install". npm is
+REM a fast no-op when the tree already matches the lock file.
 if not exist "node_modules" (
     echo   First run - installing dependencies.
     echo   This happens once and takes a minute or two.
     echo.
-    call npm install
-    if errorlevel 1 (
-        echo.
-        echo   [X] Dependency install failed. Check your internet connection
-        echo       and try again. The error is printed above.
-        echo.
-        pause
-        exit /b 1
-    )
-    echo.
 )
+call npm install
+if errorlevel 1 (
+    echo.
+    echo   [X] Dependency install failed. Check your internet connection
+    echo       and try again. The error is printed above.
+    echo.
+    pause
+    exit /b 1
+)
+echo.
 
 REM --- 5. Launch. ---------------------------------------------------------
 echo   Starting CharacterBinder at http://localhost:3737

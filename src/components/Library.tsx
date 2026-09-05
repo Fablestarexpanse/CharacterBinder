@@ -9,6 +9,7 @@ import { CARD_TYPES, type LibraryCard, type LibraryCardType, type TavernCardV2, 
 import { getAllCards, deleteCard } from "../lib/library";
 import { exportCardsAsZip } from "../lib/archive";
 import ConfirmModal from "./ConfirmModal";
+import { useStatusMessage } from "../hooks/useStatusMessage";
 
 type SortKey = "updatedAt" | "createdAt" | "name";
 
@@ -51,10 +52,23 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
   // Deletes are irreversible and there is no undo, so both paths confirm first.
   const [pendingDelete, setPendingDelete] = useState<{ ids: string[]; label: string } | null>(null);
 
+  const { status, setMsg } = useStatusMessage(6000);
+
+  // IndexedDB fails for reasons the user can do something about — storage
+  // blocked in a private window, a quota that is full, an upgrade blocked by
+  // another tab — and none of these showed anything at all before: the list
+  // simply stayed empty and the buttons stayed stuck on "Deleting…".
+  const reportFailure = useCallback((what: string, err: unknown) => {
+    setMsg(`${what}: ${err instanceof Error ? err.message : String(err)}`, false);
+  }, [setMsg]);
+
   const load = useCallback(async () => {
-    const all = await getAllCards();
-    setCards(all);
-  }, []);
+    try {
+      setCards(await getAllCards());
+    } catch (err) {
+      reportFailure("Couldn't read your library", err);
+    }
+  }, [reportFailure]);
 
   useEffect(() => { load(); }, [load, refreshToken]);
 
@@ -100,14 +114,25 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
     const { ids } = pendingDelete;
     setPendingDelete(null);
     setDeleting(ids[0] ?? null);
-    for (const id of ids) await deleteCard(id);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const id of ids) next.delete(id);
-      return next;
-    });
-    await load();
-    setDeleting(null);
+    const deleted: string[] = [];
+    try {
+      for (const id of ids) {
+        await deleteCard(id);
+        deleted.push(id);
+      }
+    } catch (err) {
+      // Partway through a multi-card delete: say so, and drop only the ones
+      // that actually went, so the selection still matches the library.
+      reportFailure(`Deleted ${deleted.length} of ${ids.length} cards, then failed`, err);
+    } finally {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const id of deleted) next.delete(id);
+        return next;
+      });
+      await load();
+      setDeleting(null);
+    }
   }
 
   async function handleArchive(ids?: string[]) {
@@ -117,8 +142,13 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
       : selected.size > 0
       ? cards.filter((c) => selected.has(c.id))
       : cards;
-    await exportCardsAsZip(targets);
-    setArchiving(false);
+    try {
+      await exportCardsAsZip(targets);
+    } catch (err) {
+      reportFailure("Couldn't build the archive", err);
+    } finally {
+      setArchiving(false);
+    }
   }
 
   function handleEdit(card: LibraryCard) {
@@ -149,6 +179,20 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}
         />
+      )}
+
+      {status && (
+        <p
+          role="status"
+          aria-live="polite"
+          className={`px-5 py-2 text-xs border-b ${
+            status.ok
+              ? "text-status-ok bg-status-ok-soft border-status-ok-border"
+              : "text-status-danger bg-status-danger-soft border-status-danger-border"
+          }`}
+        >
+          {status.msg}
+        </p>
       )}
 
       {/* Header */}
