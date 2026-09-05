@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType } from "../../types";
+import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType, DataCardType } from "../../types";
 import type { PlatformId } from "../../shared/platforms";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
@@ -11,8 +11,7 @@ import { effectiveShape } from "../../lib/cardShape";
 import { pngBytesToDataUrl } from "../../lib/carrierImage";
 import { errorMessage } from "../../shared/errorMessage";
 
-type NonCharType = "lorebook" | "script" | "scenario" | "persona";
-const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {
+const NON_CHAR_META: Record<DataCardType, { label: string; icon: React.ReactNode; color: string }> = {
   lorebook: { label: "Lorebook",     icon: <BookOpen    size={14} />, color: "text-status-info" },
   script:   { label: "Script Card",  icon: <FileCode2   size={14} />, color: "text-status-warn" },
   scenario: { label: "Scenario Card",icon: <Map         size={14} />, color: "text-status-ok" },
@@ -79,8 +78,8 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
       if (shape === "character") {
         sourcePlatform = detectPlatform(parsed);
         formatLabel = PLATFORMS[sourcePlatform].name;
-      } else if (shape && shape in NON_CHAR_META) {
-        formatLabel = NON_CHAR_META[shape as NonCharType].label;
+      } else if (shape) {
+        formatLabel = NON_CHAR_META[shape].label;
       }
 
       const meta: MetadataInfo = {
@@ -187,13 +186,13 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                     <span className={`text-sm font-semibold ${platform.textColor}`}>{platform.name}</span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>
-                ) : result.shape && result.shape in NON_CHAR_META ? (
+                ) : result.shape && result.shape !== "character" ? (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-accent-purple/30 bg-accent-purple/5">
-                    <span className={NON_CHAR_META[result.shape as NonCharType].color}>
-                      {NON_CHAR_META[result.shape as NonCharType].icon}
+                    <span className={NON_CHAR_META[result.shape].color}>
+                      {NON_CHAR_META[result.shape].icon}
                     </span>
                     <span className="text-sm font-semibold text-text-primary">
-                      {NON_CHAR_META[result.shape as NonCharType].label}
+                      {NON_CHAR_META[result.shape].label}
                     </span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>

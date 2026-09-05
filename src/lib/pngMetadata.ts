@@ -120,10 +120,10 @@ function makeTextChunk(keyword: string, text: string): Uint8Array {
  * The tEXt/iTXt keywords this encoder owns. Derived from the card vocabulary so
  * a new card kind is carried by the PNG paths without a second list to update.
  */
-const CARD_KEYS: readonly string[] = [
+const CARD_KEYS: readonly MetadataKey[] = [
   ...CHARACTER_KEYS,
   ...CARD_TYPES.filter((t) => t !== "character"),
-];
+] as MetadataKey[];
 
 /**
  * The keyword and text bytes of a tEXt or iTXt chunk, or null when the chunk
@@ -178,7 +178,8 @@ function decodeCardPayload(text: Uint8Array): string | null {
 
 export function decodeCharaFromPng(bytes: Uint8Array): {
   json: string | null;
-  key: string | null;
+  /** Always one of the keys this app writes; never an arbitrary chunk keyword. */
+  key: MetadataKey | null;
   chunks: PngChunkInfo[];
   /** Set when a card chunk exists but its payload wouldn't decode. */
   corruptKey?: string | null;
@@ -187,7 +188,7 @@ export function decodeCharaFromPng(bytes: Uint8Array): {
 
   const chunkInfos: PngChunkInfo[] = [];
   let foundJson: string | null = null;
-  let foundKey: string | null = null;
+  let foundKey: MetadataKey | null = null;
   let corruptKey: string | null = null;
 
   for (const chunk of readChunks(bytes)) {
@@ -197,12 +198,13 @@ export function decodeCharaFromPng(bytes: Uint8Array): {
 
     chunkInfos.push({ keyword: payload.keyword, dataLength: payload.text.length, chunkType: chunk.type });
 
-    if (foundJson || !CARD_KEYS.includes(payload.keyword)) continue;
+    const cardKey = CARD_KEYS.find((k) => k === payload.keyword);
+    if (foundJson || !cardKey) continue;
 
     const json = decodeCardPayload(payload.text);
     if (json) {
       foundJson = json;
-      foundKey = payload.keyword;
+      foundKey = cardKey;
     } else {
       // The chunk is there and carries the right keyword, but its payload
       // won't decode. Remember that: reporting it as "no card found" sends the
