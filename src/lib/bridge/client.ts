@@ -283,7 +283,7 @@ function openSocket() {
 
     const response: BridgeResponse = { id: msg.id };
     try {
-      response.result = await handle(msg);
+      response.result = await handleBridgeRequest(msg);
       setState({ served: state.served + 1, lastMethod: msg.method });
     } catch (err) {
       response.error = errorMessage(err);
@@ -350,7 +350,14 @@ function requiredBody(params: unknown, field: string, method: string): Record<st
   return value as Record<string, unknown>;
 }
 
-async function handle(req: BridgeRequest): Promise<unknown> {
+/**
+ * Carry out one RPC from the connected agent.
+ *
+ * Exported so the handlers can be driven directly: the socket and handshake are
+ * covered from the server side, and what a call does to the library is what
+ * matters here.
+ */
+export async function handleBridgeRequest(req: BridgeRequest): Promise<unknown> {
   const p = paramsObject(req.params);
   switch (req.method) {
     case "ping":
