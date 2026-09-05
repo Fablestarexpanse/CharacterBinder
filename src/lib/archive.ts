@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import type { LibraryCard } from "../types";
 import { downloadBlob } from "./download";
 
@@ -19,6 +18,10 @@ export function uniqueArchiveName(name: string, id: string, used: Set<string>): 
 }
 
 export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
+  // Loaded here rather than at module scope: JSZip is a large dependency that
+  // one button uses, and importing it at the top put it in the entry chunk
+  // every visitor downloads.
+  const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   const manifest: object[] = [];
 

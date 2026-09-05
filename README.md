@@ -536,7 +536,7 @@ CharacterBinder/
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations
 │   ├── main.tsx             # React entry point
 │   └── App.tsx              # Root component and app state
-├── mcp/                     # MCP server (own package; shares src/lib)
+├── mcp/                     # MCP server (own package; imports only src/shared)
 │   └── src/
 │       ├── index.ts         # Tool definitions
 │       └── bridge.ts        # WebSocket server the app dials in on
