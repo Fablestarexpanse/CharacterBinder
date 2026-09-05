@@ -10,12 +10,12 @@
  * Shape is the more reliable signal, so we check it and let the caller reconcile.
  */
 
-import type { LibraryCardType } from "../types";
+import { CHARACTER_METADATA_KEYS, type LibraryCardType } from "../types";
 
 
 
 /** Metadata keywords that are meant to carry a character card. */
-export const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
+export const CHARACTER_KEYS: ReadonlySet<string> = new Set<string>(CHARACTER_METADATA_KEYS);
 
 /** The card type a given metadata keyword claims. */
 export function shapeForKey(key: string): LibraryCardType | null {

@@ -12,7 +12,7 @@ import { CARD_TYPES } from "../../src/types/index.js";
  */
 
 const source = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), "index.ts"),
+  join(dirname(fileURLToPath(import.meta.url)), "server.ts"),
   "utf8"
 );
 

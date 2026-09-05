@@ -52,14 +52,12 @@ opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 ### Running the tests
 
 ```bash
-npm test
+npm run test:all
 ```
 
-Components and hooks run under jsdom; the pure modules run in plain Node, so they
-stay fast.
-
-The MCP server is its own package with its own suite — the bridge handshake is
-driven over a real socket there:
+That runs both suites. `npm test` alone runs only the app's — components and
+hooks under jsdom, the pure modules in plain Node — and skips the MCP server,
+which is its own package and drives the bridge handshake over a real socket:
 
 ```bash
 npm --prefix mcp test

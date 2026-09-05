@@ -56,15 +56,19 @@ export type TavernCardV2 = {
   data: TavernCardV2Data;
 };
 
+/**
+ * The metadata keywords a character card may be stored under. Four, because
+ * every tool that ever wrote one picked its own.
+ */
+export const CHARACTER_METADATA_KEYS = ["chara", "character", "tavern", "tavern_card_v2"] as const;
+
+/**
+ * A chunk keyword the app reads or writes. Derived from the two lists above, so
+ * a new card kind cannot be added without the PNG layer knowing its keyword.
+ */
 export type MetadataKey =
-  | "chara"
-  | "character"
-  | "tavern"
-  | "tavern_card_v2"
-  | "lorebook"
-  | "script"
-  | "scenario"
-  | "persona";
+  | (typeof CHARACTER_METADATA_KEYS)[number]
+  | DataCardType;
 
 export interface AppSettings {
   autoValidateBeforeExport: boolean;
@@ -176,6 +180,12 @@ export interface ScenarioCard {
  * MCP tools) can take it rather than spelling the members out again.
  */
 export const CARD_TYPES = ["character", "lorebook", "script", "scenario", "persona"] as const;
+
+/**
+ * Every kind but "character", as a value — the PNG layer needs the list, not
+ * just the type, and filtering CARD_TYPES at runtime gave back plain strings.
+ */
+export const DATA_CARD_TYPES = ["lorebook", "script", "scenario", "persona"] as const;
 
 export type LibraryCardType = (typeof CARD_TYPES)[number];
 

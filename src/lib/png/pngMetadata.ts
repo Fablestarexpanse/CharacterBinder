@@ -1,6 +1,5 @@
 import type { MetadataKey, PngChunkInfo } from "../../types";
-import { CARD_TYPES } from "../../types";
-import { CHARACTER_KEYS } from "../../shared/cardShape";
+import { CHARACTER_METADATA_KEYS, DATA_CARD_TYPES } from "../../types";
 
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 
@@ -120,10 +119,7 @@ function makeTextChunk(keyword: string, text: string): Uint8Array {
  * The tEXt/iTXt keywords this encoder owns. Derived from the card vocabulary so
  * a new card kind is carried by the PNG paths without a second list to update.
  */
-const CARD_KEYS: readonly MetadataKey[] = [
-  ...CHARACTER_KEYS,
-  ...CARD_TYPES.filter((t) => t !== "character"),
-] as MetadataKey[];
+const CARD_KEYS: readonly MetadataKey[] = [...CHARACTER_METADATA_KEYS, ...DATA_CARD_TYPES];
 
 /**
  * The keyword and text bytes of a tEXt or iTXt chunk, or null when the chunk

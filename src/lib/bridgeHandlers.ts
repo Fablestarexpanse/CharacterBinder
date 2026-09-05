@@ -90,7 +90,9 @@ export async function handleBridgeRequest(
         // Named for the tool the agent actually called: cards.create serves
         // one create_* tool per kind, and "create" is not a tool at all.
         data: requiredBody(req.params, "data", `create_${cardType}`),
-        imageSrc: p.imageSrc as string | null | undefined,
+        // Checked here, at the edge, like every other param: the handler
+        // behind it should receive values that are already what they claim.
+        imageSrc: requireInlineImageSrc(p.imageSrc),
         open: p.open === true,
       });
     }
@@ -202,7 +204,7 @@ function requireInlineImageSrc(src: unknown): string | null {
 
 
 async function createCard(params: CreateParams): Promise<BridgeCalls["cards.create"]["result"]> {
-  const saved = await persist(params.cardType, params.data ?? {}, requireInlineImageSrc(params.imageSrc));
+  const saved = await persist(params.cardType, params.data, params.imageSrc ?? null);
   getHost()?.onLibraryChanged?.();
   recordActivity({ at: Date.now(), method: "cards.create", cardId: saved.id, cardName: saved.name });
   const opened = params.open ? tryOpen(saved) : false;
