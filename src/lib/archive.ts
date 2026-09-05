@@ -2,19 +2,30 @@ import JSZip from "jszip";
 import type { LibraryCard } from "../types";
 import { downloadBlob } from "./download";
 
+/**
+ * A filename for this card that no earlier card in the archive has taken.
+ *
+ * Card names are not unique, and JSZip silently overwrites on collision — so
+ * two characters called "Rook" produced an archive containing one of them,
+ * while the manifest listed both. A name made entirely of characters the filter
+ * strips falls back to the card id, which is unique by construction.
+ */
+export function uniqueArchiveName(name: string, id: string, used: Set<string>): string {
+  const base = name.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim() || id;
+  let safeName = base;
+  for (let n = 2; used.has(safeName); n++) safeName = `${base} (${n})`;
+  used.add(safeName);
+  return safeName;
+}
+
 export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
   const zip = new JSZip();
   const manifest: object[] = [];
 
-  // Card names are not unique, and JSZip silently overwrites on collision —
-  // disambiguate so an archive can never drop a card it claims to contain.
   const usedNames = new Set<string>();
 
   for (const card of cards) {
-    const base = card.name.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim() || card.id;
-    let safeName = base;
-    for (let n = 2; usedNames.has(safeName); n++) safeName = `${base} (${n})`;
-    usedNames.add(safeName);
+    const safeName = uniqueArchiveName(card.name, card.id, usedNames);
 
     if (card.pngData) {
       zip.file(`cards/${safeName}.png`, card.pngData);
