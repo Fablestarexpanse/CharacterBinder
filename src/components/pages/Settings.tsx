@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { AppSettings } from "../../types";
 import { DEFAULT_SETTINGS } from "../../lib/settings";
 import { Save, RotateCcw, Plug, Check } from "lucide-react";
-import { getBridgeToken, setBridgeToken } from "../../lib/bridge/client";
+import { getBridgeToken, setBridgeToken } from "../../lib/bridgeState";
 import { BRIDGE_PORT } from "../../shared/bridgeProtocol";
 import { useTimedFlag } from "../../hooks/useTimedFlag";
 

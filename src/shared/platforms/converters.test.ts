@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { convertCardTo, convertCardFrom } from "./converters";
-import { PLATFORMS, detectPlatform, type PlatformId } from "./index";
-import { createBlankTavernCard } from "../../shared/tavernCard";
+import { PLATFORMS, detectPlatform, type PlatformId } from "./registry";
+import { createBlankTavernCard } from "../tavernCard";
 import { validateTavernCardV2 } from "../validators";
 import type { TavernCardV2 } from "../../types";
 
@@ -243,5 +243,23 @@ describe("detectPlatform", () => {
     expect(detectPlatform({ hello: "world" })).toBe("generic");
     expect(detectPlatform(null)).toBe("generic");
     expect(detectPlatform("not an object")).toBe("generic");
+  });
+});
+
+describe("the support table does not understate what is written", () => {
+  // The inverse of the check above: a field marked "none" must actually be
+  // absent, or the panel is warning about a loss that does not happen.
+  it.each(ALL)("%s drops every field it says it drops", (platformId) => {
+    const platform = PLATFORMS[platformId];
+    const out = JSON.stringify(convertCardTo(fullCard(), platformId));
+
+    const kept = platform.fields
+      .filter((f) => f.support === "none")
+      .filter((f) => {
+        const value = fullCard().data[f.field];
+        return typeof value === "string" && value.length > 3 && out.includes(value.slice(0, 24));
+      });
+
+    expect(kept.map((k) => k.label)).toEqual([]);
   });
 });

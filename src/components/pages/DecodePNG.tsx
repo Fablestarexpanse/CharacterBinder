@@ -1,14 +1,13 @@
-import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType, DataCardType } from "../../types";
-import type { PlatformId } from "../../shared/platforms";
+import { useState, useCallback } from "react";
+import type { MetadataInfo, OpenDataCard, LibraryCardType, DataCardType, LoadCharacterCard } from "../../types";
+import type { PlatformId } from "../../shared/platforms/registry";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
-import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
-import { detectPlatform, PLATFORMS } from "../../shared/platforms";
+import { readCardPng } from "../../lib/png/readCardPng";
+import PngDropzone from "../ui/PngDropzone";
+import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { convertCardFrom } from "../../shared/platforms/converters";
 import FieldCompatibility from "../editor/FieldCompatibility";
 import { useTimedFlag } from "../../hooks/useTimedFlag";
-import { effectiveShape } from "../../lib/cardShape";
-import { pngBytesToDataUrl } from "../../lib/carrierImage";
 import { errorMessage } from "../../shared/errorMessage";
 
 const NON_CHAR_META: Record<DataCardType, { label: string; icon: React.ReactNode; color: string }> = {
@@ -19,18 +18,17 @@ const NON_CHAR_META: Record<DataCardType, { label: string; icon: React.ReactNode
 };
 
 interface DecodePNGProps {
-  onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
+  onLoad: LoadCharacterCard;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }
 
 export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
-  const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<{
     json: string;
     key: string;
     /** What the payload actually is, which need not match the keyword. */
-    shape: LibraryCardType | null;
+    cardType: LibraryCardType | null;
     /** Set when the keyword and the payload disagree; shown to the user. */
     mismatch: boolean;
     sourcePlatform: PlatformId | null;
@@ -40,94 +38,81 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
   const [error, setError] = useState<string | null>(null);
   const [copied, flashCopied] = useTimedFlag();
   const [showFullCompat, setShowFullCompat] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const inspectPngFile = useCallback(async (file: File) => {
     setError(null);
     setResult(null);
     try {
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      if (!isPng(bytes)) { setError("Not a valid PNG file."); return; }
-
-      const dims = getPngDimensions(bytes);
-      const { json, key, chunks, corruptKey } = decodeCharaFromPng(bytes);
-
-      const imageSrc = pngBytesToDataUrl(bytes);
-
-      if (!json || !key) {
+      const decoded = readCardPng(new Uint8Array(await file.arrayBuffer()));
+      if (decoded.kind === "not-png") { setError("Not a valid PNG file."); return; }
+      if (decoded.kind !== "card") {
         setError(
-          corruptKey
-            ? `Found a '${corruptKey}' chunk, but its payload is damaged and couldn't be decoded. The chunk list below shows what is actually in the file.`
+          decoded.kind === "damaged"
+            ? `Found a '${decoded.corruptKey}' chunk, but its payload is damaged and couldn't be decoded. The chunk list below shows what is actually in the file.`
             : "No card metadata found in this PNG."
         );
         return;
       }
 
-      const parsed = JSON.parse(json);
-
-      // The keyword says what the file claims to be; the payload shape says
-      // what it is. Import PNG has trusted the shape since a lorebook stored
-      // under `chara` was rebuilt as a blank character card; this panel loaded
-      // by keyword alone, so the same file opened as an empty card here.
-      const { shape, mismatch } = effectiveShape(key, parsed);
+      const { key, json, parsed, imageSrc, chunks, dimensions, cardType, mismatch } = decoded;
 
       let sourcePlatform: PlatformId | null = null;
       let formatLabel = "Unknown";
 
-      if (shape === "character") {
+      if (cardType === "character") {
         sourcePlatform = detectPlatform(parsed);
         formatLabel = PLATFORMS[sourcePlatform].name;
-      } else if (shape) {
-        formatLabel = NON_CHAR_META[shape].label;
+      } else if (cardType) {
+        formatLabel = NON_CHAR_META[cardType].label;
       }
 
       const meta: MetadataInfo = {
         format: formatLabel,
         encoding: "Base64 + PNG tEXt chunk",
         dataSize: json.length,
-        imageWidth: dims?.width ?? 0,
-        imageHeight: dims?.height ?? 0,
+        imageWidth: dimensions?.width ?? 0,
+        imageHeight: dimensions?.height ?? 0,
         chunks,
         rawKey: key,
       };
 
-      setResult({ json, key, shape, mismatch, sourcePlatform, meta, imageSrc });
+      setResult({ json, key, cardType, mismatch, sourcePlatform, meta, imageSrc });
     } catch (err) {
       setError(errorMessage(err));
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) inspectPngFile(file);
-  }, [inspectPngFile]);
-
   const handleLoadToEditor = () => {
     if (!result) return;
     const parsed = JSON.parse(result.json);
 
-    if (result.shape === "character" && result.sourcePlatform) {
+    if (result.cardType === "character" && result.sourcePlatform) {
       const card = convertCardFrom(parsed, result.sourcePlatform);
       onLoad(card, result.imageSrc, result.meta, result.sourcePlatform);
       return;
     }
 
-    if (result.shape && result.shape !== "character") {
-      onOpenDataCard(result.shape, parsed, result.imageSrc);
+    if (result.cardType && result.cardType !== "character") {
+      onOpenDataCard(result.cardType, parsed, result.imageSrc);
     }
   };
 
   const handleCopy = async () => {
     if (!result) return;
-    await navigator.clipboard.writeText(JSON.stringify(JSON.parse(result.json), null, 2));
-    flashCopied();
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(JSON.parse(result.json), null, 2));
+      flashCopied();
+    } catch (err) {
+      // Clipboard writes are refused without focus or permission; saying so
+      // beats a Copy button that quietly does nothing.
+      setError(`Couldn't copy to the clipboard: ${errorMessage(err)}`);
+    }
   };
 
-  const isCharCard = result && result.sourcePlatform !== null && result.shape === "character";
-  const platform = isCharCard && result.sourcePlatform ? PLATFORMS[result.sourcePlatform] : null;
+  // The narrowed value rather than a flag beside it: the flag had to be
+  // re-tested against the same field at every use site to convince the compiler.
+  const charPlatform = result && result.cardType === "character" ? result.sourcePlatform : null;
+  const platform = charPlatform ? PLATFORMS[charPlatform] : null;
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -140,27 +125,14 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
           </p>
         </div>
 
-        {/* Drop zone */}
-        <div
-          className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 transition-colors cursor-pointer ${
-            dragging ? "border-accent-purple bg-accent-purple/10" : "border-border hover:border-accent-purple/50"
-          }`}
-          role="button"
-          tabIndex={0}
-          aria-label="Choose a card PNG to inspect, or drop one here"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); }
-          }}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <FileSearch size={28} className="text-text-muted" />
-          <p className="text-sm text-text-secondary">Drop any card PNG here to inspect its metadata</p>
-          <input ref={fileInputRef} type="file" accept=".png,image/png" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) inspectPngFile(f); e.currentTarget.value = ""; }} />
-        </div>
+        <PngDropzone onFile={inspectPngFile} label="Choose a card PNG to inspect">
+          {() => (
+            <>
+              <FileSearch size={28} className="text-text-muted" />
+              <p className="text-sm text-text-secondary">Drop any card PNG here to inspect its metadata</p>
+            </>
+          )}
+        </PngDropzone>
 
         {error && (
           <div role="alert" className="bg-status-danger-soft border border-status-danger-border text-status-danger text-sm rounded-xl p-3">{error}</div>
@@ -186,13 +158,13 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                     <span className={`text-sm font-semibold ${platform.textColor}`}>{platform.name}</span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>
-                ) : result.shape && result.shape !== "character" ? (
+                ) : result.cardType && result.cardType !== "character" ? (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-accent-purple/30 bg-accent-purple/5">
-                    <span className={NON_CHAR_META[result.shape].color}>
-                      {NON_CHAR_META[result.shape].icon}
+                    <span className={NON_CHAR_META[result.cardType].color}>
+                      {NON_CHAR_META[result.cardType].icon}
                     </span>
                     <span className="text-sm font-semibold text-text-primary">
-                      {NON_CHAR_META[result.shape].label}
+                      {NON_CHAR_META[result.cardType].label}
                     </span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>
@@ -201,7 +173,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                 {result.mismatch && (
                   <p className="text-xs text-status-warn bg-status-warn-soft border border-status-warn-border rounded-lg px-3 py-2">
                     This file is labelled <code className="font-mono">{result.key}</code>, but its contents are a{" "}
-                    {result.shape} card. It will open as a {result.shape}.
+                    {result.cardType} card. It will open as a {result.cardType}.
                   </p>
                 )}
 
@@ -215,7 +187,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                 </table>
 
                 {/* Field compatibility only for character cards */}
-                {isCharCard && result.sourcePlatform && (
+                {charPlatform && (
                   <div>
                     <button
                       onClick={() => setShowFullCompat(!showFullCompat)}
@@ -225,8 +197,8 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                       {showFullCompat ? "Hide" : "Show"} field compatibility
                     </button>
                     {showFullCompat
-                      ? <FieldCompatibility platformId={result.sourcePlatform} />
-                      : <FieldCompatibility platformId={result.sourcePlatform} compact />
+                      ? <FieldCompatibility platformId={charPlatform} />
+                      : <FieldCompatibility platformId={charPlatform} compact />
                     }
                   </div>
                 )}

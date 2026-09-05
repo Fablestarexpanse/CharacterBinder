@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { PLATFORMS } from "../../src/shared/platforms/index.js";
+import { PLATFORMS } from "../../src/shared/platforms/registry.js";
 import { CARD_TYPES } from "../../src/types/index.js";
 
 /**
@@ -12,7 +12,7 @@ import { CARD_TYPES } from "../../src/types/index.js";
  */
 
 const source = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), "index.ts"),
+  join(dirname(fileURLToPath(import.meta.url)), "server.ts"),
   "utf8"
 );
 
@@ -58,7 +58,7 @@ describe("MCP tool surface", () => {
   });
 
   it("knows every platform the app defines", async () => {
-    const { PLATFORM_IDS } = await import("../../src/shared/platforms/index.js");
+    const { PLATFORM_IDS } = await import("../../src/shared/platforms/registry.js");
     expect([...PLATFORM_IDS].sort()).toEqual(Object.keys(PLATFORMS).sort());
   });
 });

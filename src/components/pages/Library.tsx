@@ -6,7 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { CARD_TYPES, type LibraryCard, type LibraryCardType, type TavernCardV2, type OpenDataCard } from "../../types";
-import { getAllCards, deleteCard } from "../../lib/library";
+import { getAllCards, deleteCard, cardVersion } from "../../lib/library";
 import { exportCardsAsZip } from "../../lib/archive";
 import ConfirmModal from "../ui/ConfirmModal";
 import { useStatusMessage } from "../../hooks/useStatusMessage";
@@ -14,15 +14,6 @@ import { errorMessage } from "../../shared/errorMessage";
 
 type SortKey = "updatedAt" | "createdAt" | "name";
 
-function getCardVersion(card: LibraryCard): string | null {
-  if (card.cardType === "character") {
-    const v = card.cardData?.data.character_version?.trim();
-    return v || null;
-  }
-  const raw: { version?: string } = card.rawData;
-  const v = raw?.version?.trim();
-  return v || null;
-}
 type SortDir = "asc" | "desc";
 
 const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; color: string }> = {
@@ -79,7 +70,9 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
       const q = search.toLowerCase();
       return (
         c.name.toLowerCase().includes(q) ||
-        c.platform.toLowerCase().includes(q) ||
+        // A character card is also findable by the app it targets; the other
+        // kinds have no target, and match on their kind alone.
+        (c.cardType === "character" && c.platform.toLowerCase().includes(q)) ||
         c.cardType.includes(q) ||
         c.tags.some((t) => t.toLowerCase().includes(q))
       );
@@ -104,8 +97,13 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
     setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   }
 
+  // Membership, not count: with a search active, "3 selected" and "3 shown"
+  // can be different threes, and comparing sizes cleared the selection instead
+  // of selecting what the user was looking at.
+  const allShownSelected = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+
   function toggleSelectAll() {
-    if (selected.size === filtered.length) setSelected(new Set());
+    if (allShownSelected) setSelected(new Set());
     else setSelected(new Set(filtered.map((c) => c.id)));
   }
 
@@ -264,10 +262,10 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
           {/* Select-all row */}
           <div className="flex items-center gap-2 -mb-4">
             <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition-colors">
-              {selected.size === filtered.length && filtered.length > 0
+              {allShownSelected
                 ? <CheckSquare size={14} className="text-accent-purple" />
                 : <Square size={14} />}
-              {selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
+              {allShownSelected ? "Deselect all" : "Select all"}
             </button>
             <span className="text-xs text-text-muted ml-auto">{filtered.length} item{filtered.length !== 1 ? "s" : ""}</span>
           </div>
@@ -327,10 +325,12 @@ function CardTile({
   const type = card.cardType;
   const meta = SECTION_META[type];
   const PlaceholderIcon = meta.icon;
-  const version = getCardVersion(card);
+  const version = cardVersion(card);
 
   // Badge label: platform for characters, type name for others
-  const badge = type === "character" ? card.platform : meta.label.replace(" Cards", "").replace("books", "book");
+  const badge = card.cardType === "character"
+    ? card.platform
+    : meta.label.replace(" Cards", "").replace("books", "book");
 
   return (
     <div

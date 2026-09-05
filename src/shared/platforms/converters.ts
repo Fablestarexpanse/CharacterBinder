@@ -1,6 +1,7 @@
 import type { TavernCardV2 } from "../../types";
-import type { PlatformId } from "./index";
-import { createBlankTavernCard } from "../../shared/tavernCard";
+import type { PlatformId } from "./registry";
+import { createBlankTavernCard } from "../tavernCard";
+import { coerceCharacterData } from "../blankCards";
 
 // ─── Master → Platform ───────────────────────────────────────────────────────
 //
@@ -9,11 +10,11 @@ import { createBlankTavernCard } from "../../shared/tavernCard";
 // declaring that as their return type split the family in two and forced the
 // dispatcher to cast through `unknown` on exactly those three.
 
-export function convertToSillyTavern(card: TavernCardV2): Record<string, unknown> {
+function convertToSillyTavern(card: TavernCardV2): Record<string, unknown> {
   return structuredClone(card);
 }
 
-export function convertToJanitorAI(card: TavernCardV2): Record<string, unknown> {
+function convertToJanitorAI(card: TavernCardV2): Record<string, unknown> {
   const { data } = card;
   // JanitorAI uses {{bot}} instead of {{char}}
   const replaceVars = (s: string) => s.replace(/\{\{char\}\}/g, "{{bot}}");
@@ -31,7 +32,7 @@ export function convertToJanitorAI(card: TavernCardV2): Record<string, unknown> 
   };
 }
 
-export function convertToChub(card: TavernCardV2): Record<string, unknown> {
+function convertToChub(card: TavernCardV2): Record<string, unknown> {
   const clone = structuredClone(card);
   clone.data.extensions = {
     ...clone.data.extensions,
@@ -44,7 +45,7 @@ export function convertToChub(card: TavernCardV2): Record<string, unknown> {
   return clone;
 }
 
-export function convertToAgnai(card: TavernCardV2): Record<string, unknown> {
+function convertToAgnai(card: TavernCardV2): Record<string, unknown> {
   const { data } = card;
   return {
     kind: "character",
@@ -67,7 +68,7 @@ export function convertToAgnai(card: TavernCardV2): Record<string, unknown> {
   };
 }
 
-export function convertToVenus(card: TavernCardV2): Record<string, unknown> {
+function convertToVenus(card: TavernCardV2): Record<string, unknown> {
   const { data } = card;
   return {
     spec: "chara_card_v2",
@@ -95,7 +96,7 @@ export function convertToVenus(card: TavernCardV2): Record<string, unknown> {
   };
 }
 
-export function convertToBackyard(card: TavernCardV2): Record<string, unknown> {
+function convertToBackyard(card: TavernCardV2): Record<string, unknown> {
   const { data } = card;
   const basePrompt = [data.description, data.personality].filter(Boolean).join("\n\n");
   return {
@@ -108,7 +109,7 @@ export function convertToBackyard(card: TavernCardV2): Record<string, unknown> {
   };
 }
 
-export function convertToRisu(card: TavernCardV2): Record<string, unknown> {
+function convertToRisu(card: TavernCardV2): Record<string, unknown> {
   const clone = structuredClone(card);
   clone.data.extensions = {
     ...clone.data.extensions,
@@ -119,7 +120,7 @@ export function convertToRisu(card: TavernCardV2): Record<string, unknown> {
   return clone;
 }
 
-export function convertToGeneric(card: TavernCardV2): Record<string, unknown> {
+function convertToGeneric(card: TavernCardV2): Record<string, unknown> {
   const { data } = card;
   return {
     name: data.name,
@@ -137,7 +138,7 @@ export function convertToGeneric(card: TavernCardV2): Record<string, unknown> {
 
 // ─── Platform → Master ───────────────────────────────────────────────────────
 
-export function convertFromJanitorAI(obj: Record<string, unknown>): TavernCardV2 {
+function convertFromJanitorAI(obj: Record<string, unknown>): TavernCardV2 {
   const card = createBlankTavernCard(String(obj.name ?? ""));
   const replaceVars = (s: string) => s.replace(/\{\{bot\}\}/g, "{{char}}");
   card.data.description = replaceVars(String(obj.persona ?? ""));
@@ -148,7 +149,7 @@ export function convertFromJanitorAI(obj: Record<string, unknown>): TavernCardV2
   return card;
 }
 
-export function convertFromAgnai(obj: Record<string, unknown>): TavernCardV2 {
+function convertFromAgnai(obj: Record<string, unknown>): TavernCardV2 {
   const card = createBlankTavernCard(String(obj.name ?? ""));
   card.data.description = String(obj.description ?? "");
   const persona = obj.persona as Record<string, unknown> | undefined;
@@ -166,7 +167,7 @@ export function convertFromAgnai(obj: Record<string, unknown>): TavernCardV2 {
   return card;
 }
 
-export function convertFromBackyard(obj: Record<string, unknown>): TavernCardV2 {
+function convertFromBackyard(obj: Record<string, unknown>): TavernCardV2 {
   const card = createBlankTavernCard(String(obj.aiName ?? obj.name ?? ""));
   card.data.description = String(obj.basePrompt ?? obj.description ?? "");
   card.data.scenario = String(obj.scenario ?? "");
@@ -212,13 +213,15 @@ export function convertCardFrom(
       // cards fell through to the loose field mapping below and imported blank,
       // since a v3 card carries nothing at its top level but `spec` and `data`.
       if (obj.spec === "chara_card_v2" || obj.spec === "chara_card_v3") {
-        // Normalise rather than trusting the shape. A third-party card that
-        // declares v2 with a partial `data` block used to come back with
-        // undefined string fields, and the first converter to call .replace()
-        // or .slice() on one threw at export time.
-        const incoming = (obj.data ?? {}) as Partial<TavernCardV2["data"]>;
-        const card = createBlankTavernCard(String(incoming.name ?? ""));
-        card.data = { ...card.data, ...incoming, name: String(incoming.name ?? "") };
+        // Coerced, not spread. A third-party card that declares v2 with a
+        // partial or wrongly-typed `data` block used to come back with
+        // undefined or non-string fields, and the first converter to call
+        // .replace() or .slice() on one threw at export time. This is the same
+        // coercion the bridge applies to a card an agent sends, so a card is
+        // read one way whichever door it arrives through.
+        const incoming = obj.data && typeof obj.data === "object" ? (obj.data as Record<string, unknown>) : {};
+        const card = createBlankTavernCard();
+        card.data = coerceCharacterData(incoming);
         return card;
       }
       // Fallback: try to map common field names

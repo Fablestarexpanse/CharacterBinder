@@ -8,6 +8,7 @@ import {
   CLOSE_BAD_ORIGIN,
   CLOSE_BAD_TOKEN,
   CLOSE_PROTOCOL,
+  isHandshakeFrame,
   PROOF_SERVER,
   ALLOWED_APP_ORIGINS,
   USER_GATED_METHODS,
@@ -17,6 +18,7 @@ import {
   type BridgeResponse,
 } from "../../src/shared/bridgeProtocol.js";
 import { loadOrCreateToken, tokenPath } from "./token.js";
+import { errorMessage } from "../../src/shared/errorMessage.js";
 
 /**
  * The server half of the bridge.
@@ -32,10 +34,16 @@ import { loadOrCreateToken, tokenPath } from "./token.js";
  * too — `ws://` to loopback is exempt from mixed-content blocking and isn't
  * subject to CORS. So a connection is only promoted to "the app" after it
  * proves knowledge of the shared token, and only one at a time.
+ *
+ * The state below is process-wide: one server per process, so `startBridge`'s
+ * handle is a shutdown hook rather than an instance. close() puts the module
+ * back to how it started.
  */
 
 let appSocket: WebSocket | null = null;
 let listenError: string | null = null;
+/** The port actually bound, which is not the default one under test. */
+let boundPort = BRIDGE_PORT;
 let token = "";
 
 interface Pending {
@@ -66,6 +74,10 @@ const MAX_PAYLOAD = 4 * 1024 * 1024;
 /** Where the app is legitimately served from; the list lives with the protocol. */
 const ALLOWED_ORIGINS = new Set(ALLOWED_APP_ORIGINS);
 
+// The server's half of the handshake primitives. The app computes the same
+// values with WebCrypto in src/shared/bridgeProtocol.ts (proveToken, safeEqual,
+// randomNonce); these are the node:crypto counterparts, kept separate for
+// timingSafeEqual and for a synchronous handshake path. Change them together.
 const hmac = (message: string) => createHmac("sha256", token).update(message).digest("hex");
 
 function proofsMatch(a: string, b: string): boolean {
@@ -83,7 +95,11 @@ function randomNonce(): string {
  * @param opts Overrides for tests, which need their own port and token rather
  * than binding the real one and reading the user's pairing file.
  */
-export function startBridge(opts: { port?: number; token?: string } = {}): { close: () => void } {
+export function startBridge(opts: { port?: number; token?: string } = {}): {
+  close: () => void;
+  /** Set when the port could not be bound; the caller can say so up front. */
+  error: string | null;
+} {
   let tokenIsNew = false;
   if (opts.token) {
     token = opts.token;
@@ -93,6 +109,7 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
     tokenIsNew = loaded.created;
   }
   const port = opts.port ?? BRIDGE_PORT;
+  boundPort = port;
 
   let wss: WebSocketServer;
   try {
@@ -114,9 +131,16 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
       },
     });
   } catch (err) {
-    listenError = err instanceof Error ? err.message : String(err);
-    return { close: () => {} };
+    listenError = errorMessage(err);
+    return { close: () => {}, error: listenError };
   }
+
+  // With port 0 the OS picks a free one, so the bound port is only known once
+  // it is listening. Tests use that to avoid fighting over a fixed port.
+  wss.on("listening", () => {
+    const addr = wss.address();
+    if (addr && typeof addr === "object") boundPort = addr.port;
+  });
 
   wss.on("error", (err) => {
     listenError =
@@ -161,7 +185,7 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
     });
 
     ws.on("message", (raw) => {
-      let msg: (BridgeResponse & { type?: string }) & Record<string, unknown>;
+      let msg: unknown;
       try {
         msg = JSON.parse(String(raw));
       } catch {
@@ -170,28 +194,42 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
 
       // ── Handshake ──────────────────────────────────────────────────────
       if (!authed) {
+        // Narrowed on the shared frame union rather than read field by field:
+        // each branch below then has the fields its own frame declares.
+        if (!isHandshakeFrame(msg)) {
+          ws.close(CLOSE_PROTOCOL, "Handshake required");
+          return;
+        }
+
         if (msg.type === "hello") {
           if (msg.protocol !== BRIDGE_PROTOCOL_VERSION) {
             ws.close(CLOSE_PROTOCOL, `Expected protocol ${BRIDGE_PROTOCOL_VERSION}`);
             return;
           }
-          const clientNonce = String(msg.clientNonce ?? "");
-          if (clientNonce.length < 16) {
+          if (msg.clientNonce.length < 16) {
             ws.close(CLOSE_PROTOCOL, "Missing client nonce");
             return;
           }
           serverNonce = randomNonce();
           // Prove we hold the token before the app proves anything, so a
           // squatter can never harvest it.
-          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(PROOF_SERVER + clientNonce) }));
+          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(PROOF_SERVER + msg.clientNonce) }));
           return;
         }
 
         if (msg.type === "auth") {
-          if (!serverNonce || !proofsMatch(String(msg.proof ?? ""), hmac(PROOF_CLIENT + serverNonce))) {
+          if (!serverNonce || !proofsMatch(msg.proof, hmac(PROOF_CLIENT + serverNonce))) {
             console.error("[characterbinder-mcp] rejected a connection with a bad token");
             ws.send(JSON.stringify({ type: "auth_failed", reason: "Token did not match" }));
             ws.close(CLOSE_BAD_TOKEN, "Bad token");
+            return;
+          }
+          // Re-check the incumbent here, not only at connect: two clients can
+          // both pass the connect-time check and then finish their handshakes,
+          // and whoever authenticates second would otherwise silently displace
+          // the first, leaving it connected and answering nothing.
+          if (appSocket && appSocket.readyState === 1 && appSocket !== ws) {
+            ws.close(CLOSE_ALREADY_CONNECTED, "Another CharacterBinder is already connected");
             return;
           }
           authed = true;
@@ -212,12 +250,13 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
       // connection must not be able to answer for the app.
       if (ws !== appSocket) return;
 
-      const entry = msg.id ? pending.get(msg.id) : undefined;
+      const res = msg as BridgeResponse;
+      const entry = typeof res.id === "string" ? pending.get(res.id) : undefined;
       if (!entry) return;
-      pending.delete(msg.id);
+      pending.delete(res.id);
       clearTimeout(entry.timer);
-      if (msg.error) entry.reject(new Error(String(msg.error)));
-      else entry.resolve(msg.result);
+      if (res.error) entry.reject(new Error(String(res.error)));
+      else entry.resolve(res.result);
     });
 
     ws.on("close", () => {
@@ -252,7 +291,18 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
       for (const client of wss.clients) client.terminate();
       wss.close();
       appSocket = null;
+      listenError = null;
+      // A terminated socket fires no 'close' handler, so in-flight calls would
+      // otherwise sit out their full timeout against a server that is gone.
+      for (const [id, entry] of pending) {
+        clearTimeout(entry.timer);
+        entry.reject(new Error("The bridge was shut down before the call was answered."));
+        pending.delete(id);
+      }
     },
+    // A bind failure arrives on the 'error' event, after this returns; the
+    // caller reads bridgeStatus() for that.
+    error: null,
   };
 }
 
@@ -261,7 +311,7 @@ export function isAppConnected(): boolean {
 }
 
 export function bridgeStatus(): { connected: boolean; port: number; error: string | null; tokenPath: string } {
-  return { connected: isAppConnected(), port: BRIDGE_PORT, error: listenError, tokenPath: tokenPath() };
+  return { connected: isAppConnected(), port: boundPort, error: listenError, tokenPath: tokenPath() };
 }
 
 const NOT_CONNECTED =

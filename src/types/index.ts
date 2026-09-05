@@ -1,3 +1,4 @@
+import type { PlatformId } from "../shared/platforms/registry";
 export interface CharacterBook {
   name?: string;
   description?: string;
@@ -55,15 +56,19 @@ export type TavernCardV2 = {
   data: TavernCardV2Data;
 };
 
+/**
+ * The metadata keywords a character card may be stored under. Four, because
+ * every tool that ever wrote one picked its own.
+ */
+export const CHARACTER_METADATA_KEYS = ["chara", "character", "tavern", "tavern_card_v2"] as const;
+
+/**
+ * A chunk keyword the app reads or writes. Derived from the two lists above, so
+ * a new card kind cannot be added without the PNG layer knowing its keyword.
+ */
 export type MetadataKey =
-  | "chara"
-  | "character"
-  | "tavern"
-  | "tavern_card_v2"
-  | "lorebook"
-  | "script"
-  | "scenario"
-  | "persona";
+  | (typeof CHARACTER_METADATA_KEYS)[number]
+  | DataCardType;
 
 export interface AppSettings {
   autoValidateBeforeExport: boolean;
@@ -141,6 +146,12 @@ export interface LoreBook {
   token_budget: number;
   recursive_scanning: boolean;
   entries: LoreEntry[];
+  /**
+   * A lorebook has no tags of its own in the interchange format, but the
+   * library indexes every card by tags, and an agent may send some. Optional so
+   * a book written without them still typechecks.
+   */
+  tags?: string[];
 }
 
 export interface ScriptCard {
@@ -176,6 +187,12 @@ export interface ScenarioCard {
  */
 export const CARD_TYPES = ["character", "lorebook", "script", "scenario", "persona"] as const;
 
+/**
+ * Every kind but "character", as a value — the PNG layer needs the list, not
+ * just the type, and filtering CARD_TYPES at runtime gave back plain strings.
+ */
+export const DATA_CARD_TYPES = ["lorebook", "script", "scenario", "persona"] as const;
+
 export type LibraryCardType = (typeof CARD_TYPES)[number];
 
 /**
@@ -183,6 +200,20 @@ export type LibraryCardType = (typeof CARD_TYPES)[number];
  * a Tavern V2 card, and edited by the four non-character editors.
  */
 export type DataCardType = Exclude<LibraryCardType, "character">;
+
+/**
+ * Open a character card in the editor, from an import, a decode or a template.
+ *
+ * The counterpart to OpenDataCard: character cards are converted per platform
+ * on the way in, so this carries the metadata and source platform they were
+ * read with. Named once here because three panels take it.
+ */
+export type LoadCharacterCard = (
+  card: TavernCardV2,
+  imageSrc?: string,
+  meta?: MetadataInfo,
+  sourcePlatform?: PlatformId,
+) => void;
 
 /**
  * Open a non-character card in the editor for its kind.
@@ -233,7 +264,6 @@ export interface LibraryCardBase {
   name: string;
   pngData: Uint8Array | null;
   imageSrc: string | null;
-  platform: string;
   tags: string[];
   createdAt: number;
   updatedAt: number;
@@ -247,11 +277,19 @@ export interface LibraryCardBase {
  * not check. Narrowing on `cardType` now does that work.
  */
 export type LibraryCard =
-  | (LibraryCardBase & { cardType: "character"; cardData: TavernCardV2; rawData?: never })
-  | (LibraryCardBase & { cardType: "lorebook"; rawData: LoreBook; cardData?: never })
-  | (LibraryCardBase & { cardType: "script"; rawData: ScriptCard; cardData?: never })
-  | (LibraryCardBase & { cardType: "scenario"; rawData: ScenarioCard; cardData?: never })
-  | (LibraryCardBase & { cardType: "persona"; rawData: PersonaCard; cardData?: never });
+  // `platform` is on this arm alone: it is the app a character card is
+  // converted for. The other four kinds are stored as-is and have no target,
+  // and used to carry their own cardType in this field to fill it.
+  // `cardData` is optional because the store really can hold a character record
+  // without one — a truncated write, or an older build — and the library has to
+  // list it in order to say what is wrong with it. Optional here means the
+  // compiler requires the check at every read, rather than each reader
+  // remembering.
+  | (LibraryCardBase & { cardType: "character"; cardData?: TavernCardV2; platform: PlatformId; rawData?: never })
+  | (LibraryCardBase & { cardType: "lorebook"; rawData: LoreBook; cardData?: never; platform?: never })
+  | (LibraryCardBase & { cardType: "script"; rawData: ScriptCard; cardData?: never; platform?: never })
+  | (LibraryCardBase & { cardType: "scenario"; rawData: ScenarioCard; cardData?: never; platform?: never })
+  | (LibraryCardBase & { cardType: "persona"; rawData: PersonaCard; cardData?: never; platform?: never });
 
 /** The non-character payload for a given card type. */
 export type RawCardFor<T extends Exclude<LibraryCardType, "character">> =

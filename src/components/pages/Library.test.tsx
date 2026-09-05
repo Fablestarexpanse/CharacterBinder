@@ -4,29 +4,29 @@ import userEvent from "@testing-library/user-event";
 import Library from "./Library";
 import type { LibraryCard } from "../../types";
 import { createBlankTavernCard } from "../../shared/tavernCard";
-import { blankPersonaCard } from "../../lib/blankCards";
+import { blankPersonaCard } from "../../shared/blankCards";
 
 const getAllCards = vi.fn(async (): Promise<LibraryCard[]> => []);
 const deleteCard = vi.fn(async (_id: string) => {});
-vi.mock("../../lib/library", () => ({
-  getAllCards: () => getAllCards(),
-  deleteCard: (id: string) => deleteCard(id),
-}));
+vi.mock("../../lib/library", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/library")>("../../lib/library");
+  return { ...actual, getAllCards: () => getAllCards(), deleteCard: (id: string) => deleteCard(id) };
+});
 
 const exportCardsAsZip = vi.fn(async (_cards: LibraryCard[]) => {});
 vi.mock("../../lib/archive", () => ({ exportCardsAsZip: (cards: LibraryCard[]) => exportCardsAsZip(cards) }));
 
 const base = { pngData: null, imageSrc: null, createdAt: 1, updatedAt: 2 };
-const character = (id: string, name: string): LibraryCard => ({
+const libraryCharacter = (id: string, name: string): LibraryCard => ({
   ...base, id, name, cardType: "character", cardData: createBlankTavernCard(name), platform: "sillytavern", tags: ["harbour"],
 });
 const persona = (id: string, name: string): LibraryCard => ({
-  ...base, id, name, cardType: "persona", rawData: { ...blankPersonaCard(), name }, platform: "persona", tags: [],
+  ...base, id, name, cardType: "persona", rawData: { ...blankPersonaCard(), name }, tags: [],
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  getAllCards.mockResolvedValue([character("c1", "Rook"), persona("p1", "Kael")]);
+  getAllCards.mockResolvedValue([libraryCharacter("c1", "Rook"), persona("p1", "Kael")]);
 });
 
 const props = { onEditCard: vi.fn(), onOpenDataCard: vi.fn() };
@@ -53,6 +53,21 @@ describe("Library", () => {
     await user.type(search, "harbour");
     expect(screen.getByText("Rook")).toBeInTheDocument();
     expect(screen.queryByText("Kael")).not.toBeInTheDocument();
+  });
+
+  it("selects what is on screen when a filter is active, not what happens to be counted", async () => {
+    const user = userEvent.setup();
+    render(<Library {...props} />);
+    await screen.findByText("Rook");
+
+    // Select one card, then filter down to one *other* card. Both counts are 1,
+    // and comparing them cleared the selection instead of selecting Kael.
+    await user.click(screen.getAllByRole("checkbox", { name: /select rook/i })[0]);
+    const search = screen.getByRole("textbox", { name: /search the library/i });
+    await user.type(search, "kael");
+
+    await user.click(screen.getByRole("button", { name: /select all/i }));
+    expect(screen.getByRole("button", { name: /deselect all/i })).toBeInTheDocument();
   });
 
   it("opens a character through onEditCard and a data card through onOpenDataCard", async () => {
@@ -97,7 +112,8 @@ describe("Library", () => {
   });
 
   it("refuses to open a character record with no card body, and says which", async () => {
-    const broken = { ...character("c2", "Damaged"), cardData: undefined } as unknown as LibraryCard;
+    // The type allows this now, because the store really can hold it.
+    const broken: LibraryCard = { ...libraryCharacter("c2", "Damaged"), cardData: undefined };
     getAllCards.mockResolvedValue([broken]);
     const onEditCard = vi.fn();
     const user = userEvent.setup();

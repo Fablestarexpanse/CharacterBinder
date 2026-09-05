@@ -1,12 +1,11 @@
 import { UserCircle } from "lucide-react";
 import type { PersonaCard } from "../../types";
-import ImageDropzone from "../ui/ImageDropzone";
-import CardExportPanel from "../editor/CardExportPanel";
+import DataCardExportAside from "../editor/DataCardExportAside";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
-import SmartImportPanel from "../editor/SmartImportPanel";
+import QuickImportPanel from "../editor/QuickImportPanel";
 import type { CardField } from "../../shared/cardTextParser";
-import { blankPersonaCard } from "../../lib/blankCards";
+import { blankPersonaCard } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 
 
@@ -17,17 +16,14 @@ interface PersonaEditorProps {
 }
 
 export default function PersonaEditor({ initialCard, initialImageSrc, initialLibraryId }: PersonaEditorProps) {
-  const {
-    card, update, imageSrc, setImageSrc, libraryId, saving,
-    status, setMsg, outputFileName, setOutputFileName,
-    save: handleSaveToLibrary, exportJson, exportPng, clear: clearForNew,
-  } = useDataCardEditor({
+  const editor = useDataCardEditor({
     cardType: "persona",
     blank: blankPersonaCard,
     initialCard,
     initialImageSrc,
     initialLibraryId,
   });
+  const { card, update, setMsg } = editor;
 
   function applySmartImport(fields: Partial<Record<CardField, string>>, tags: string[]) {
     update({ ...fields, tags });
@@ -51,7 +47,7 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
           </p>
         </div>
 
-        <SmartImportPanel
+        <QuickImportPanel
           current={{
             name: card.name,
             description: card.description,
@@ -91,34 +87,18 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
         />
       </div>
 
-      {/* ── Export panel ── */}
-      <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
-        <p className="section-title">Export</p>
-
-        <ImageDropzone label="Avatar Image" imageSrc={imageSrc} onFile={setImageSrc} />
-
-        <CardExportPanel
-          cardType="persona"
-          label="Persona"
-          outputFileName={outputFileName}
-          onOutputFileNameChange={setOutputFileName}
-          version={card.version}
-          onVersionChange={(version) => update({ version })}
-          saving={saving}
-          libraryId={libraryId}
-          onSave={handleSaveToLibrary}
-          onExportJson={exportJson}
-          onExportPng={exportPng}
-          onClear={clearForNew}
-          status={status}
-          footnotes={
-            <>
-              <p><strong className="text-text-secondary">JSON</strong> — portable persona format.</p>
-          <p><strong className="text-text-secondary">PNG</strong> — embeds persona using the <code className="bg-bg-tertiary px-1 rounded">persona</code> chunk.</p>
-            </>
-          }
-        />
-      </aside>
+      <DataCardExportAside
+        editor={editor}
+        cardType="persona"
+        label="Persona"
+        imageLabel="Avatar Image"
+        footnotes={
+          <>
+            <p><strong className="text-text-secondary">JSON</strong> — portable persona format.</p>
+            <p><strong className="text-text-secondary">PNG</strong> — embeds persona using the <code className="bg-bg-tertiary px-1 rounded">persona</code> chunk.</p>
+          </>
+        }
+      />
     </div>
   );
 }

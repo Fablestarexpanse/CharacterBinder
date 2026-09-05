@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { TavernCardV2 } from "../../types";
 import { Check, AlertCircle, Copy, RefreshCw, Save } from "lucide-react";
 import { validateJson } from "../../shared/validators";
+import { errorMessage } from "../../shared/errorMessage";
 import { useTimedFlag } from "../../hooks/useTimedFlag";
 
 interface JSONViewProps {
@@ -46,8 +47,12 @@ export default function JSONView({ card, onUpdate }: JSONViewProps) {
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(jsonText);
-    flashCopied();
+    try {
+      await navigator.clipboard.writeText(jsonText);
+      flashCopied();
+    } catch (err) {
+      setValidationError(`Couldn't copy to the clipboard: ${errorMessage(err)}`);
+    }
   };
 
   const handleRefresh = () => {

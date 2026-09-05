@@ -72,13 +72,41 @@ export interface AuthFailedFrame {
 
 export type HandshakeFrame = HelloFrame | ChallengeFrame | AuthFrame | ReadyFrame | AuthFailedFrame;
 
+/**
+ * A frame from the other side of the handshake, before anything is trusted.
+ *
+ * Only the discriminant is checked here — narrowing on `frame.type` is what
+ * gives each branch its own fields, and both sides then read them without
+ * restating the shape or defaulting a value the union says is a string.
+ */
+export function isHandshakeFrame(msg: unknown): msg is HandshakeFrame {
+  if (!msg || typeof msg !== "object") return false;
+  const type = (msg as { type?: unknown }).type;
+  return (
+    type === "hello" ||
+    type === "challenge" ||
+    type === "auth" ||
+    type === "ready" ||
+    type === "auth_failed"
+  );
+}
+
 /** Close codes, so each side can explain itself rather than dropping silently. */
 export const CLOSE_BAD_TOKEN = 4001;
 export const CLOSE_ALREADY_CONNECTED = 4002;
 export const CLOSE_BAD_ORIGIN = 4003;
 export const CLOSE_PROTOCOL = 4004;
 
-/** HMAC-SHA256 of `message` under `token`, lowercase hex. Same on both sides. */
+/**
+ * HMAC-SHA256 of `message` under `token`, lowercase hex — the app's half.
+ *
+ * The server computes the same value with node:crypto, in mcp/src/bridge.ts:
+ * `hmac()` here, `proofsMatch()` for safeEqual, `randomNonce()` for the nonce.
+ * It keeps its own copies deliberately: timingSafeEqual is a real constant-time
+ * comparison, and the synchronous API keeps the handshake path free of awaits.
+ * The two sets have to change together, and bridgeProtocol.test.ts pins this
+ * function against a value produced by the server side.
+ */
 export async function proveToken(token: string, message: string): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -226,11 +254,13 @@ export interface BridgeCalls {
   "cards.create": { params: CreateParams; result: MutationResult };
   "cards.update": { params: UpdateParams; result: MutationResult };
   "cards.delete": { params: DeleteParams; result: { id: string } };
-  "app.open": { params: OpenParams; result: { id: string } };
+  "app.open": { params: OpenParams; result: { id: string; opened: boolean } };
 }
 
 export interface MutationResult {
   id: string;
   name: string;
   cardType: LibraryCardType;
+  /** Whether the card was actually brought up in the editor, when asked. */
+  opened?: boolean;
 }

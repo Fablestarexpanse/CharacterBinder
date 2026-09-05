@@ -55,3 +55,31 @@ export function createPersistedSettings<T extends object>(
 
   return { get, save, subscribe };
 }
+
+/**
+ * A getter that returns the same object until the store changes.
+ *
+ * useSyncExternalStore compares snapshots by identity, so a getter that read
+ * and rebuilt the value per call would re-render forever. The first call does
+ * the read and registers the listener — doing either at import time would make
+ * importing the module a storage access, and would leave freshness resting on
+ * this module's listener happening to be registered before the first save.
+ *
+ * @param read builds the snapshot; called once up front and again after every
+ *   save, so it is the place to normalise what came out of storage.
+ */
+export function cachedSnapshot<T>(
+  store: { subscribe: (fn: (value: T) => void) => () => void },
+  read: () => T
+): () => T {
+  let snapshot: T | null = null;
+  return () => {
+    if (snapshot === null) {
+      snapshot = read();
+      store.subscribe(() => {
+        snapshot = read();
+      });
+    }
+    return snapshot;
+  };
+}

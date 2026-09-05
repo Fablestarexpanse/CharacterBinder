@@ -1,18 +1,16 @@
-import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, LibraryCardType, OpenDataCard } from "../../types";
-import type { PlatformId } from "../../shared/platforms";
+import { useState, useCallback } from "react";
+import type { MetadataInfo, LibraryCardType, OpenDataCard, LoadCharacterCard } from "../../types";
+import type { PlatformId } from "../../shared/platforms/registry";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
-import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
+import { readCardPng } from "../../lib/png/readCardPng";
+import PngDropzone from "../ui/PngDropzone";
 import { convertCardFrom } from "../../shared/platforms/converters";
-import { detectPlatform, PLATFORMS } from "../../shared/platforms";
-import { effectiveShape } from "../../lib/cardShape";
-import { pngBytesToDataUrl } from "../../lib/carrierImage";
+import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { errorMessage } from "../../shared/errorMessage";
 
-type DetectedType = LibraryCardType | null;
 
 interface ImportPNGProps {
-  onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
+  onLoad: LoadCharacterCard;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }
@@ -24,7 +22,7 @@ function countEntries(parsed: { entries?: unknown }): number {
   return 0;
 }
 
-const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
+const TYPE_LABELS: Record<LibraryCardType, string> = {
   character: "Character Card",
   lorebook: "Lorebook",
   script: "Script Card",
@@ -32,7 +30,7 @@ const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
   persona: "Persona",
 };
 
-const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
+const TYPE_KEYS: Record<LibraryCardType, string> = {
   character: "chara",
   lorebook: "lorebook",
   script: "script",
@@ -41,13 +39,11 @@ const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
 };
 
 export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
-  const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-  const [detectedType, setDetectedType] = useState<DetectedType>(null);
+  const [detectedType, setDetectedType] = useState<LibraryCardType | null>(null);
   const [detectedPlatform, setDetectedPlatform] = useState<PlatformId | null>(null);
   const [detectedKey, setDetectedKey] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const importPngFile = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".png") && !file.type.includes("png")) {
@@ -57,40 +53,29 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
     }
 
     try {
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const result = readCardPng(bytes);
 
-      if (!isPng(bytes)) {
+      if (result.kind === "not-png") {
         setStatus("error");
         setMessage("File is not a valid PNG.");
         return;
       }
-
-      const dims = getPngDimensions(bytes);
-      const { json, key, chunks, corruptKey } = decodeCharaFromPng(bytes);
-
-      if (!json || !key) {
+      if (result.kind !== "card") {
         setStatus("error");
         // "No card" and "damaged card" call for opposite responses, so say which.
         setMessage(
-          corruptKey
-            ? `This PNG carries a '${corruptKey}' card chunk, but its contents are damaged and couldn't be read. The file was probably truncated or re-saved by an image editor. Try Decode PNG to inspect the raw chunks.`
+          result.kind === "damaged"
+            ? `This PNG carries a '${result.corruptKey}' card chunk, but its contents are damaged and couldn't be read. The file was probably truncated or re-saved by an image editor. Try Decode PNG to inspect the raw chunks.`
             : "No card metadata found in this PNG. Try Decode PNG to inspect raw chunks."
         );
         return;
       }
 
-      const parsed = JSON.parse(json);
-      const imageSrc = pngBytesToDataUrl(bytes);
+      const { key, json, parsed, imageSrc, chunks, dimensions, cardType: effective, mismatch } = result;
       setDetectedKey(key);
-
-      // The metadata keyword says what the file claims to be; the payload shape
-      // says what it is. When they disagree, trust the shape — otherwise a
-      // lorebook stored under `chara` was rebuilt as a blank character card and
-      // every entry was silently dropped behind a success message.
-      const { shape: effective, actual, mismatch } = effectiveShape(key, parsed);
       const mismatchNote = mismatch
-        ? ` (the file is labelled '${key}' but its contents are a ${actual} card, so it was opened as one)`
+        ? ` (the file is labelled '${key}' but its contents are a ${effective} card, so it was opened as one)`
         : "";
 
       // ── Character card ──────────────────────────────────────────────
@@ -103,8 +88,8 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
           format: platform.name,
           encoding: "Base64 + PNG tEXt chunk",
           dataSize: json.length,
-          imageWidth: dims?.width ?? 0,
-          imageHeight: dims?.height ?? 0,
+          imageWidth: dimensions?.width ?? 0,
+          imageHeight: dimensions?.height ?? 0,
           chunks,
           rawKey: key,
         };
@@ -138,13 +123,6 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
     }
   }, [onLoad, onOpenDataCard]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) importPngFile(file);
-  }, [importPngFile]);
-
   return (
     <div className="h-full flex flex-col items-center justify-center p-8">
       <div className="max-w-lg w-full space-y-6">
@@ -156,44 +134,26 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
           </p>
         </div>
 
-        {/* Drop zone */}
-        <div
-          className={`relative border-2 border-dashed rounded-2xl p-12 flex flex-col items-center gap-4 transition-colors cursor-pointer ${
-            dragging
-              ? "border-accent-purple bg-accent-purple/10"
-              : "border-border hover:border-accent-purple/50 hover:bg-bg-hover"
-          }`}
-          role="button"
-          tabIndex={0}
-          aria-label="Choose a card PNG to import, or drop one here"
-          onKeyDown={(e) => {
-            // The visible target is a div and the real input is display:none, so
-            // without this there was no keyboard path to import a card at all.
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); }
-          }}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+        <PngDropzone
+          onFile={importPngFile}
+          label="Choose a card PNG to import"
+          className="rounded-2xl p-12 gap-4"
         >
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${dragging ? "bg-accent-purple/30" : "bg-bg-tertiary"}`}>
-            <Upload size={32} className={dragging ? "text-accent-purple-light" : "text-text-muted"} />
-          </div>
-          <div className="text-center">
-            <p className="text-text-primary font-medium">
-              {dragging ? "Drop PNG here..." : "Drag & drop a card PNG"}
-            </p>
-            <p className="text-sm text-text-muted mt-1">or click to browse files</p>
-          </div>
-          <p className="text-xs text-text-muted">Card type &amp; platform auto-detected on import</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".png,image/png"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) importPngFile(f); }}
-          />
-        </div>
+          {(dragging) => (
+            <>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${dragging ? "bg-accent-purple/30" : "bg-bg-tertiary"}`}>
+                <Upload size={32} className={dragging ? "text-accent-purple-light" : "text-text-muted"} />
+              </div>
+              <div className="text-center">
+                <p className="text-text-primary font-medium">
+                  {dragging ? "Drop PNG here..." : "Drag & drop a card PNG"}
+                </p>
+                <p className="text-sm text-text-muted mt-1">or click to browse files</p>
+              </div>
+              <p className="text-xs text-text-muted">Card type &amp; platform auto-detected on import</p>
+            </>
+          )}
+        </PngDropzone>
 
         {/* Status */}
         {status !== "idle" && (

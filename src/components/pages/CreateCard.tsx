@@ -1,14 +1,16 @@
-import { useState } from "react";
-import type { TavernCardV2, AppSettings, CardProject } from "../../types";
-import type { PlatformId } from "../../shared/platforms";
-import CharacterEditor from "../editor/CharacterEditor";
+import { useMemo, useState } from "react";
+import type { TavernCardV2, CardProject } from "../../types";
+import type { PlatformId } from "../../shared/platforms/registry";
+import { validateTavernCardV2 } from "../../shared/validators";
+import { useAppSettings } from "../../hooks/useAppSettings";
+import { useCharacterCardActions } from "../../hooks/useCharacterCardActions";
+import CharacterEditor from "./CharacterEditor";
 import JSONView from "../ui/JSONView";
 import RawPreview from "../ui/RawPreview";
 import CardPreviewPanel from "../editor/CardPreviewPanel";
 
 interface CreateCardProps {
   project: CardProject;
-  settings: AppSettings;
   targetPlatform: PlatformId;
   onUpdateCard: (updates: Partial<TavernCardV2["data"]>) => void;
   onUpdateImage: (src: string) => void;
@@ -22,7 +24,6 @@ type Tab = "editor" | "json" | "raw";
 
 export default function CreateCard({
   project,
-  settings,
   targetPlatform,
   onUpdateCard,
   onUpdateImage,
@@ -31,7 +32,17 @@ export default function CreateCard({
   onSavedToLibrary,
   onNewCard,
 }: CreateCardProps) {
+  // Read from the store rather than taken as a prop: the settings page writes
+  // them, and threading them down through App only made a second copy that had
+  // to be kept in step.
+  const settings = useAppSettings();
   const [activeTab, setActiveTab] = useState<Tab>("editor");
+  // Validation feeds both the panel's error list and the export gate, so the
+  // page computes it once and hands it to both.
+  const validation = useMemo(() => validateTavernCardV2(project.card), [project.card]);
+  const actions = useCharacterCardActions({
+    project, settings, targetPlatform, valid: validation.valid, onSavedToLibrary,
+  });
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "editor", label: "Character Editor" },
@@ -79,11 +90,11 @@ export default function CreateCard({
       {/* Right panel */}
       <CardPreviewPanel
         project={project}
-        settings={settings}
+        validation={validation}
         targetPlatform={targetPlatform}
         onPlatformChange={onPlatformChange}
         onUpdateOutputFileName={onUpdateOutputFileName}
-        onSavedToLibrary={onSavedToLibrary}
+        actions={actions}
         onNewCard={onNewCard}
       />
     </div>

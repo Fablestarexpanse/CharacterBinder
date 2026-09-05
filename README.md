@@ -52,14 +52,12 @@ opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 ### Running the tests
 
 ```bash
-npm test
+npm run test:all
 ```
 
-Components and hooks run under jsdom; the pure modules run in plain Node, so they
-stay fast.
-
-The MCP server is its own package with its own suite — the bridge handshake is
-driven over a real socket there:
+That runs both suites. `npm test` alone runs only the app's — components and
+hooks under jsdom, the pure modules in plain Node — and skips the MCP server,
+which is its own package and drives the bridge handshake over a real socket:
 
 ```bash
 npm --prefix mcp test
@@ -503,40 +501,49 @@ PNG Signature (8 bytes)
 CharacterBinder/
 ├── src/
 │   ├── components/
-│   │   ├── pages/           # The views App mounts (editors, library, import, settings)
-│   │   ├── editor/          # Panels owned by one page (card preview, smart import, lights)
-│   │   └── ui/              # Shared primitives (inputs, modals, dropzone, JSON views)
+│   │   ├── pages/           # The views App mounts (five card editors, library, import, settings)
+│   │   ├── editor/          # Panels owned by one page (card preview, export panel, quick import)
+│   │   ├── shell/           # App chrome: sidebar and its status lights
+│   │   └── ui/              # Shared primitives (inputs, modals, dropzone, error boundary)
 │   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
-│   ├── shared/              # Browser-neutral: the only code mcp/ may import
+│   ├── shared/              # The card domain and the wire protocol — the surface mcp/ compiles against
 │   │   ├── bridgeProtocol.ts # Wire protocol, shared by both sides of the bridge
-│   │   ├── platforms/       # Platform definitions + format converters
+│   │   ├── platforms/       # registry.ts (definitions) + converters.ts
 │   │   ├── validators.ts    # Card validation logic
 │   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
+│   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
+│   │   ├── cardShape.ts     # What a decoded payload actually is, from its own shape
+│   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
 │   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   └── errorMessage.ts  # The message from a caught unknown
-│   ├── lib/                 # Browser-only: IndexedDB, localStorage, DOM, WebGPU
-│   │   ├── bridge/          # MCP bridge: the app-side client
-│   │   ├── cardTextSorter/  # Quick Import: in-browser AI sorter (WebLLM) + settings
-│   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
+│   ├── lib/                 # App-side infrastructure: IndexedDB, localStorage, DOM, WebGPU, the bridge client
+│   │   ├── cardTextSorter/  # Quick Import: engine, prompts, sorter, models, settings
+│   │   ├── bridgeState.ts   # MCP bridge: pairing token, connection state, activity log
+│   │   ├── bridgeHandlers.ts # MCP bridge: the RPC surface and the approval gate
+│   │   ├── bridgeClient.ts  # MCP bridge: socket lifecycle and handshake
+│   │   ├── png/             # Everything that reads or writes a card PNG
+│   │   │   ├── pngMetadata.ts # tEXt/iTXt chunk encoder/decoder
+│   │   │   ├── readCardPng.ts # PNG bytes → a card, or why not
+│   │   │   ├── characterCardPng.ts # Card + cover art → PNG bytes
+│   │   │   ├── carrierImage.ts # Cover art → PNG bytes for embedding
+│   │   │   ├── minimalPng.ts  # 1×1 fallback carrier image
+│   │   │   └── readImageFile.ts # Image file → data URL helper
 │   │   ├── library.ts       # IndexedDB card storage (idb)
+│   │   ├── librarySave.ts   # The version-bump rule both save paths follow
 │   │   ├── archive.ts       # ZIP export (jszip)
 │   │   ├── tokenizer.ts     # Token counting (cl100k)
 │   │   ├── customTemplates.ts # User-saved templates (localStorage)
-│   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
-│   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
 │   │   ├── persistedSettings.ts # localStorage-backed settings store
-│   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
+│   │   ├── builtinTemplates.ts # Built-in character templates
 │   │   ├── download.ts      # Blob download helper (all export paths)
-│   │   ├── settings.ts      # App settings + localStorage persistence
-│   │   ├── minimalPng.ts    # 1×1 fallback carrier image
-│   │   └── readImageFile.ts # Image file → data URL helper
-│   ├── data/                # Built-in character templates
-│   ├── types/               # TypeScript type definitions
+│   │   ├── observable.ts    # Module-level value + subscribers, for the UI to watch
+│   │   └── settings.ts      # App settings + localStorage persistence
+│   ├── types/               # Card type declarations, also importable by mcp/
 │   ├── index.css            # Tailwind layers + shared component classes
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations
 │   ├── main.tsx             # React entry point
 │   └── App.tsx              # Root component and app state
-├── mcp/                     # MCP server (own package; shares src/lib)
+├── mcp/                     # MCP server (own package; imports src/shared and src/types only)
 │   └── src/
 │       ├── index.ts         # Tool definitions
 │       └── bridge.ts        # WebSocket server the app dials in on
@@ -544,6 +551,13 @@ CharacterBinder/
 ├── docs/                    # Screenshots and documentation assets
 └── start.bat / start.sh     # One-click launch
 ```
+
+**Where a module goes.** `src/shared` is the card domain and the bridge wire
+protocol — what the app and the MCP server must agree on, written against
+`src/types`. `mcp/tsconfig.json` compiles exactly those two directories, so a
+module that reaches for IndexedDB, `localStorage`, the DOM or WebGPU cannot live
+there; that is `src/lib`, the app-side infrastructure. The rule is what the two
+programs share, not merely what happens to be portable.
 
 ---
 

@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from "idb";
+import type { PlatformId } from "../shared/platforms/registry";
 import type {
   DataCardType, RawCardFor, LibraryCard, LibraryCardBase, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
 } from "../types";
@@ -63,7 +64,7 @@ export type SaveCardInput =
       body: TavernCardV2;
       /** The card re-encoded into its PNG, kept so archive export needs no re-encode. */
       pngData?: Uint8Array | null;
-      platform?: string;
+      platform?: PlatformId;
     })
   | (SaveCommon & { cardType: "lorebook"; body: LoreBook })
   | (SaveCommon & { cardType: "script"; body: ScriptCard })
@@ -110,21 +111,18 @@ export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard
       tags: input.tags ?? input.body.data.tags ?? [],
     };
   } else {
-    // Non-character cards carry no encoded PNG, and their "platform" is the
-    // kind itself — nothing converts them per target app.
+    // Non-character cards carry no encoded PNG and no target platform: nothing
+    // converts them per app.
     const common = {
       ...shell,
       name: input.name || input.body.name || `Unnamed ${input.cardType}`,
       pngData: null,
-      platform: input.cardType,
       tags: input.tags ?? [],
     };
-    switch (input.cardType) {
-      case "lorebook": card = { ...common, cardType: "lorebook", rawData: input.body }; break;
-      case "script":   card = { ...common, cardType: "script",   rawData: input.body }; break;
-      case "scenario": card = { ...common, cardType: "scenario", rawData: input.body }; break;
-      case "persona":  card = { ...common, cardType: "persona",  rawData: input.body }; break;
-    }
+    // One assertion rather than four arms whose bodies are the same text: the
+    // discriminated SaveCardInput has already proved that this body belongs to
+    // this kind, and the four-case switch existed only to say so again.
+    card = { ...common, cardType: input.cardType, rawData: input.body } as LibraryCard;
   }
 
   await db.put(STORE, card);
@@ -132,27 +130,39 @@ export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard
 }
 
 /**
+ * What actually comes back out of IndexedDB.
+ *
+ * The store holds whatever past versions of the app wrote, so a read cannot
+ * claim to be a LibraryCard before it has been through withCardType — annotating
+ * it as one made the compiler agree that `record.cardType` was always there,
+ * which is exactly the thing being checked.
+ */
+type StoredCard = Partial<LibraryCard> & LibraryCardBase & { cardData?: TavernCardV2; platform?: PlatformId };
+
+/**
  * Records written before card types existed have no `cardType`; they are all
  * character cards. Both reads apply this, so nothing downstream needs to repeat
  * the fallback — a card that has been through here always has a type.
  */
-function withCardType(record: LibraryCard): LibraryCard {
-  if (record.cardType) return record;
-  const legacy = record as LibraryCardBase & { cardData: TavernCardV2 };
-  return { ...legacy, cardType: "character" };
+function withCardType(record: StoredCard): LibraryCard {
+  if (record.cardType) return record as LibraryCard;
+  // A typeless record predates the other four kinds, so it is a character card
+  // and carries no rawData; the assertion says only that.
+  const { rawData: _unused, ...rest } = record;
+  return { ...rest, cardType: "character", platform: record.platform ?? "sillytavern" };
 }
 
 /** Return all cards, newest first. */
 export async function getAllCards(): Promise<LibraryCard[]> {
   const db = await getDb();
-  const all: LibraryCard[] = await db.getAll(STORE);
+  const all: StoredCard[] = await db.getAll(STORE);
   return all.map(withCardType).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /** One card by id, without reading the whole library to find it. */
 export async function getCard(id: string): Promise<LibraryCard | null> {
   const db = await getDb();
-  const card = await db.get(STORE, id);
+  const card: StoredCard | undefined = await db.get(STORE, id);
   return card ? withCardType(card) : null;
 }
 
@@ -161,3 +171,40 @@ export async function deleteCard(id: string): Promise<void> {
   await db.delete(STORE, id);
 }
 
+
+/**
+ * The payload a card is stored as: the whole Tavern v2 card for a character,
+ * the plain body for the other four. This is what an export writes out.
+ */
+export function cardPayload(card: LibraryCard): object {
+  // A character record with no body exports as an empty object rather than
+  // aborting the archive: the rest of the library still has to come out.
+  return card.cardType === "character" ? card.cardData ?? {} : card.rawData;
+}
+
+/**
+ * Records are read back from IndexedDB, where a truncated write or an older
+ * build can leave a character card with no body at all. Every accessor below
+ * has to survive that: a damaged card still has to list and still has to say
+ * what is wrong with it.
+ */
+
+/**
+ * The editable fields inside that payload — a character card keeps them one
+ * level down, under `data`. Copied, so a caller merging a patch into it cannot
+ * write through to the stored record.
+ */
+export function cardBody(card: LibraryCard): Record<string, unknown> {
+  return card.cardType === "character" ? { ...card.cardData?.data } : { ...card.rawData };
+}
+
+/**
+ * A card's own version string, whatever the kind calls it, or null when it has
+ * none. Character cards say `character_version`; the rest say `version`.
+ */
+export function cardVersion(card: LibraryCard): string | null {
+  const body = cardBody(card);
+  const raw = body.character_version ?? body.version;
+  const v = typeof raw === "string" ? raw.trim() : "";
+  return v || null;
+}

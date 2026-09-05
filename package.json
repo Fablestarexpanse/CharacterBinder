@@ -12,7 +12,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:all": "vitest run && npm --prefix mcp test"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.84",

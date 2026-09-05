@@ -2,13 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ImportPNG from "./ImportPNG";
 import DecodePNG from "./DecodePNG";
-import { encodeCharaToPng } from "../../lib/pngMetadata";
-import { MINIMAL_PNG } from "../../lib/minimalPng";
+import { encodeCharaToPng } from "../../lib/png/pngMetadata";
+import { MINIMAL_PNG } from "../../lib/png/minimalPng";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 
 /**
- * Both panels read a real PNG built by the app's own encoder, so these cover
- * the decode → detect → route path end to end rather than a mocked stand-in.
+ * Deliberately spans two components: ImportPNG and DecodePNG share one
+ * decode-detect-route path, and the point of these cases is that both ends of
+ * it agree. Each panel's own behaviour is covered here too rather than split
+ * across two files that would need the same PNG fixtures.
+ *
+ * The PNGs are built with the app's own encoder, so the whole path runs.
  */
 
 function pngWith(key: Parameters<typeof encodeCharaToPng>[2], payload: unknown): File {
@@ -19,7 +23,7 @@ function pngWith(key: Parameters<typeof encodeCharaToPng>[2], payload: unknown):
   return file;
 }
 
-const character = () => {
+const characterPayload = () => {
   const card = createBlankTavernCard("Rook");
   card.data.description = "A dockhand.";
   return card;
@@ -42,7 +46,7 @@ describe("ImportPNG", () => {
     const onLoad = vi.fn();
     const { container } = render(<ImportPNG onLoad={onLoad} onOpenDataCard={vi.fn()} />);
 
-    drop(container, pngWith("chara", character()));
+    drop(container, pngWith("chara", characterPayload()));
 
     await waitFor(() => expect(onLoad).toHaveBeenCalled());
     expect(onLoad.mock.calls[0][0].data.name).toBe("Rook");
@@ -79,7 +83,7 @@ describe("DecodePNG", () => {
   it("lists the chunks it found and offers to open the card", async () => {
     const { container } = render(<DecodePNG onLoad={vi.fn()} onOpenDataCard={vi.fn()} />);
 
-    drop(container, pngWith("chara", character()));
+    drop(container, pngWith("chara", characterPayload()));
 
     expect(await screen.findByText(/detection result/i)).toBeInTheDocument();
     expect(screen.getByText(/text chunk/i)).toBeInTheDocument();

@@ -1,5 +1,5 @@
-import JSZip from "jszip";
 import type { LibraryCard } from "../types";
+import { cardPayload } from "./library";
 import { downloadBlob } from "./download";
 
 /**
@@ -19,6 +19,10 @@ export function uniqueArchiveName(name: string, id: string, used: Set<string>): 
 }
 
 export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
+  // Loaded here rather than at module scope: JSZip is a large dependency that
+  // one button uses, and importing it at the top put it in the entry chunk
+  // every visitor downloads.
+  const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   const manifest: object[] = [];
 
@@ -30,9 +34,7 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
     if (card.pngData) {
       zip.file(`cards/${safeName}.png`, card.pngData);
     } else {
-      // Use rawData for non-character cards; cardData for character cards
-      const data = card.cardData ?? card.rawData;
-      const json = JSON.stringify(data, null, 2);
+      const json = JSON.stringify(cardPayload(card), null, 2);
       zip.file(`cards/${safeName}.json`, json);
     }
 
@@ -40,7 +42,9 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
       id: card.id,
       name: card.name,
       cardType: card.cardType,
-      platform: card.platform,
+      // Only a character card has a target app; omitting it beats writing the
+      // card's own kind into the field a second time.
+      ...(card.cardType === "character" ? { platform: card.platform } : {}),
       tags: card.tags,
       createdAt: new Date(card.createdAt).toISOString(),
       updatedAt: new Date(card.updatedAt).toISOString(),

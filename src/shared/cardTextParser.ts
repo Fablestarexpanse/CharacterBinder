@@ -35,7 +35,7 @@ export type CardField =
 
 export type ParseMethod = "json" | "wpp" | "labelled" | "prose" | "empty" | "ai";
 
-export interface ParsedPersona {
+export interface ParsedCardText {
   fields: Partial<Record<CardField, string>>;
   tags: string[];
   method: ParseMethod;
@@ -175,7 +175,7 @@ function scoreWords(text: string, words: string[]): number {
 
 // ── Entry point ─────────────────────────────────────────────────────────────
 
-export function parsePersonaText(raw: string): ParsedPersona {
+export function parseCardText(raw: string): ParsedCardText {
   const text = raw.replace(/\r\n?/g, "\n").trim();
   if (!text) {
     return { fields: {}, tags: [], method: "empty", notes: ["Nothing to import — paste some text first."] };
@@ -221,7 +221,7 @@ const JSON_KEY_MAP: Record<string, LabelTarget> = {
   tags: "tags",
 };
 
-function parseJson(text: string): ParsedPersona | null {
+function parseJson(text: string): ParsedCardText | null {
   if (!/^\s*[{[]/.test(text)) return null;
 
   let parsed: unknown;
@@ -318,12 +318,14 @@ const WPP_BLOCK_RE = /([A-Za-z][A-Za-z _-]{0,28}?)\s*[({[]\s*((?:"[^"]*"\s*[+,]?
 /** Below this, the text is prose that happens to contain a quoted list. */
 const WPP_MIN_COVERAGE = 0.6;
 
-function parseWpp(text: string): ParsedPersona | null {
+function parseWpp(text: string): ParsedCardText | null {
   const fields: Partial<Record<CardField, string>> = {};
   const tags: string[] = [];
   const leftovers: string[] = [];
   let matched = 0;
   let covered = 0;
+  /** Character spans the attribute blocks occupy, so the rest can be kept. */
+  const spans: Array<[number, number]> = [];
 
   for (const m of text.matchAll(WPP_BLOCK_RE)) {
     const rawLabel = m[1].trim();
@@ -332,6 +334,7 @@ function parseWpp(text: string): ParsedPersona | null {
 
     matched++;
     covered += m[0].length;
+    spans.push([m.index ?? 0, (m.index ?? 0) + m[0].length]);
 
     const joined = values.join(", ");
     const target = lookupLabel(rawLabel);
@@ -351,7 +354,22 @@ function parseWpp(text: string): ParsedPersona | null {
   const meaningful = text.replace(/\s+/g, " ").trim().length;
   if (!meaningful || covered / meaningful < WPP_MIN_COVERAGE) return null;
 
+  // Text between the blocks — a preamble, a stray sentence — is content the
+  // author wrote, and this parser promises to keep everything it is given.
+  const outside: string[] = [];
+  let cursor = 0;
+  for (const [start, end] of spans) {
+    if (start > cursor) outside.push(text.slice(cursor, start));
+    cursor = Math.max(cursor, end);
+  }
+  outside.push(text.slice(cursor));
+  const remainder = outside.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+
   const notes = ["Read as a W++ / attribute list."];
+  if (remainder) {
+    fields.description = joinSections(fields.description, remainder);
+    notes.push("Kept the text outside the attribute blocks in Description.");
+  }
   if (leftovers.length) {
     fields.description = joinSections(fields.description, leftovers.join("\n"));
     notes.push(`Kept ${leftovers.length} unrecognised attribute${leftovers.length === 1 ? "" : "s"} in Description.`);
@@ -454,7 +472,7 @@ function isLabelShaped(candidate: string): boolean {
   return words.length <= 4 && /^[A-Za-z]/.test(t);
 }
 
-function parseLabelled(text: string): ParsedPersona | null {
+function parseLabelled(text: string): ParsedCardText | null {
   const lines = text.split("\n");
   const sections: Array<{ heading: Heading; body: string[] }> = [];
   const preamble: string[] = [];
@@ -521,7 +539,7 @@ function parseLabelled(text: string): ParsedPersona | null {
 
 // ── Strategy 4: unstructured prose ──────────────────────────────────────────
 
-function parseProse(text: string): ParsedPersona {
+function parseProse(text: string): ParsedCardText {
   const fields: Partial<Record<CardField, string>> = {};
   const notes: string[] = [];
 
@@ -619,7 +637,7 @@ function splitTags(value: string): string[] {
  * detail conventionally lives in description — so those sections are merged in
  * with their labels kept, rather than being dropped on the floor.
  */
-export function toCharacterFields(parsed: ParsedPersona): Partial<Record<CardField, string>> {
+export function toCharacterFields(parsed: ParsedCardText): Partial<Record<CardField, string>> {
   const out: Partial<Record<CardField, string>> = {};
 
   for (const field of CHARACTER_FIELD_ORDER) {

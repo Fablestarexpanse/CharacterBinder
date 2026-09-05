@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { getEngineState, subscribeEngineState, type EngineState } from "../lib/cardTextSorter";
+import { getEngineState, subscribeEngineState, type EngineState } from "../lib/cardTextSorter/engine";
 
 /**
  * Live view of the AI sorter's engine. Kept in the module rather than component

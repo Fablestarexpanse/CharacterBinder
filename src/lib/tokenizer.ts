@@ -1,14 +1,70 @@
-// cl100k, not the newer o200k the package exports by default: its BPE table is
-// 1.06 MB against 2.22 MB, and it made up most of the entry chunk. The counts
-// here are a budget estimate shown next to each field — every target platform
-// runs a different model with a different tokenizer anyway, so the extra
-// megabyte bought no accuracy that means anything to the user.
-import { encode } from "gpt-tokenizer/encoding/cl100k_base";
 import type { TavernCardV2 } from "../types";
+
+/**
+ * Token counting for the budget badges.
+ *
+ * cl100k, not the newer o200k the package exports by default: its BPE table is
+ * 1.06 MB against 2.22 MB, and these counts are an estimate shown beside each
+ * field — every target platform runs a different model with a different
+ * tokenizer anyway.
+ *
+ * Even 1.06 MB is too much to put in the chunk every visitor downloads before
+ * seeing anything, so the table is fetched after first paint. Until it lands,
+ * counts come from a character-based approximation and the badges say so.
+ */
+
+let encode: ((text: string) => number[]) | null = null;
+const listeners = new Set<() => void>();
+
+/** Roughly four characters per token for English prose. */
+function estimate(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+let loading: Promise<void> | null = null;
+function loadEncoder(): void {
+  loading ??= import("gpt-tokenizer/encoding/cl100k_base").then((mod) => {
+    encode = mod.encode;
+    for (const fn of listeners) fn();
+  });
+}
+
+/**
+ * Resolves once counts are exact. The app does not wait on this — the badges
+ * correct themselves — but a test asserting real token counts must.
+ */
+export function whenTokenizerReady(): Promise<void> {
+  loadEncoder();
+  return loading!;
+}
+
+/** True once counts are exact rather than approximate. */
+export function isTokenizerReady(): boolean {
+  return encode !== null;
+}
+
+/** Called when the real encoder arrives, so displayed counts can be corrected. */
+export function subscribeTokenizer(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
 
 export function countTokens(text: string): number {
   if (!text) return 0;
+  if (!encode) {
+    loadEncoder();
+    return estimate(text);
+  }
   return encode(text).length;
+}
+
+// Start fetching as soon as the app is running, so the approximation is only
+// ever on screen briefly.
+if (typeof window !== "undefined") {
+  const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 200));
+  idle(() => loadEncoder());
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePersonaText, isSeparatorLine, toCharacterFields } from "./cardTextParser";
+import { parseCardText, isSeparatorLine, toCharacterFields } from "./cardTextParser";
 
 /**
  * The parser's job is to move an author's own words into the right fields
@@ -10,7 +10,7 @@ import { parsePersonaText, isSeparatorLine, toCharacterFields } from "./cardText
 
 describe("labelled sections", () => {
   it("splits on `Label:` lines and keeps unrecognised sections in description", () => {
-    const r = parsePersonaText(`Name: Mira Voss
+    const r = parseCardText(`Name: Mira Voss
 Age: 27
 Gender: Female
 Appearance: Short, freckled, copper hair usually in a messy bun.
@@ -33,7 +33,7 @@ Tags: human, scientist, anxious`);
   });
 
   it("reads markdown headings", () => {
-    const r = parsePersonaText(`## Name
+    const r = parseCardText(`## Name
 Dr. Elias Thorn
 
 ## Appearance
@@ -51,7 +51,7 @@ Patient, pedantic, secretly warm.`);
   it("reads bare headings sitting alone above their paragraphs", () => {
     // The most common hand-written shape, and the one that regressed before:
     // no colon, no markdown, just the word on its own line.
-    const r = parsePersonaText(`Name: Kael Mercer
+    const r = parseCardText(`Name: Kael Mercer
 
 ⸻
 
@@ -72,7 +72,7 @@ Brilliant without being arrogant. His humor is dry.`);
   });
 
   it("strips divider rules instead of embedding them in a field", () => {
-    const r = parsePersonaText(`Name: Test
+    const r = parseCardText(`Name: Test
 
 ⸻
 
@@ -91,7 +91,7 @@ Kind.`);
   });
 
   it("merges several sections into one field, keeping their own labels", () => {
-    const r = parsePersonaText(`Name: Test
+    const r = parseCardText(`Name: Test
 
 Personality
 
@@ -116,7 +116,7 @@ Interests
   it("does not mistake a bulleted list item for a heading", () => {
     // "* Philosophy" would match the `background`-ish vocabulary if bullets
     // were treated as headings.
-    const r = parsePersonaText(`Name: Test
+    const r = parseCardText(`Name: Test
 
 Interests
 
@@ -163,7 +163,7 @@ Reputation
 
 Known as the professor who makes impossible concepts understandable.`;
 
-    const r = parsePersonaText(src);
+    const r = parseCardText(src);
     const all = Object.values(r.fields).join("\n");
 
     const lost = src
@@ -181,7 +181,7 @@ Known as the professor who makes impossible concepts understandable.`;
 
 describe("unstructured prose", () => {
   it("sorts paragraphs by what they talk about", () => {
-    const r = parsePersonaText(`Kael Ardent
+    const r = parseCardText(`Kael Ardent
 
 Kael is a wiry man in his early thirties with black hair he keeps tied back and sharp grey eyes. He wears a patched leather coat two sizes too big.
 
@@ -197,7 +197,7 @@ Born in the river district of Anvale, he grew up running errands for smugglers b
   });
 
   it("falls back to sentence-level sorting for one solid block", () => {
-    const r = parsePersonaText(
+    const r = parseCardText(
       `Rowan is a broad-shouldered woman with cropped auburn hair and a burn scar across her left forearm. She is stubborn, loyal, and has almost no patience for small talk. She was raised by her grandmother in a fishing village and worked the docks from the age of twelve.`
     );
 
@@ -209,7 +209,7 @@ Born in the river district of Anvale, he grew up running errands for smugglers b
 
   it("does not treat prose starting with a section word as a heading", () => {
     // Regression guard: "History repeats itself" must not open a background section.
-    const r = parsePersonaText(`History repeats itself, or so he claims.
+    const r = parseCardText(`History repeats itself, or so he claims.
 
 He is a cheerful, talkative man who enjoys company and hates silence. Friendly to a fault.`);
 
@@ -219,7 +219,7 @@ He is a cheerful, talkative man who enjoys company and hates silence. Friendly t
 
   it("requires a clear winner before moving a chunk off description", () => {
     // A single stray keyword shouldn't be enough to reassign a paragraph.
-    const r = parsePersonaText(`Someone entirely unremarkable.
+    const r = parseCardText(`Someone entirely unremarkable.
 
 They own a hat.`);
     expect(r.method).toBe("prose");
@@ -229,7 +229,7 @@ They own a hat.`);
 
 describe("machine formats", () => {
   it("reads W++ attribute lists", () => {
-    const r = parsePersonaText(`Name("Sable")
+    const r = parseCardText(`Name("Sable")
 Appearance("tall" + "black hair" + "amber eyes")
 Personality("aloof" + "witty" + "protective")
 Likes("rain" + "old books")`);
@@ -242,7 +242,7 @@ Likes("rain" + "old books")`);
   });
 
   it("reads JSON exports and keeps unmapped keys", () => {
-    const r = parsePersonaText(
+    const r = parseCardText(
       JSON.stringify({
         name: "Juniper",
         description: "A travelling herbalist.",
@@ -261,7 +261,7 @@ Likes("rain" + "old books")`);
   });
 
   it("flattens Tavern V2 `data` nesting", () => {
-    const r = parsePersonaText(
+    const r = parseCardText(
       JSON.stringify({ spec: "chara_card_v2", data: { name: "Nested", personality: "Calm" } })
     );
     expect(r.method).toBe("json");
@@ -281,7 +281,7 @@ She whispered "run" + "now" was all he heard before the lights went out.
 
 He is stubborn, loyal, and hates being thanked for anything at all.`;
 
-    const r = parsePersonaText(src);
+    const r = parseCardText(src);
     expect(r.method).not.toBe("wpp");
 
     // Nothing may be lost, whichever strategy claims it.
@@ -292,7 +292,7 @@ He is stubborn, loyal, and hates being thanked for anything at all.`;
   });
 
   it("keeps parentheses that live inside a quoted W++ value", () => {
-    const r = parsePersonaText(`Name("Sable")
+    const r = parseCardText(`Name("Sable")
 Personality("kind (mostly)" + "shy" + "loyal")
 Appearance("tall" + "amber eyes")`);
 
@@ -303,7 +303,7 @@ Appearance("tall" + "amber eyes")`);
   it("keeps arrays and nested objects from a JSON card", () => {
     // Regression: objects stringified to "" and the leftovers branch accepted
     // only scalars, so greetings, lorebooks and extensions vanished silently.
-    const r = parsePersonaText(
+    const r = parseCardText(
       JSON.stringify({
         name: "Rook",
         description: "A dockhand.",
@@ -321,7 +321,7 @@ Appearance("tall" + "amber eyes")`);
   });
 
   it("does not treat malformed JSON as JSON", () => {
-    const r = parsePersonaText(`{ this is not json, it is just prose that starts with a brace`);
+    const r = parseCardText(`{ this is not json, it is just prose that starts with a brace`);
     expect(r.method).not.toBe("json");
   });
 });
@@ -330,7 +330,7 @@ describe("character card mapping", () => {
   it("does not treat {{char}}: / {{user}}: dialogue lines as headings", () => {
     // {{char}} normalises to "char", which is a Name alias — without a guard
     // every line of an example exchange opens a new Name section.
-    const r = parsePersonaText(`Name: Rook
+    const r = parseCardText(`Name: Rook
 Personality: Curt but not unkind.
 Example Dialogs: {{user}}: Why here?
 {{char}}: Because nobody looks up.
@@ -343,7 +343,7 @@ Example Dialogs: {{user}}: Why here?
   });
 
   it("recognises scenario, greeting, and example-dialogue labels", () => {
-    const r = parsePersonaText(`Name: Rook
+    const r = parseCardText(`Name: Rook
 Scenario: A rain-soaked rooftop above the market district.
 First Message: "You're late." *He doesn't look up.*
 Example Dialogs: {{user}}: Why here?
@@ -358,7 +358,7 @@ Example Dialogs: {{user}}: Why here?
   });
 
   it("folds appearance and background into description, keeping their labels", () => {
-    const r = parsePersonaText(`Name: Rook
+    const r = parseCardText(`Name: Rook
 
 Appearance
 
@@ -385,7 +385,7 @@ Grew up on the docks.`);
   });
 
   it("keeps an existing description above the folded sections", () => {
-    const r = parsePersonaText(`Name: Rook
+    const r = parseCardText(`Name: Rook
 Description: A dockhand who notices too much.
 Appearance: Lean and weather-beaten.
 Background: Grew up on the docks.`);
@@ -397,7 +397,7 @@ Background: Grew up on the docks.`);
   });
 
   it("maps JanitorAI JSON keys onto character fields", () => {
-    const r = parsePersonaText(
+    const r = parseCardText(
       JSON.stringify({ name: "Rook", persona: "A dockhand.", world: "The docks.", greeting: "You're late." })
     );
     const c = toCharacterFields(r);
@@ -410,13 +410,13 @@ Background: Grew up on the docks.`);
 
 describe("edge cases", () => {
   it("reports empty input rather than throwing", () => {
-    expect(parsePersonaText("").method).toBe("empty");
-    expect(parsePersonaText("   \n  ").method).toBe("empty");
+    expect(parseCardText("").method).toBe("empty");
+    expect(parseCardText("   \n  ").method).toBe("empty");
   });
 
   it("needs at least two recognised labels before trusting structure", () => {
     // One lone label is not enough signal; this should fall through to prose.
-    const r = parsePersonaText(`Appearance: tall
+    const r = parseCardText(`Appearance: tall
 
 and then some further rambling text that carries on for a while.`);
     expect(r.method).toBe("prose");
@@ -429,5 +429,40 @@ and then some further rambling text that carries on for a while.`);
     expect(isSeparatorLine("═══")).toBe(true);
     expect(isSeparatorLine("Appearance")).toBe(false);
     expect(isSeparatorLine("* a bullet")).toBe(false);
+  });
+});
+
+describe("W++ keeps the text around the attribute blocks", () => {
+  const wpp = `Kael is a physicist who never sleeps.
+
+[character("Kael")
+{
+Age("28")
+Personality("blunt" + "curious")
+Appearance("wiry" + "ink-stained")
+Body("tall" + "lean")
+Likes("coffee" + "silence")
+}]
+
+He was last seen in Anvale.`;
+
+  it("reads the attributes", () => {
+    const parsed = parseCardText(wpp);
+    expect(parsed.method).toBe("wpp");
+    expect(parsed.fields.personality).toContain("blunt");
+    expect(parsed.fields.appearance).toContain("wiry");
+  });
+
+  it("keeps the prose outside the blocks, rather than dropping it", () => {
+    // The parser's promise is that nothing is ever dropped; this strategy used
+    // to discard everything outside the attribute blocks.
+    const parsed = parseCardText(wpp);
+    const all = Object.values(parsed.fields).join("\n");
+    expect(all).toContain("never sleeps");
+    expect(all).toContain("Anvale");
+  });
+
+  it("says it kept the surrounding text", () => {
+    expect(parseCardText(wpp).notes.join(" ")).toMatch(/outside the attribute blocks/i);
   });
 });

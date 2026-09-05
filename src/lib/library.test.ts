@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { createBlankTavernCard } from "../shared/tavernCard";
-import { blankPersonaCard } from "./blankCards";
+import { blankPersonaCard } from "../shared/blankCards";
 
 // A fresh factory per test: the library caches its database handle, so the
 // module is re-imported alongside it.
@@ -12,9 +12,25 @@ beforeEach(async () => {
   indexedDB = new IDBFactory();
   vi.resetModules();
   library = await import("./library");
+  // Timestamps are what "newest first" and "kept createdAt" are about, so the
+  // clock is driven rather than waited on: sleeping for 5ms made the ordering
+  // assertions depend on how loaded the machine was.
+  // Only Date: fake-indexeddb drives its own transactions through setTimeout,
+  // and freezing that hangs every query.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-01-02T03:04:05Z"));
 });
 
-const character = (name: string) => {
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Move the clock on, so the next save gets a later updatedAt. */
+function tick(ms = 1000) {
+  vi.setSystemTime(new Date(Date.now() + ms));
+}
+
+const characterBody = (name: string) => {
   const card = createBlankTavernCard(name);
   card.data.description = "A dockhand.";
   card.data.tags = ["harbour"];
@@ -23,14 +39,14 @@ const character = (name: string) => {
 
 describe("saveLibraryCard", () => {
   it("stores a character card and reads it back whole", async () => {
-    const saved = await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
+    const saved = await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
     const read = await library.getCard(saved.id);
 
     expect(read?.name).toBe("Rook");
     expect(read?.cardType).toBe("character");
     // Narrow the union the way a caller would, rather than reaching past it.
     if (read?.cardType !== "character") throw new Error("expected a character card");
-    expect(read.cardData.data.description).toBe("A dockhand.");
+    expect(read.cardData!.data.description).toBe("A dockhand.");
     // Tags come from the card itself, so the library can index on them.
     expect(read?.tags).toEqual(["harbour"]);
   });
@@ -46,17 +62,18 @@ describe("saveLibraryCard", () => {
     expect(read?.name).toBe("Kael");
     expect(read?.cardType).toBe("persona");
     expect(read?.tags).toEqual(["scientist"]);
-    // A data card carries no encoded PNG, and its platform is its own kind.
+    // A data card carries no encoded PNG and no target platform: it is stored
+    // as-is, and nothing converts it per app.
     expect(read?.pngData).toBeNull();
-    expect(read?.platform).toBe("persona");
+    expect(read?.platform).toBeUndefined();
   });
 
   it("updates in place when given the existing id, keeping createdAt", async () => {
-    const first = await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
-    await new Promise((r) => setTimeout(r, 5));
+    const first = await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
+    tick();
     const second = await library.saveLibraryCard({
       cardType: "character",
-      body: character("Rook the Elder"),
+      body: characterBody("Rook the Elder"),
       existingId: first.id,
     });
 
@@ -67,8 +84,8 @@ describe("saveLibraryCard", () => {
   });
 
   it("stores a second card when no id is given, so a version bump forks", async () => {
-    await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
-    await library.saveLibraryCard({ cardType: "character", body: character("Rook") });
+    await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
+    await library.saveLibraryCard({ cardType: "character", body: characterBody("Rook") });
     expect(await library.getAllCards()).toHaveLength(2);
   });
 
@@ -80,16 +97,16 @@ describe("saveLibraryCard", () => {
 
 describe("getAllCards", () => {
   it("returns newest first", async () => {
-    const a = await library.saveLibraryCard({ cardType: "character", body: character("First") });
-    await new Promise((r) => setTimeout(r, 5));
-    const b = await library.saveLibraryCard({ cardType: "character", body: character("Second") });
+    const a = await library.saveLibraryCard({ cardType: "character", body: characterBody("First") });
+    tick();
+    const b = await library.saveLibraryCard({ cardType: "character", body: characterBody("Second") });
 
     const all = await library.getAllCards();
     expect(all.map((c) => c.id)).toEqual([b.id, a.id]);
   });
 
   it("treats a record written before card types existed as a character", async () => {
-    const saved = await library.saveLibraryCard({ cardType: "character", body: character("Legacy") });
+    const saved = await library.saveLibraryCard({ cardType: "character", body: characterBody("Legacy") });
     // Strip the field the way an old record would have been stored.
     const db = await new Promise<IDBDatabase>((resolve) => {
       const req = indexedDB.open("characterbinder-library");
@@ -118,8 +135,8 @@ describe("getCard and deleteCard", () => {
   });
 
   it("removes only the card asked for", async () => {
-    const a = await library.saveLibraryCard({ cardType: "character", body: character("Keep") });
-    const b = await library.saveLibraryCard({ cardType: "character", body: character("Drop") });
+    const a = await library.saveLibraryCard({ cardType: "character", body: characterBody("Keep") });
+    const b = await library.saveLibraryCard({ cardType: "character", body: characterBody("Drop") });
 
     await library.deleteCard(b.id);
 
