@@ -4,6 +4,7 @@
  */
 
 import { CONTEXT_TOKENS } from "./modelIo";
+import { errorMessage } from "../../shared/errorMessage";
 
 export interface LoadProgress {
   /** 0..1, or null while the model is still being fetched with no ratio yet. */
@@ -125,7 +126,7 @@ export async function getEngine(modelId: string, onProgress?: (p: LoadProgress) 
       modelId: null,
       progress: 0,
       message: "",
-      error: err instanceof Error ? err.message : "Failed to load the model.",
+      error: errorMessage(err),
     });
     throw err;
   } finally {

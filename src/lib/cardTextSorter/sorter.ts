@@ -173,7 +173,16 @@ async function runEndpoint(input: string, settings: SorterSettings, target: Sort
     throw new Error(`Endpoint returned ${res.status} ${res.statusText}.`);
   }
 
-  const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  let body: { choices?: Array<{ message?: { content?: string } }> };
+  try {
+    body = await res.json();
+  } catch {
+    // A wrong URL usually answers with HTML, and a raw SyntaxError tells the
+    // user nothing about which setting to change.
+    throw new Error(
+      `${base} answered with something that isn't JSON. Check the endpoint URL points at an OpenAI-compatible /v1 API.`
+    );
+  }
   return body.choices?.[0]?.message?.content ?? "";
 }
 

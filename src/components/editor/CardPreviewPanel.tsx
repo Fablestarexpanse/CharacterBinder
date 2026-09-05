@@ -178,7 +178,7 @@ export default function CardPreviewPanel({
       saveCustomTemplate(project.card);
       setStatus("Saved as template!", true);
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Failed to save template.", false);
+      setStatus(`Failed to save template: ${errorMessage(err)}`, false);
     } finally {
       setSavingTemplate(false);
     }
