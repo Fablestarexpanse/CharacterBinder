@@ -1,5 +1,5 @@
 import { DEFAULT_MODEL_ID } from "./models";
-import { createPersistedSettings } from "../persistedSettings";
+import { createPersistedSettings, cachedSnapshot } from "../persistedSettings";
 
 /** Where the AI sorter runs. */
 export type SorterBackend = "webllm" | "endpoint";
@@ -40,16 +40,7 @@ function readSettings(): SorterSettings {
   };
 }
 
-// Cached, and replaced only on a save: useSyncExternalStore compares snapshots
-// by identity, so handing it a fresh object per call would re-render forever.
-let snapshot: SorterSettings = readSettings();
-store.subscribe(() => {
-  snapshot = readSettings();
-});
-
-export function getSorterSettings(): SorterSettings {
-  return snapshot;
-}
+export const getSorterSettings = cachedSnapshot(store, readSettings);
 
 /**
  * Saves notify subscribers because these settings are edited in the Quick

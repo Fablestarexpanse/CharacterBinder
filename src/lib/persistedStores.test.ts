@@ -25,6 +25,36 @@ beforeEach(async () => {
   templates = await import("./customTemplates");
 });
 
+describe("import-time side effects", () => {
+  it("reads nothing from storage until something asks for a value", async () => {
+    vi.resetModules();
+    const reads: string[] = [];
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => { reads.push(k); return store.get(k) ?? null; },
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    try {
+      // Importing a settings module used to snapshot storage on the spot, which
+      // made freshness depend on this module's listener being registered before
+      // anyone else's save — an order nothing enforced.
+      const fresh = await import("./settings");
+      const freshSorter = await import("./cardTextSorter/settings");
+      expect(reads).toEqual([]);
+
+      fresh.getAppSettings();
+      freshSorter.getSorterSettings();
+      expect(reads.length).toBeGreaterThan(0);
+    } finally {
+      vi.stubGlobal("localStorage", {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+      });
+    }
+  });
+});
+
 describe("app settings", () => {
   it("starts from the defaults", () => {
     expect(settings.getAppSettings()).toEqual(settings.DEFAULT_SETTINGS);

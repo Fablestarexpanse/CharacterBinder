@@ -17,8 +17,17 @@ const bridgeStore = createPersistedSettings("cb_bridge", { token: "", enabled: f
  * The token and the on/off flag used to be two bare localStorage keys. Carry
  * them into the store once, so an existing user is not silently logged out of
  * their own bridge and left retyping a token they already pasted.
+ *
+ * Run on the first read rather than at import: importing a module should not
+ * write to storage, and a lazy shim can't lose a race with whoever imports
+ * first. Added 2026-09; delete it — and this flag — after 2027-09, by which
+ * point any install still on the old keys has been unused for a year.
  */
-(function migrateLegacyBridgeKeys() {
+let migrated = false;
+
+function ensureMigrated(): void {
+  if (migrated) return;
+  migrated = true;
   try {
     const token = localStorage.getItem("cb_bridge_token");
     const enabled = localStorage.getItem("cb_bridge_enabled");
@@ -33,22 +42,26 @@ const bridgeStore = createPersistedSettings("cb_bridge", { token: "", enabled: f
     // Storage blocked; the user pastes the token again, which is the same
     // position they would be in with no storage at all.
   }
-})();
+}
 
 export function getBridgeToken(): string {
+  ensureMigrated();
   return bridgeStore.get().token;
 }
 
 /** Whether the user left the bridge switched on. */
 export function isBridgeEnabled(): boolean {
+  ensureMigrated();
   return bridgeStore.get().enabled;
 }
 
 export function setBridgeEnabled(enabled: boolean): void {
+  ensureMigrated();
   bridgeStore.save({ enabled });
 }
 
 export function setBridgeToken(token: string) {
+  ensureMigrated();
   bridgeStore.save({ token: token.trim() });
 }
 

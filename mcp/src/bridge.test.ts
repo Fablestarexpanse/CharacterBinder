@@ -136,9 +136,56 @@ describe("bridge handshake", () => {
     // The live session is untouched.
     expect(isAppConnected()).toBe(true);
   });
+
+  it("refuses a second client that finishes its handshake while the first holds the socket", async () => {
+    server = startBridge({ port: PORT, token: TOKEN });
+
+    // Both connect before either authenticates, so both pass the connect-time
+    // incumbent check. Only the one that gets there first may be promoted.
+    const first = await connect();
+    const second = await connect();
+
+    const firstNonce = await hello(first);
+    const firstChallenge = await nextMessage(first);
+    expect(firstNonce.length).toBeGreaterThan(15);
+    first.send(JSON.stringify({ type: "auth", proof: await proveToken(TOKEN, PROOF_CLIENT + String(firstChallenge.serverNonce)) }));
+    expect((await nextMessage(first)).type).toBe("ready");
+
+    await hello(second);
+    const secondChallenge = await nextMessage(second);
+    second.send(JSON.stringify({ type: "auth", proof: await proveToken(TOKEN, PROOF_CLIENT + String(secondChallenge.serverNonce)) }));
+
+    expect(await nextClose(second)).toBe(CLOSE_ALREADY_CONNECTED);
+    // The first client is still the app, still connected, still answering.
+    expect(isAppConnected()).toBe(true);
+    expect(first.readyState).toBe(WebSocket.OPEN);
+  });
 });
 
 describe("startBridge", () => {
+  it("fails in-flight calls when it is shut down, rather than leaving them to time out", async () => {
+    const { callApp } = await import("./bridge.js");
+    const handle = startBridge({ port: PORT, token: TOKEN });
+    server = handle;
+
+    const ws = await connect();
+    const clientNonce = await hello(ws);
+    const challenge = await nextMessage(ws);
+    expect(clientNonce.length).toBeGreaterThan(15);
+    ws.send(JSON.stringify({ type: "auth", proof: await proveToken(TOKEN, PROOF_CLIENT + String(challenge.serverNonce)) }));
+    await nextMessage(ws);
+
+    // The client never answers. Terminating a socket fires no close handler, so
+    // without close() clearing them this call would sit out its full timeout.
+    const call = callApp("cards.list", {});
+    await nextMessage(ws);
+    handle.close();
+    server = null;
+
+    await expect(call).rejects.toThrow(/shut down/i);
+  });
+
+
   it("reports the port it actually bound, not the default", async () => {
     server = startBridge({ port: PORT, token: TOKEN });
     const { bridgeStatus } = await import("./bridge.js");

@@ -33,6 +33,10 @@ import { errorMessage } from "../../src/shared/errorMessage.js";
  * too — `ws://` to loopback is exempt from mixed-content blocking and isn't
  * subject to CORS. So a connection is only promoted to "the app" after it
  * proves knowledge of the shared token, and only one at a time.
+ *
+ * The state below is process-wide: one server per process, so `startBridge`'s
+ * handle is a shutdown hook rather than an instance. close() puts the module
+ * back to how it started.
  */
 
 let appSocket: WebSocket | null = null;
@@ -206,6 +210,14 @@ export function startBridge(opts: { port?: number; token?: string } = {}): {
             ws.close(CLOSE_BAD_TOKEN, "Bad token");
             return;
           }
+          // Re-check the incumbent here, not only at connect: two clients can
+          // both pass the connect-time check and then finish their handshakes,
+          // and whoever authenticates second would otherwise silently displace
+          // the first, leaving it connected and answering nothing.
+          if (appSocket && appSocket.readyState === 1 && appSocket !== ws) {
+            ws.close(CLOSE_ALREADY_CONNECTED, "Another CharacterBinder is already connected");
+            return;
+          }
           authed = true;
           clearTimeout(handshakeTimer);
           appSocket = ws;
@@ -264,6 +276,14 @@ export function startBridge(opts: { port?: number; token?: string } = {}): {
       for (const client of wss.clients) client.terminate();
       wss.close();
       appSocket = null;
+      listenError = null;
+      // A terminated socket fires no 'close' handler, so in-flight calls would
+      // otherwise sit out their full timeout against a server that is gone.
+      for (const [id, entry] of pending) {
+        clearTimeout(entry.timer);
+        entry.reject(new Error("The bridge was shut down before the call was answered."));
+        pending.delete(id);
+      }
     },
     // A bind failure arrives on the 'error' event, after this returns; the
     // caller reads bridgeStatus() for that.
