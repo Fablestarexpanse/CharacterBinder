@@ -10,13 +10,15 @@
  * Shape is the more reliable signal, so we check it and let the caller reconcile.
  */
 
-export type CardShape = "character" | "lorebook" | "script" | "scenario" | "persona";
+import type { LibraryCardType } from "../types";
+
+
 
 /** Metadata keywords that are meant to carry a character card. */
 export const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
 
 /** The card type a given metadata keyword claims. */
-export function shapeForKey(key: string): CardShape | null {
+export function shapeForKey(key: string): LibraryCardType | null {
   if (CHARACTER_KEYS.has(key)) return "character";
   if (key === "lorebook" || key === "script" || key === "scenario" || key === "persona") {
     return key;
@@ -34,7 +36,7 @@ function hasEntries(obj: Record<string, unknown>): boolean {
  * `spec` is authoritative when present; otherwise we look for the field that
  * only one card type has.
  */
-export function detectCardShape(parsed: unknown): CardShape | null {
+export function detectCardShape(parsed: unknown): LibraryCardType | null {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const obj = parsed as Record<string, unknown>;
 
@@ -56,4 +58,24 @@ export function detectCardShape(parsed: unknown): CardShape | null {
   if ("scenario" in obj && !("personality" in obj)) return "scenario";
 
   return null;
+}
+
+/**
+ * Reconcile what a file says it is with what it contains.
+ *
+ * Both import paths need this and got it separately: Import PNG trusted the
+ * payload, Decode PNG trusted the keyword, so the same file could open as a
+ * lorebook in one and an empty character card in the other.
+ */
+export function effectiveShape(key: string, parsed: unknown): {
+  shape: LibraryCardType | null;
+  claimed: LibraryCardType | null;
+  actual: LibraryCardType | null;
+  /** The keyword and the payload disagree; the payload wins and the UI says so. */
+  mismatch: boolean;
+} {
+  const claimed = shapeForKey(key);
+  const actual = detectCardShape(parsed);
+  const mismatch = actual !== null && claimed !== null && actual !== claimed;
+  return { shape: mismatch ? actual : claimed, claimed, actual, mismatch };
 }

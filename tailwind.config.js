@@ -34,6 +34,20 @@ export default {
           info: "#1D4ED8",
           "info-soft": "#E8EEFD",
         },
+        // The script editor is a dark code surface inside a light app — the one
+        // place that deliberately inverts. Its colours live here rather than as
+        // inline hex in the component, so they are named and can be adjusted in
+        // one place like every other colour.
+        code: {
+          bg: "#1a1d2e",
+          gutter: "#3d4a6b",
+          text: "#c8d3f5",
+          chrome: "#7a8aaa",
+          accent: "#a78bfa",
+          border: "rgba(100,110,160,0.2)",
+          "border-soft": "rgba(100,110,160,0.15)",
+          "border-faint": "rgba(100,110,160,0.12)",
+        },
         border: {
           DEFAULT: "#D2D2D7",
           light: "#E5E5EA",

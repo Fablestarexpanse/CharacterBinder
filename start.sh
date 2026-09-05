@@ -60,20 +60,24 @@ if port_in_use; then
   exit 0
 fi
 
-# --- 4. First run? Install dependencies. -------------------------------
+# --- 4. Install dependencies. ------------------------------------------
+# Unconditionally, not only when node_modules is missing: after a `git pull`
+# that changes package.json, an existing install is stale and the app fails at
+# import time with something that looks nothing like "run npm install". npm is a
+# fast no-op when the tree already matches the lock file.
 if [ ! -d node_modules ]; then
   echo "  First run - installing dependencies."
   echo "  This happens once and takes a minute or two."
   echo
-  if ! npm install; then
-    echo
-    echo "  [X] Dependency install failed. Check your internet connection"
-    echo "      and try again. The error is printed above."
-    echo
-    exit 1
-  fi
-  echo
 fi
+if ! npm install; then
+  echo
+  echo "  [X] Dependency install failed. Check your internet connection"
+  echo "      and try again. The error is printed above."
+  echo
+  exit 1
+fi
+echo
 
 # --- 5. Launch. --------------------------------------------------------
 echo "  Starting CharacterBinder at http://localhost:3737"

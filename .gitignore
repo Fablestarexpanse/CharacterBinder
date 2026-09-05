@@ -28,3 +28,6 @@ Thumbs.db
 
 # MCP server build output
 mcp/dist/
+
+# desloppify local state and run artifacts
+.desloppify/

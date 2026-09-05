@@ -1,24 +1,29 @@
 import { useState, useCallback, useEffect } from "react";
-import type { TavernCardV2, NavPage, AppSettings, MetadataInfo, CardProject, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "./types";
-import type { PlatformId } from "./lib/platforms";
-import { loadStoredSettings, saveSettings } from "./lib/settings";
-import { registerBridgeHost, initBridge } from "./lib/bridge/client";
+import type {
+  TavernCardV2, NavPage, MetadataInfo, CardProject,
+  LoreBook, ScriptCard, ScenarioCard, PersonaCard, OpenDataCard,
+} from "./types";
+import type { PlatformId } from "./shared/platforms";
+import { saveAppSettings } from "./lib/settings";
+import { useAppSettings } from "./hooks/useAppSettings";
+import { initBridge } from "./lib/bridge/client";
 import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
-import { blankTemplate } from "./data/templates/ronalVoss";
-import Sidebar from "./components/Sidebar";
-import CreateCard from "./components/CreateCard";
-import ImportPNG from "./components/ImportPNG";
-import DecodePNG from "./components/DecodePNG";
-import Templates from "./components/Templates";
-import Settings from "./components/Settings";
-import HelpAbout from "./components/HelpAbout";
-import Library from "./components/Library";
-import LoreBookEditor from "./components/LoreBookEditor";
-import ScriptEditor from "./components/ScriptEditor";
-import ScenarioEditor from "./components/ScenarioEditor";
-import PersonaEditor from "./components/PersonaEditor";
-import ConfirmModal from "./components/ConfirmModal";
-import ErrorBoundary from "./components/ErrorBoundary";
+import { blankTemplate } from "./data/builtinTemplates";
+import Sidebar from "./components/pages/Sidebar";
+import CreateCard from "./components/pages/CreateCard";
+import ImportPNG from "./components/pages/ImportPNG";
+import DecodePNG from "./components/pages/DecodePNG";
+import Templates from "./components/pages/Templates";
+import Settings from "./components/pages/Settings";
+import HelpAbout from "./components/pages/HelpAbout";
+import Library from "./components/pages/Library";
+import LoreBookEditor from "./components/pages/LoreBookEditor";
+import ScriptEditor from "./components/pages/ScriptEditor";
+import ScenarioEditor from "./components/pages/ScenarioEditor";
+import PersonaEditor from "./components/pages/PersonaEditor";
+import ConfirmModal from "./components/ui/ConfirmModal";
+import ErrorBoundary from "./components/pages/ErrorBoundary";
+import { coerceCardBody } from "./lib/blankCards";
 
 /** Output filename derived from the character name, e.g. "Mira Vale" → "Mira_Vale_Tavern_Card.png". */
 function defaultFileName(name: string): string {
@@ -28,9 +33,18 @@ function defaultFileName(name: string): string {
 
 function App() {
   const [activePage, setActivePage] = useState<NavPage>("create");
-  const [settings, setSettings] = useState<AppSettings>(loadStoredSettings);
+  const settings = useAppSettings();
   const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  // A destructive bridge call waiting on the user. The agent's RPC is parked on
+  // this promise until they answer, so nothing is deleted or overwritten
+  // without the same confirmation the UI itself requires.
+  const [bridgeAsk, setBridgeAsk] = useState<{
+    action: "delete" | "overwrite";
+    cardName: string;
+    decide: (approved: boolean) => void;
+  } | null>(null);
+
   // Bumped whenever the MCP bridge mutates the library, so an open Library view
   // reloads instead of showing a stale list until the user navigates away.
   const [libraryRevision, setLibraryRevision] = useState(0);
@@ -44,29 +58,16 @@ function App() {
     lastModified: new Date().toISOString(),
   });
 
-  // ── Lorebook editor library-load state ──
-  const [lorebookKey, setLorebookKey] = useState(0);
-  const [lorebookInit, setLorebookInit] = useState<{
-    book: LoreBook; imageSrc: string | null; id?: string;
-  } | null>(null);
-
-  // ── Script editor library-load state ──
-  const [scriptKey, setScriptKey] = useState(0);
-  const [scriptInit, setScriptInit] = useState<{
-    card: ScriptCard; imageSrc: string | null; id?: string;
-  } | null>(null);
-
-  // ── Scenario editor library-load state ──
-  const [scenarioKey, setScenarioKey] = useState(0);
-  const [scenarioInit, setScenarioInit] = useState<{
-    card: ScenarioCard; imageSrc: string | null; id?: string;
-  } | null>(null);
-
-  // ── Persona editor library-load state ──
-  const [personaKey, setPersonaKey] = useState(0);
-  const [personaInit, setPersonaInit] = useState<{
-    card: PersonaCard; imageSrc: string | null; id?: string;
-  } | null>(null);
+  // ── Non-character editor state ──
+  // One slot per kind, so returning to a tab restores what was last opened
+  // there, and one key that remounts the editor whenever a new card arrives.
+  const [editorKey, setEditorKey] = useState(0);
+  const [editorInit, setEditorInit] = useState<{
+    lorebook?: { card: LoreBook;     imageSrc: string | null; id?: string };
+    script?:   { card: ScriptCard;   imageSrc: string | null; id?: string };
+    scenario?: { card: ScenarioCard; imageSrc: string | null; id?: string };
+    persona?:  { card: PersonaCard;  imageSrc: string | null; id?: string };
+  }>({});
 
   // Once the user edits the output filename themselves, stop deriving it from
   // the character name — otherwise the next keystroke in the Name field would
@@ -119,7 +120,6 @@ function App() {
 
   const loadFromLibrary = useCallback((
     card: TavernCardV2,
-    _pngData: Uint8Array | null,
     imageSrc: string | null,
     libraryId: string
   ) => {
@@ -164,84 +164,59 @@ function App() {
     setShowClearConfirm(false);
   }, []);
 
-  // ── Non-character library-load handlers ──
-  const handleEditLorebook = useCallback((book: LoreBook, imageSrc: string | null, id: string) => {
-    setLorebookInit({ book, imageSrc, id });
-    setLorebookKey((k) => k + 1);
-    setActivePage("lorebook");
-  }, []);
-
-  const handleEditScript = useCallback((card: ScriptCard, imageSrc: string | null, id: string) => {
-    setScriptInit({ card, imageSrc, id });
-    setScriptKey((k) => k + 1);
-    setActivePage("script");
-  }, []);
-
-  const handleEditScenario = useCallback((card: ScenarioCard, imageSrc: string | null, id: string) => {
-    setScenarioInit({ card, imageSrc, id });
-    setScenarioKey((k) => k + 1);
-    setActivePage("scenario");
-  }, []);
-
-  const handleEditPersona = useCallback((card: PersonaCard, imageSrc: string | null, id: string) => {
-    setPersonaInit({ card, imageSrc, id });
-    setPersonaKey((k) => k + 1);
-    setActivePage("persona");
-  }, []);
-
-  // ── Import-from-PNG handlers (no library id yet) ──
-  const handleImportLorebook = useCallback((book: LoreBook, imageSrc: string | null) => {
-    setLorebookInit({ book, imageSrc });
-    setLorebookKey((k) => k + 1);
-    setActivePage("lorebook");
-  }, []);
-
-  const handleImportScript = useCallback((card: ScriptCard, imageSrc: string | null) => {
-    setScriptInit({ card, imageSrc });
-    setScriptKey((k) => k + 1);
-    setActivePage("script");
-  }, []);
-
-  const handleImportScenario = useCallback((card: ScenarioCard, imageSrc: string | null) => {
-    setScenarioInit({ card, imageSrc });
-    setScenarioKey((k) => k + 1);
-    setActivePage("scenario");
-  }, []);
-
-  const handleImportPersona = useCallback((card: PersonaCard, imageSrc: string | null) => {
-    setPersonaInit({ card, imageSrc });
-    setPersonaKey((k) => k + 1);
-    setActivePage("persona");
+  /**
+   * Open a non-character card, from wherever it came: a decoded PNG, a dropped
+   * JSON file, the library, or the MCP bridge. The payload is normalised here,
+   * so this is the only place that has to know what each kind is made of.
+   */
+  const openDataCard = useCallback<OpenDataCard>((cardType, payload, imageSrc, libraryId) => {
+    setEditorInit((prev) => {
+      const slot = { imageSrc, id: libraryId };
+      switch (cardType) {
+        case "lorebook": return { ...prev, lorebook: { ...slot, card: coerceCardBody("lorebook", payload) } };
+        case "script":   return { ...prev, script:   { ...slot, card: coerceCardBody("script", payload) } };
+        case "scenario": return { ...prev, scenario: { ...slot, card: coerceCardBody("scenario", payload) } };
+        case "persona":  return { ...prev, persona:  { ...slot, card: coerceCardBody("persona", payload) } };
+      }
+    });
+    setEditorKey((k) => k + 1);
+    setActivePage(cardType);
   }, []);
 
   // Let the MCP bridge open whatever an agent just created or edited, in the
   // editor that matches its type. Registered once; the handlers are stable.
   useEffect(() => {
-    registerBridgeHost({
+    initBridge({
       onLibraryChanged: () => setLibraryRevision((n) => n + 1),
+      confirmDestructive: ({ action, card }) =>
+        new Promise<boolean>((resolve) => {
+          setBridgeAsk({
+            action,
+            cardName: card.name,
+            decide: (approved) => {
+              setBridgeAsk(null);
+              resolve(approved);
+            },
+          });
+        }),
       openCard: (card) => {
         const image = card.imageSrc ?? null;
-        switch (card.cardType) {
-          case "character":
-            if (card.cardData) loadFromLibrary(card.cardData, null, image, card.id);
-            break;
-          case "lorebook":
-            handleImportLorebook(card.rawData as LoreBook, image);
-            break;
-          case "script":
-            handleImportScript(card.rawData as ScriptCard, image);
-            break;
-          case "scenario":
-            handleImportScenario(card.rawData as ScenarioCard, image);
-            break;
-          case "persona":
-            handleImportPersona(card.rawData as PersonaCard, image);
-            break;
+        if (card.cardType === "character") {
+          if (!card.cardData?.data) {
+            // Nothing to open. Say so where the user can see it rather than
+            // switching to an editor showing a blank card.
+            console.error(`CharacterBinder: card ${card.id} has no character data to open.`);
+            return;
+          }
+          loadFromLibrary(card.cardData, image, card.id);
+          return;
         }
+        // Pass the library id: without it the editor would treat an agent-opened
+        // card as new, and the next save would fork a duplicate record.
+        openDataCard(card.cardType, card.rawData, image, card.id);
       },
     });
-    initBridge();
-  }, [loadFromLibrary, handleImportLorebook, handleImportScript, handleImportScenario, handleImportPersona]);
+  }, [loadFromLibrary, openDataCard]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
@@ -253,6 +228,22 @@ function App() {
           destructive
           onConfirm={clearCard}
           onCancel={() => setShowClearConfirm(false)}
+        />
+      )}
+
+      {bridgeAsk && (
+        <ConfirmModal
+          title={bridgeAsk.action === "delete" ? "Let the agent delete this card?" : "Let the agent overwrite this card?"}
+          message={
+            bridgeAsk.action === "delete"
+              ? `A connected coding agent wants to permanently delete "${bridgeAsk.cardName}" from your library. This cannot be undone.`
+              : `A connected coding agent wants to change "${bridgeAsk.cardName}" in your library. The current version is replaced.`
+          }
+          confirmLabel={bridgeAsk.action === "delete" ? "Delete Card" : "Allow Change"}
+          cancelLabel="Refuse"
+          destructive={bridgeAsk.action === "delete"}
+          onConfirm={() => bridgeAsk.decide(true)}
+          onCancel={() => bridgeAsk.decide(false)}
         />
       )}
 
@@ -275,66 +266,51 @@ function App() {
         )}
         {activePage === "lorebook" && (
           <LoreBookEditor
-            key={lorebookKey}
-            initialBook={lorebookInit?.book}
-            initialImageSrc={lorebookInit?.imageSrc}
-            initialLibraryId={lorebookInit?.id}
+            key={editorKey}
+            initialCard={editorInit.lorebook?.card}
+            initialImageSrc={editorInit.lorebook?.imageSrc}
+            initialLibraryId={editorInit.lorebook?.id}
           />
         )}
         {activePage === "script" && (
           <ScriptEditor
-            key={scriptKey}
-            initialCard={scriptInit?.card}
-            initialImageSrc={scriptInit?.imageSrc}
-            initialLibraryId={scriptInit?.id}
+            key={editorKey}
+            initialCard={editorInit.script?.card}
+            initialImageSrc={editorInit.script?.imageSrc}
+            initialLibraryId={editorInit.script?.id}
           />
         )}
         {activePage === "scenario" && (
           <ScenarioEditor
-            key={scenarioKey}
-            initialCard={scenarioInit?.card}
-            initialImageSrc={scenarioInit?.imageSrc}
-            initialLibraryId={scenarioInit?.id}
+            key={editorKey}
+            initialCard={editorInit.scenario?.card}
+            initialImageSrc={editorInit.scenario?.imageSrc}
+            initialLibraryId={editorInit.scenario?.id}
           />
         )}
         {activePage === "persona" && (
           <PersonaEditor
-            key={personaKey}
-            initialCard={personaInit?.card}
-            initialImageSrc={personaInit?.imageSrc}
-            initialLibraryId={personaInit?.id}
+            key={editorKey}
+            initialCard={editorInit.persona?.card}
+            initialImageSrc={editorInit.persona?.imageSrc}
+            initialLibraryId={editorInit.persona?.id}
           />
         )}
         {activePage === "import" && (
-          <ImportPNG
-            onLoad={loadCard}
-            onLoadLorebook={handleImportLorebook}
-            onLoadScript={handleImportScript}
-            onLoadScenario={handleImportScenario}
-            onLoadPersona={handleImportPersona}
-          />
+          <ImportPNG onLoad={loadCard} onOpenDataCard={openDataCard} />
         )}
         {activePage === "decode" && (
-          <DecodePNG
-            onLoad={loadCard}
-            onLoadLorebook={handleImportLorebook}
-            onLoadScript={handleImportScript}
-            onLoadScenario={handleImportScenario}
-            onLoadPersona={handleImportPersona}
-          />
+          <DecodePNG onLoad={loadCard} onOpenDataCard={openDataCard} />
         )}
         {activePage === "templates" && <Templates onLoad={loadCard} />}
         {activePage === "library" && (
           <Library
-            refreshToken={libraryRevision}
+            libraryRevision={libraryRevision}
             onEditCard={loadFromLibrary}
-            onEditLorebook={handleEditLorebook}
-            onEditScript={handleEditScript}
-            onEditScenario={handleEditScenario}
-            onEditPersona={handleEditPersona}
+            onOpenDataCard={openDataCard}
           />
         )}
-        {activePage === "settings" && <Settings settings={settings} onSave={(s) => { setSettings(s); saveSettings(s); }} />}
+        {activePage === "settings" && <Settings settings={settings} onSave={saveAppSettings} />}
         {activePage === "help" && <HelpAbout />}
         </ErrorBoundary>
       </main>

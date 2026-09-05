@@ -55,6 +55,16 @@ opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 npm test
 ```
 
+Components and hooks run under jsdom; the pure modules run in plain Node, so they
+stay fast.
+
+The MCP server is its own package with its own suite — the bridge handshake is
+driven over a real socket there:
+
+```bash
+npm --prefix mcp test
+```
+
 ---
 
 ## What Is CharacterBinder?
@@ -343,8 +353,10 @@ Or for Claude Desktop, in `claude_desktop_config.json`:
 Then:
 
 1. Start the app (`npm start` from the repo root)
-2. Copy the pairing token the MCP server printed on startup (also saved to
-   `~/.characterbinder/bridge-token`) into **Settings → MCP bridge**
+2. Copy the pairing token from `~/.characterbinder/bridge-token` into
+   **Settings → MCP bridge**. The server prints it the first time it mints one,
+   and after that only names the file — a standing secret does not belong in
+   every agent transcript.
 3. Click the **MCP** light in the sidebar footer — it turns green once paired
 
 ### Tools
@@ -359,8 +371,8 @@ Then:
 | `create_lorebook` | A world info book, entries and all |
 | `create_scenario` | A standalone situation card |
 | `create_script` | A script card |
-| `update_card` | Shallow-merge edits into an existing card |
-| `delete_card` | Remove a card — no undo |
+| `update_card` | Shallow-merge edits into an existing card — you approve each one |
+| `delete_card` | Remove a card — no undo, and you approve each one |
 | `open_card` | Bring a card up in the app's editor |
 | `validate_character` | Check against the Tavern v2 spec |
 | `platform_compatibility` | What a given platform drops or renames |
@@ -374,15 +386,22 @@ made. Pass `open: false` to work quietly in the background.
 The bridge exposes your card library to whatever is connected — it can read, edit,
 and delete. What keeps that bounded:
 
-- **A shared pairing token, proved in both directions.** The server prints a token
-  on startup and stores it in `~/.characterbinder/bridge-token`; you paste it into
+- **A shared pairing token, proved in both directions.** The server mints one on
+  first run and stores it in `~/.characterbinder/bridge-token`; you paste it into
   Settings once. Neither side ever transmits it — each proves it holds it by
   HMAC-ing the other's nonce, and the *server* proves itself first, so the app
-  never hands its secret to an unverified peer.
+  never hands its secret to an unverified peer. The app refuses to go on until
+  that proof checks out: a process that grabs the port and simply declares
+  itself ready is closed on, not answered.
 - **One connection at a time.** A second connection is refused rather than being
   allowed to displace a live session.
 - **Origin checking.** Connections from a browser origin that isn't the app are
   rejected at the HTTP upgrade.
+- **You approve every destructive call.** Overwriting or deleting a card raises the
+  same confirmation the app itself uses, naming the card; declining returns an
+  error to the agent. Creating a new card does not prompt — nothing is lost by it.
+  If the bridge drops while a prompt is open, the prompt is refused rather than
+  applied to a caller that has gone away.
 - **Loopback only**, off by default, with the sidebar light as the only switch and
   a running count of requests served.
 
@@ -483,26 +502,35 @@ PNG Signature (8 bytes)
 ```
 CharacterBinder/
 ├── src/
-│   ├── components/          # UI components (editors, sidebar, library, modals)
-│   ├── hooks/               # Shared React hooks (status messages, AI engine state)
-│   ├── lib/
-│   │   ├── bridge/          # MCP bridge: wire protocol + app-side client
-│   │   ├── pngMetadata/     # PNG tEXt chunk encoder/decoder
+│   ├── components/
+│   │   ├── pages/           # The views App mounts (editors, library, import, settings)
+│   │   ├── editor/          # Panels owned by one page (card preview, smart import, lights)
+│   │   └── ui/              # Shared primitives (inputs, modals, dropzone, JSON views)
+│   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
+│   ├── shared/              # Browser-neutral: the only code mcp/ may import
+│   │   ├── bridgeProtocol.ts # Wire protocol, shared by both sides of the bridge
 │   │   ├── platforms/       # Platform definitions + format converters
-│   │   ├── validators/      # Card validation logic
-│   │   ├── library/         # IndexedDB card storage (idb)
-│   │   ├── archive/         # ZIP export (jszip)
-│   │   ├── tokenizer/       # Token counting (cl100k)
-│   │   ├── personaParser/   # Quick Import: labelled / JSON / W++ / prose parsing
-│   │   ├── personaLlm/      # Quick Import: in-browser AI sorter (WebLLM) + settings
-│   │   ├── customTemplates/ # User-saved templates (localStorage)
+│   │   ├── validators.ts    # Card validation logic
+│   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
+│   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
+│   │   └── errorMessage.ts  # The message from a caught unknown
+│   ├── lib/                 # Browser-only: IndexedDB, localStorage, DOM, WebGPU
+│   │   ├── bridge/          # MCP bridge: the app-side client
+│   │   ├── cardTextSorter/  # Quick Import: in-browser AI sorter (WebLLM) + settings
+│   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
+│   │   ├── library.ts       # IndexedDB card storage (idb)
+│   │   ├── archive.ts       # ZIP export (jszip)
+│   │   ├── tokenizer.ts     # Token counting (cl100k)
+│   │   ├── customTemplates.ts # User-saved templates (localStorage)
+│   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
+│   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
+│   │   ├── persistedSettings.ts # localStorage-backed settings store
 │   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
 │   │   ├── download.ts      # Blob download helper (all export paths)
 │   │   ├── settings.ts      # App settings + localStorage persistence
-│   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   ├── minimalPng.ts    # 1×1 fallback carrier image
 │   │   └── readImageFile.ts # Image file → data URL helper
-│   ├── data/templates/      # Built-in character templates
+│   ├── data/                # Built-in character templates
 │   ├── types/               # TypeScript type definitions
 │   ├── index.css            # Tailwind layers + shared component classes
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations

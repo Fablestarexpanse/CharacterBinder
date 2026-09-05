@@ -14,5 +14,7 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["src/**/*.ts", "../src/lib/bridge/protocol.ts", "../src/lib/personaParser/index.ts"]
+  // One glob rather than a hand-maintained file list that goes stale: src/shared
+  // is precisely the browser-neutral surface this package may import.
+  "include": ["src/**/*.ts", "../src/shared/**/*.ts"]
 }

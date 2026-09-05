@@ -8,9 +8,14 @@ import {
   CLOSE_BAD_ORIGIN,
   CLOSE_BAD_TOKEN,
   CLOSE_PROTOCOL,
+  PROOF_SERVER,
+  ALLOWED_APP_ORIGINS,
+  USER_GATED_METHODS,
+  PROOF_CLIENT,
+  type BridgeCalls,
   type BridgeMethod,
   type BridgeResponse,
-} from "../../src/lib/bridge/protocol.js";
+} from "../../src/shared/bridgeProtocol.js";
 import { loadOrCreateToken, tokenPath } from "./token.js";
 
 /**
@@ -41,16 +46,25 @@ interface Pending {
 const pending = new Map<string, Pending>();
 
 const CALL_TIMEOUT_MS = 20_000;
+/**
+ * Calls the app answers only after asking the user. A person reading a
+ * confirmation dialog routinely takes longer than the normal timeout, and
+ * timing out early told the agent the write had failed while the prompt was
+ * still on screen — so an approval a moment later applied a change the agent
+ * believed had not happened.
+ */
+const USER_GATED_TIMEOUT_MS = 5 * 60_000;
+const USER_GATED: ReadonlySet<BridgeMethod> = new Set(USER_GATED_METHODS);
 const HANDSHAKE_TIMEOUT_MS = 10_000;
-/** Card bodies are text; a megabyte is generous and bounds a hostile peer. */
+/**
+ * Card bodies are text, but a create call can carry cover art as a data: URL,
+ * which is where the size actually goes. 4 MB fits a large image and still
+ * bounds a hostile peer.
+ */
 const MAX_PAYLOAD = 4 * 1024 * 1024;
 
-/** Where the app is legitimately served from. */
-const ALLOWED_ORIGINS = new Set([
-  "http://localhost:3737",
-  "http://127.0.0.1:3737",
-  "http://[::1]:3737",
-]);
+/** Where the app is legitimately served from; the list lives with the protocol. */
+const ALLOWED_ORIGINS = new Set(ALLOWED_APP_ORIGINS);
 
 const hmac = (message: string) => createHmac("sha256", token).update(message).digest("hex");
 
@@ -65,8 +79,20 @@ function randomNonce(): string {
   return randomUUID().replace(/-/g, "");
 }
 
-export function startBridge(): void {
-  token = loadOrCreateToken();
+/**
+ * @param opts Overrides for tests, which need their own port and token rather
+ * than binding the real one and reading the user's pairing file.
+ */
+export function startBridge(opts: { port?: number; token?: string } = {}): { close: () => void } {
+  let tokenIsNew = false;
+  if (opts.token) {
+    token = opts.token;
+  } else {
+    const loaded = loadOrCreateToken();
+    token = loaded.token;
+    tokenIsNew = loaded.created;
+  }
+  const port = opts.port ?? BRIDGE_PORT;
 
   let wss: WebSocketServer;
   try {
@@ -74,7 +100,7 @@ export function startBridge(): void {
     // reachable from off the machine.
     wss = new WebSocketServer({
       host: "127.0.0.1",
-      port: BRIDGE_PORT,
+      port,
       maxPayload: MAX_PAYLOAD,
       verifyClient: ({ origin }: { origin?: string }) => {
         // A browser always sends Origin; the app itself is the only browser
@@ -89,13 +115,13 @@ export function startBridge(): void {
     });
   } catch (err) {
     listenError = err instanceof Error ? err.message : String(err);
-    return;
+    return { close: () => {} };
   }
 
   wss.on("error", (err) => {
     listenError =
       (err as NodeJS.ErrnoException).code === "EADDRINUSE"
-        ? `Port ${BRIDGE_PORT} is already in use — another CharacterBinder MCP server is probably running.`
+        ? `Port ${port} is already in use — another CharacterBinder MCP server is probably running.`
         : err.message;
     // Logs go to stderr; stdout belongs to the MCP transport.
     console.error(`[characterbinder-mcp] ${listenError}`);
@@ -157,12 +183,12 @@ export function startBridge(): void {
           serverNonce = randomNonce();
           // Prove we hold the token before the app proves anything, so a
           // squatter can never harvest it.
-          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(clientNonce) }));
+          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(PROOF_SERVER + clientNonce) }));
           return;
         }
 
         if (msg.type === "auth") {
-          if (!serverNonce || !proofsMatch(String(msg.proof ?? ""), hmac(serverNonce))) {
+          if (!serverNonce || !proofsMatch(String(msg.proof ?? ""), hmac(PROOF_CLIENT + serverNonce))) {
             console.error("[characterbinder-mcp] rejected a connection with a bad token");
             ws.send(JSON.stringify({ type: "auth_failed", reason: "Token did not match" }));
             ws.close(CLOSE_BAD_TOKEN, "Bad token");
@@ -210,9 +236,24 @@ export function startBridge(): void {
     });
   });
 
-  console.error(`[characterbinder-mcp] bridge listening on 127.0.0.1:${BRIDGE_PORT}`);
-  console.error(`[characterbinder-mcp] pairing token: ${token}`);
-  console.error(`[characterbinder-mcp] (also at ${tokenPath()} — paste it into the app's Settings once)`);
+  console.error(`[characterbinder-mcp] bridge listening on 127.0.0.1:${port}`);
+  // Printed only when it was just minted. Re-printing a standing secret on
+  // every start puts it into every agent transcript that ever ran this server,
+  // for no benefit: it is in the file, and the user pastes it once.
+  if (tokenIsNew) {
+    console.error(`[characterbinder-mcp] new pairing token: ${token}`);
+    console.error(`[characterbinder-mcp] paste it into the app's Settings → MCP bridge (also saved at ${tokenPath()})`);
+  } else if (!opts.token) {
+    console.error(`[characterbinder-mcp] pairing token is in ${tokenPath()} — paste it into the app's Settings once`);
+  }
+
+  return {
+    close: () => {
+      for (const client of wss.clients) client.terminate();
+      wss.close();
+      appSocket = null;
+    },
+  };
 }
 
 export function isAppConnected(): boolean {
@@ -227,18 +268,29 @@ const NOT_CONNECTED =
   "CharacterBinder isn't connected. Open the app (npm start, then http://localhost:3737), paste the pairing token into Settings → MCP bridge, and click the MCP light in the sidebar footer.";
 
 /** Ask the app to do something and wait for its answer. */
-export function callApp<T = unknown>(method: BridgeMethod, params?: unknown): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+export function callApp<M extends BridgeMethod>(
+  method: M,
+  params?: BridgeCalls[M]["params"]
+): Promise<BridgeCalls[M]["result"]> {
+  type Result = BridgeCalls[M]["result"];
+  return new Promise<Result>((resolve, reject) => {
     if (!isAppConnected()) {
       reject(new Error(NOT_CONNECTED));
       return;
     }
 
     const id = randomUUID();
+    const timeout = USER_GATED.has(method) ? USER_GATED_TIMEOUT_MS : CALL_TIMEOUT_MS;
     const timer = setTimeout(() => {
       pending.delete(id);
-      reject(new Error(`The app didn't answer ${method} within ${CALL_TIMEOUT_MS / 1000}s.`));
-    }, CALL_TIMEOUT_MS);
+      reject(
+        new Error(
+          USER_GATED.has(method)
+            ? `The user did not answer the confirmation for ${method} within ${timeout / 60_000} minutes.`
+            : `The app didn't answer ${method} within ${timeout / 1000}s.`
+        )
+      );
+    }, timeout);
 
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
     appSocket!.send(JSON.stringify({ id, method, params }));

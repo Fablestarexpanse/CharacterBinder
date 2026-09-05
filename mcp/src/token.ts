@@ -12,29 +12,44 @@ import { mkdirSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
  * proof that whoever holds the port is the real server.
  */
 
-const DIR = join(homedir(), ".characterbinder");
-const FILE = join(DIR, "bridge-token");
+/**
+ * Where the token lives, resolved per call rather than at import.
+ *
+ * `baseDir` exists so a test can point this somewhere disposable. With the path
+ * fixed at import time the only way to redirect it was to mock node:os, and a
+ * mock that fails to take writes over the user's real pairing token — which is
+ * exactly what happened while writing these tests.
+ */
+function tokenDir(baseDir?: string): string {
+  return join(baseDir ?? homedir(), ".characterbinder");
+}
 
-export function loadOrCreateToken(): string {
+export function tokenPath(baseDir?: string): string {
+  return join(tokenDir(baseDir), "bridge-token");
+}
+
+/**
+ * @returns the token, and whether it had to be minted — the caller prints a
+ * freshly minted one so the user can copy it, but not one that already exists:
+ * an agent's stdout log is not a good place for a standing secret.
+ */
+export function loadOrCreateToken(baseDir?: string): { token: string; created: boolean } {
+  const file = tokenPath(baseDir);
   try {
-    const existing = readFileSync(FILE, "utf8").trim();
-    if (existing.length >= 32) return existing;
+    const existing = readFileSync(file, "utf8").trim();
+    if (existing.length >= 32) return { token: existing, created: false };
   } catch {
     /* first run, or unreadable — fall through and mint a new one */
   }
 
   const token = randomBytes(32).toString("hex");
-  mkdirSync(DIR, { recursive: true });
-  writeFileSync(FILE, token + "\n", { encoding: "utf8", mode: 0o600 });
+  mkdirSync(tokenDir(baseDir), { recursive: true });
+  writeFileSync(file, `${token}\n`, { encoding: "utf8", mode: 0o600 });
   try {
     // mkdir/writeFile modes are advisory on some platforms; assert it after.
-    chmodSync(FILE, 0o600);
+    chmodSync(file, 0o600);
   } catch {
     /* best effort — Windows ACLs don't map cleanly onto POSIX modes */
   }
-  return token;
-}
-
-export function tokenPath(): string {
-  return FILE;
+  return { token, created: true };
 }

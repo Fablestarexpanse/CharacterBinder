@@ -21,14 +21,20 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 import { startBridge, callApp, bridgeStatus } from "./bridge.js";
-import { validateTavernCardV2 } from "../../src/lib/validators/index.js";
-import { PLATFORMS, type PlatformId } from "../../src/lib/platforms/index.js";
-import { parsePersonaText, toCharacterFields } from "../../src/lib/personaParser/index.js";
-import type { CardSummary, GetResult, MutationResult } from "../../src/lib/bridge/protocol.js";
+
+// src/shared holds exactly the modules that are safe on both sides: no DOM, no
+// localStorage, no IndexedDB. Importing from src/lib here would compile and
+// then fail at runtime, which is why the boundary is a directory rather than a
+// convention. mcp/tsconfig.json compiles all of src/shared, so a change over
+// there is a type error here.
+import { validateTavernCardV2 } from "../../src/shared/validators.js";
+import { PLATFORMS, PLATFORM_IDS } from "../../src/shared/platforms/index.js";
+import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
+import { CARD_TYPES, type LibraryCardType } from "../../src/types/index.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });
 
-const text = (value: unknown) => ({
+const asTextContent = (value: unknown) => ({
   content: [{ type: "text" as const, text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }],
 });
 
@@ -54,14 +60,14 @@ server.registerTool(
   async () => {
     const s = bridgeStatus();
     if (s.connected) {
-      const pong = await callApp<{ app: string; version: string }>("ping").catch(() => null);
-      return text({
+      const pong = await callApp("ping").catch(() => null);
+      return asTextContent({
         connected: true,
         port: s.port,
         app: pong ? `${pong.app} v${pong.version}` : "connected",
       });
     }
-    return text({
+    return asTextContent({
       connected: false,
       port: s.port,
       listenError: s.error,
@@ -80,15 +86,15 @@ server.registerTool(
     description: "Every card saved in the user's CharacterBinder library, newest first. Optionally filter by type.",
     inputSchema: {
       type: z
-        .enum(["character", "lorebook", "script", "scenario", "persona"])
+        .enum(CARD_TYPES)
         .optional()
         .describe("Only return cards of this type."),
     },
   },
   async ({ type }) => {
-    const res = await callApp<{ cards: CardSummary[] }>("cards.list", { type });
-    if (!res.cards.length) return text("The library is empty.");
-    return text(res.cards);
+    const res = await callApp("cards.list", { type });
+    if (!res.cards.length) return asTextContent("The library is empty.");
+    return asTextContent(res.cards);
   }
 );
 
@@ -99,15 +105,15 @@ server.registerTool(
     description: "The complete contents of a card, by id. Use list_cards to find ids.",
     inputSchema: { id: z.string().describe("Card id from list_cards.") },
   },
-  async ({ id }) => text(await callApp<GetResult>("cards.get", { id }))
+  async ({ id }) => asTextContent(await callApp("cards.get", { id }))
 );
 
 // ── Creating ────────────────────────────────────────────────────────────────
 
-async function create(cardType: string, data: Record<string, unknown>, open?: boolean) {
+async function create(cardType: LibraryCardType, data: Record<string, unknown>, open?: boolean) {
   const opened = open ?? false;
-  const res = await callApp<MutationResult>("cards.create", { cardType, data, open: opened });
-  return text({
+  const res = await callApp("cards.create", { cardType, data, open: opened });
+  return asTextContent({
     ...res,
     saved: opened
       ? "Card saved to the library and opened in the app."
@@ -195,6 +201,7 @@ server.registerTool(
         )
         .optional()
         .describe("The book's entries."),
+      tags,
       open: openAfter,
     },
   },
@@ -248,8 +255,8 @@ server.registerTool(
     inputSchema: {
       name: z.string(),
       description: z.string().optional().describe("What the script does."),
-      code: z.string().describe("The script body."),
-      author: z.string().optional(),
+      content: z.string().describe("The script body."),
+      creator: z.string().optional(),
       creator_notes: z.string().optional(),
       version: z.string().optional(),
       tags,
@@ -266,26 +273,26 @@ server.registerTool(
   {
     title: "Edit an existing card",
     description:
-      "Shallow-merge changes into a card already in the library. Only the fields you pass are touched; everything else is left alone. Read the card first with get_card if you need its current contents.",
+      "Shallow-merge changes into a card already in the library. Only the fields you pass are touched; everything else is left alone. Read the card first with get_card if you need its current contents. The app asks the user to approve the change before it is written, and returns an error if they decline.",
     inputSchema: {
       id: z.string().describe("Card id from list_cards."),
       patch: z
         .record(z.unknown())
         .describe("Fields to overwrite, e.g. { personality: '...', tags: ['a','b'] }."),
-      open: z.boolean().optional().describe("Bring the card up in the editor afterwards."),
+      open: openAfter,
     },
   },
-  async ({ id, patch, open }) => text(await callApp<MutationResult>("cards.update", { id, patch, open }))
+  async ({ id, patch, open }) => asTextContent(await callApp("cards.update", { id, patch, open }))
 );
 
 server.registerTool(
   "delete_card",
   {
     title: "Delete a card",
-    description: "Permanently remove a card from the library. There is no undo — confirm with the user first.",
+    description: "Permanently remove a card from the library. There is no undo. The app also asks the user to approve the deletion and returns an error if they decline, but ask first rather than relying on that prompt.",
     inputSchema: { id: z.string().describe("Card id from list_cards.") },
   },
-  async ({ id }) => text(await callApp<{ id: string }>("cards.delete", { id }))
+  async ({ id }) => asTextContent(await callApp("cards.delete", { id }))
 );
 
 server.registerTool(
@@ -295,7 +302,7 @@ server.registerTool(
     description: "Bring an existing card up in the matching editor so the user can see it.",
     inputSchema: { id: z.string() },
   },
-  async ({ id }) => text(await callApp<{ id: string }>("app.open", { id }))
+  async ({ id }) => asTextContent(await callApp("app.open", { id }))
 );
 
 // ── Pure tools — no app needed ──────────────────────────────────────────────
@@ -312,11 +319,16 @@ server.registerTool(
     },
   },
   async ({ id, card }) => {
-    let data = card;
+    /** Both modes accept a whole v2 card or a bare data block. */
+    const fields = (value: Record<string, unknown> | undefined) => {
+      const inner = (value as { data?: Record<string, unknown> } | undefined)?.data;
+      return inner && typeof inner === "object" ? inner : value;
+    };
+
+    let data = fields(card);
     if (id) {
-      const fetched = await callApp<GetResult>("cards.get", { id });
-      const v2 = fetched.data as { data?: Record<string, unknown> };
-      data = v2?.data ?? (fetched.data as Record<string, unknown>);
+      const fetched = await callApp("cards.get", { id });
+      data = fields(fetched.data as Record<string, unknown>);
     }
     if (!data) throw new Error("Pass either an id or a card object.");
 
@@ -325,9 +337,9 @@ server.registerTool(
       spec_version: "2.0",
       // The validator expects a full data block; missing keys read as empty.
       data: { name: "", description: "", personality: "", scenario: "", first_mes: "", mes_example: "", creator_notes: "", system_prompt: "", post_history_instructions: "", alternate_greetings: [], tags: [], creator: "", character_version: "", extensions: {}, ...data },
-    } as never);
+    });
 
-    return text({ valid: result.valid, errors: result.errors, warnings: result.warnings });
+    return asTextContent({ valid: result.valid, errors: result.errors, warnings: result.warnings });
   }
 );
 
@@ -338,14 +350,12 @@ server.registerTool(
     description:
       "Which fields a target platform drops or renames, and whether it can import PNG cards at all. Use before telling a user to upload somewhere.",
     inputSchema: {
-      platform: z
-        .enum(["sillytavern", "janitorai", "chub", "agnai", "venus", "backyard", "risu", "generic"])
-        .describe("Target platform."),
+      platform: z.enum(PLATFORM_IDS).describe("Target platform."),
     },
   },
   async ({ platform }) => {
-    const p = PLATFORMS[platform as PlatformId];
-    return text({
+    const p = PLATFORMS[platform];
+    return asTextContent({
       platform: p.name,
       readsPngCards: p.pngSupport,
       readsJson: p.jsonSupport,
@@ -375,10 +385,10 @@ server.registerTool(
         .describe("Which field shape to produce. Defaults to persona."),
     },
   },
-  async ({ text: raw, target }) => {
-    const parsed = parsePersonaText(raw);
+  async ({ text, target }) => {
+    const parsed = parsePersonaText(text);
     const fields = target === "character" ? toCharacterFields(parsed) : parsed.fields;
-    return text({
+    return asTextContent({
       detectedFormat: parsed.method,
       fields,
       tags: parsed.tags,
