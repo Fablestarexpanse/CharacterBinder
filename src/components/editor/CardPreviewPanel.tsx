@@ -21,8 +21,7 @@ import {
   TOKEN_BUDGET_BAR_COLORS,
 } from "../../lib/tokenizer";
 import { validateTavernCardV2 } from "../../shared/validators";
-import { encodeCharaToPng } from "../../lib/pngMetadata";
-import { getCarrierPng } from "../../lib/carrierImage";
+import { encodeCharacterCardPng, metadataKeyFor } from "../../lib/characterCardPng";
 import { downloadJson, downloadPng } from "../../lib/download";
 import { useStatusMessage } from "../../hooks/useStatusMessage";
 import { PLATFORMS, type PlatformId } from "../../shared/platforms/registry";
@@ -36,7 +35,6 @@ import { errorMessage } from "../../shared/errorMessage";
  * platforms that can't read card PNGs at all. `chara` is what every PNG-capable
  * app looks for, so the exported file stays importable elsewhere.
  */
-const FALLBACK_METADATA_KEY = "chara" as const;
 
 interface CardPreviewPanelProps {
   project: CardProject;
@@ -110,19 +108,7 @@ export default function CardPreviewPanel({
     }
     setExporting(true);
     try {
-      const pngBytes = await getCarrierPng(project.imageSrc);
-        const converted = convertCardTo(project.card, targetPlatform);
-      const jsonData = JSON.stringify(converted, null, settings.prettyPrintJson ? 2 : 0);
-      // Platforms that can't read PNG cards carry no key of their own; fall back
-      // to the configured default so the file is still a valid, importable card
-      // rather than refusing to export.
-      const metaKey = platform.metadataKey ?? FALLBACK_METADATA_KEY;
-      const resultBytes = encodeCharaToPng(
-        pngBytes,
-        jsonData,
-        metaKey,
-        settings.preserveUnknownChunks
-      );
+      const resultBytes = await encodeCharacterCardPng(project.card, project.imageSrc, targetPlatform, settings);
       downloadPng(resultBytes, project.outputFileName);
       setStatus(
         platform.pngSupport
@@ -158,18 +144,7 @@ export default function CardPreviewPanel({
     const hasExistingId = project.id !== "default";
     const versionChanged = hasExistingId && currentVersion.trim() !== savedCharVersion;
     try {
-      // Store a real card PNG, not the bare cover art. This is what Archive
-      // writes into the ZIP, and it used to be the un-encoded image — so a
-      // backup of any card that had cover art contained no card data at all.
-      const carrier = await getCarrierPng(project.imageSrc);
-      const converted = convertCardTo(project.card, targetPlatform);
-      const json = JSON.stringify(converted, null, settings.prettyPrintJson ? 2 : 0);
-      const pngData = encodeCharaToPng(
-        carrier,
-        json,
-        platform.metadataKey ?? FALLBACK_METADATA_KEY,
-        settings.preserveUnknownChunks
-      );
+      const pngData = await encodeCharacterCardPng(project.card, project.imageSrc, targetPlatform, settings);
 
       const existingId = hasExistingId && !versionChanged ? project.id : undefined;
       const saved = await saveLibraryCard({
@@ -432,7 +407,7 @@ export default function CardPreviewPanel({
             <p className="text-xs text-status-warn leading-relaxed">
               <strong>{platform.name} can't import PNG cards</strong> — it reads JSON only, so use Export JSON below for
               that site. The PNG still gets built correctly with your full card in a{" "}
-              <code className="bg-white/60 px-1 rounded">{platform.metadataKey ?? FALLBACK_METADATA_KEY}</code>{" "}
+              <code className="bg-white/60 px-1 rounded">{metadataKeyFor(targetPlatform)}</code>{" "}
               chunk, so it works anywhere that does read PNG cards, and it's a fine way to keep or share the card as a
               single image.
             </p>
