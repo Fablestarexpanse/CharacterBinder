@@ -201,10 +201,19 @@ function App() {
         }),
       openCard: (card) => {
         const image = card.imageSrc ?? null;
-        if (card.cardType === "character") loadFromLibrary(card.cardData, null, image, card.id);
+        if (card.cardType === "character") {
+          if (!card.cardData?.data) {
+            // Nothing to open. Say so where the user can see it rather than
+            // switching to an editor showing a blank card.
+            console.error(`CharacterBinder: card ${card.id} has no character data to open.`);
+            return;
+          }
+          loadFromLibrary(card.cardData, null, image, card.id);
+          return;
+        }
         // Pass the library id: without it the editor would treat an agent-opened
         // card as new, and the next save would fork a duplicate record.
-        else openDataCard(card.cardType, card.rawData, image, card.id);
+        openDataCard(card.cardType, card.rawData, image, card.id);
       },
     });
   }, [loadFromLibrary, openDataCard]);

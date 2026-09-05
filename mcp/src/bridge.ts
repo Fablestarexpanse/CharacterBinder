@@ -53,7 +53,11 @@ const CALL_TIMEOUT_MS = 20_000;
 const USER_GATED_TIMEOUT_MS = 5 * 60_000;
 const USER_GATED: ReadonlySet<BridgeMethod> = new Set<BridgeMethod>(["cards.update", "cards.delete"]);
 const HANDSHAKE_TIMEOUT_MS = 10_000;
-/** Card bodies are text; a megabyte is generous and bounds a hostile peer. */
+/**
+ * Card bodies are text, but a create call can carry cover art as a data: URL,
+ * which is where the size actually goes. 4 MB fits a large image and still
+ * bounds a hostile peer.
+ */
 const MAX_PAYLOAD = 4 * 1024 * 1024;
 
 /** Where the app is legitimately served from. */

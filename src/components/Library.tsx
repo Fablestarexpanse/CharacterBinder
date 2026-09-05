@@ -153,8 +153,18 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
   }
 
   function handleEdit(card: LibraryCard) {
-    if (card.cardType === "character") onEditCard(card.cardData, card.pngData, card.imageSrc, card.id);
-    else onOpenDataCard(card.cardType, card.rawData, card.imageSrc, card.id);
+    if (card.cardType === "character") {
+      // A record written before the type was enforced, or one damaged in
+      // storage, can have no card body. Clicking Edit on it used to do nothing
+      // at all, which reads as the app being broken rather than the card being.
+      if (!card.cardData?.data) {
+        setMsg(`Can't open "${card.name}" — its character data is missing or damaged.`, false);
+        return;
+      }
+      onEditCard(card.cardData, card.pngData, card.imageSrc, card.id);
+      return;
+    }
+    onOpenDataCard(card.cardType, card.rawData, card.imageSrc, card.id);
   }
 
   const SortBtn = ({ label, k }: { label: string; k: SortKey }) => (
