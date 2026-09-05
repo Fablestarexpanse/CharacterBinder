@@ -22,7 +22,7 @@ export function metadataKeyFor(platformId: PlatformId): MetadataKey {
 
 export async function encodeCharacterCardPng(
   card: TavernCardV2,
-  imageSrc: string | null | undefined,
+  imageSrc: string | null,
   platformId: PlatformId,
   settings: Pick<AppSettings, "prettyPrintJson" | "preserveUnknownChunks">
 ): Promise<Uint8Array> {

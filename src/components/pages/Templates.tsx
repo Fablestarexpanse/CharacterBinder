@@ -7,10 +7,10 @@ import { FileText, Plus, Trash2 } from "lucide-react";
 import { errorMessage } from "../../shared/errorMessage";
 
 interface TemplatesProps {
-  onLoad: LoadCharacterCard;
+  onOpenCharacterCard: LoadCharacterCard;
 }
 
-export default function Templates({ onLoad }: TemplatesProps) {
+export default function Templates({ onOpenCharacterCard }: TemplatesProps) {
   const [custom, setCustom] = useState<CustomTemplate[]>([]);
   // A delete that the browser refuses leaves the template on screen; saying so
   // beats letting the user click again and again.
@@ -67,7 +67,7 @@ export default function Templates({ onLoad }: TemplatesProps) {
               name={tpl.name}
               description={tpl.description}
               tags={(tpl.card.data.tags ?? []).slice(0, 4)}
-              onUse={() => onLoad(tpl.card)}
+              onUse={() => onOpenCharacterCard(tpl.card, null)}
             />
           ))}
         </div>
@@ -86,7 +86,7 @@ export default function Templates({ onLoad }: TemplatesProps) {
                   name={tpl.name}
                   description={tpl.description}
                   tags={(tpl.card.data.tags ?? []).slice(0, 4)}
-                  onUse={() => onLoad(tpl.card)}
+                  onUse={() => onOpenCharacterCard(tpl.card, null)}
                   onDelete={() => setPendingDelete(tpl)}
                 />
               ))}

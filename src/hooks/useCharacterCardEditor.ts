@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { TavernCardV2, MetadataInfo, CardProject } from "../types";
+import type { TavernCardV2, MetadataInfo, CardProject, LoadCharacterCard } from "../types";
 import type { PlatformId } from "../shared/platforms/registry";
 import { blankTemplate } from "../lib/builtinTemplates";
 import { useUnsavedWarning } from "./useUnsavedWarning";
@@ -26,7 +26,7 @@ function freshProject(): CardProject {
   return {
     id: "default",
     card: blankTemplate,
-    imageSrc: undefined,
+    imageSrc: null,
     outputFileName: defaultFileName(""),
     lastModified: new Date().toISOString(),
     metadataInfo: undefined,
@@ -38,11 +38,11 @@ export interface CharacterCardEditor {
   targetPlatform: PlatformId;
   setTargetPlatform: (id: PlatformId) => void;
   /** Merge a patch into the card body. */
-  updateCard: (updates: Partial<TavernCardV2["data"]>) => void;
-  updateImage: (imageSrc: string) => void;
-  updateOutputFileName: (name: string) => void;
+  update: (patch: Partial<TavernCardV2["data"]>) => void;
+  setImageSrc: (imageSrc: string) => void;
+  setOutputFileName: (name: string) => void;
   /** Replace the card from an import, a template or a decode. */
-  loadCard: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
+  loadCard: LoadCharacterCard;
   /** Replace the card from a library record, adopting its identity. */
   loadFromLibrary: (card: TavernCardV2, imageSrc: string | null, libraryId: string) => void;
   /** Take on a library id after the preview panel saves a new card. */
@@ -79,7 +79,7 @@ export function useCharacterCardEditor(onOpened: () => void): CharacterCardEdito
       !!project.card.data.first_mes.trim());
   useUnsavedWarning(hasUnsavedWork);
 
-  const updateCard = useCallback((updates: Partial<TavernCardV2["data"]>) => {
+  const update = useCallback((updates: Partial<TavernCardV2["data"]>) => {
     setProject((p) => ({
       ...p,
       card: { ...p.card, data: { ...p.card.data, ...updates } },
@@ -89,7 +89,7 @@ export function useCharacterCardEditor(onOpened: () => void): CharacterCardEdito
 
   const loadCard = useCallback((
     card: TavernCardV2,
-    imageSrc?: string,
+    imageSrc: string | null,
     meta?: MetadataInfo,
     sourcePlatform?: PlatformId
   ) => {
@@ -115,7 +115,7 @@ export function useCharacterCardEditor(onOpened: () => void): CharacterCardEdito
       ...p,
       id: libraryId,
       card,
-      imageSrc: imageSrc ?? undefined,
+      imageSrc,
       outputFileName: defaultFileName(card.data.name),
       lastModified: new Date().toISOString(),
       metadataInfo: undefined,
@@ -128,11 +128,11 @@ export function useCharacterCardEditor(onOpened: () => void): CharacterCardEdito
     setProject((p) => (p.id === id ? p : { ...p, id }));
   }, []);
 
-  const updateImage = useCallback((imageSrc: string) => {
+  const setImageSrc = useCallback((imageSrc: string) => {
     setProject((p) => ({ ...p, imageSrc }));
   }, []);
 
-  const updateOutputFileName = useCallback((name: string) => {
+  const setOutputFileName = useCallback((name: string) => {
     setFileNameTouched(true);
     setProject((p) => ({ ...p, outputFileName: name }));
   }, []);
@@ -146,7 +146,7 @@ export function useCharacterCardEditor(onOpened: () => void): CharacterCardEdito
 
   return {
     project, targetPlatform, setTargetPlatform,
-    updateCard, updateImage, updateOutputFileName,
+    update, setImageSrc, setOutputFileName,
     loadCard, loadFromLibrary, adoptLibraryId, clear,
   };
 }

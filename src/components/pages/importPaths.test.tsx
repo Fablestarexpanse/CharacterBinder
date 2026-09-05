@@ -43,33 +43,33 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("ImportPNG", () => {
   it("loads a character card and reports the platform it came from", async () => {
-    const onLoad = vi.fn();
-    const { container } = render(<ImportPNG onLoad={onLoad} onOpenDataCard={vi.fn()} />);
+    const onOpenCharacterCard = vi.fn();
+    const { container } = render(<ImportPNG onOpenCharacterCard={onOpenCharacterCard} onOpenDataCard={vi.fn()} />);
 
     drop(container, pngWith("chara", characterPayload()));
 
-    await waitFor(() => expect(onLoad).toHaveBeenCalled());
-    expect(onLoad.mock.calls[0][0].data.name).toBe("Rook");
+    await waitFor(() => expect(onOpenCharacterCard).toHaveBeenCalled());
+    expect(onOpenCharacterCard.mock.calls[0][0].data.name).toBe("Rook");
     expect(screen.getByText(/loaded character "Rook"/i)).toBeInTheDocument();
   });
 
   it("opens a lorebook stored under the character key as a lorebook, and says so", async () => {
-    const onLoad = vi.fn();
+    const onOpenCharacterCard = vi.fn();
     const onOpenDataCard = vi.fn();
-    const { container } = render(<ImportPNG onLoad={onLoad} onOpenDataCard={onOpenDataCard} />);
+    const { container } = render(<ImportPNG onOpenCharacterCard={onOpenCharacterCard} onOpenDataCard={onOpenDataCard} />);
 
     // The regression: trusting the keyword rebuilt this as a blank character
     // card and dropped every entry behind a success message.
     drop(container, pngWith("chara", lorebook));
 
     await waitFor(() => expect(onOpenDataCard).toHaveBeenCalled());
-    expect(onLoad).not.toHaveBeenCalled();
+    expect(onOpenCharacterCard).not.toHaveBeenCalled();
     expect(onOpenDataCard.mock.calls[0][0]).toBe("lorebook");
     expect(screen.getByText(/labelled 'chara' but its contents are a lorebook/i)).toBeInTheDocument();
   });
 
   it("says a PNG carries no card rather than failing silently", async () => {
-    const { container } = render(<ImportPNG onLoad={vi.fn()} onOpenDataCard={vi.fn()} />);
+    const { container } = render(<ImportPNG onOpenCharacterCard={vi.fn()} onOpenDataCard={vi.fn()} />);
     const bare = new File([MINIMAL_PNG as BlobPart], "plain.png", { type: "image/png" });
     Object.defineProperty(bare, "arrayBuffer", { value: async () => MINIMAL_PNG.buffer });
 
@@ -81,7 +81,7 @@ describe("ImportPNG", () => {
 
 describe("DecodePNG", () => {
   it("lists the chunks it found and offers to open the card", async () => {
-    const { container } = render(<DecodePNG onLoad={vi.fn()} onOpenDataCard={vi.fn()} />);
+    const { container } = render(<DecodePNG onOpenCharacterCard={vi.fn()} onOpenDataCard={vi.fn()} />);
 
     drop(container, pngWith("chara", characterPayload()));
 
@@ -91,7 +91,7 @@ describe("DecodePNG", () => {
 
   it("routes by payload shape, not by the keyword", async () => {
     const onOpenDataCard = vi.fn();
-    const { container } = render(<DecodePNG onLoad={vi.fn()} onOpenDataCard={onOpenDataCard} />);
+    const { container } = render(<DecodePNG onOpenCharacterCard={vi.fn()} onOpenDataCard={onOpenDataCard} />);
 
     drop(container, pngWith("chara", lorebook));
 

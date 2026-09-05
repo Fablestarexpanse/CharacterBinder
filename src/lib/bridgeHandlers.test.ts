@@ -195,19 +195,32 @@ describe("opening a card reports what happened", () => {
     expect(result.opened).toBe(true);
   });
 
+  it("asks first, and opens nothing when the user says no", async () => {
+    const created = (await call("cards.create", characterParams)) as { id: string };
+    opened.length = 0;
+    confirmDestructive.mockResolvedValueOnce(false);
+
+    // Opening replaces whatever the user has in the editor, unsaved work
+    // included, so it is asked for like a mutation.
+    await expect(call("app.open", { id: created.id })).rejects.toThrow(/declined to open/i);
+    expect(opened).toHaveLength(0);
+  });
+
   it("fails rather than claiming success when there is nothing to open", async () => {
     const created = (await call("cards.create", characterParams)) as { id: string };
     // A record whose body is gone: the editor has nothing to show.
     opened.length = 0;
-    const host = { openCard: () => "\"Rook\" has no character data — the stored record is damaged." };
-    bridgeState.setHost(host);
+    bridgeState.setHost({
+      openCard: () => "\"Rook\" has no character data — the stored record is damaged.",
+      confirmDestructive: () => confirmDestructive(),
+    });
 
     // The agent hears why, rather than a generic failure or a false success.
     await expect(call("app.open", { id: created.id })).rejects.toThrow(/stored record is damaged/i);
   });
 
   it("reports open:false on create when the editor did not take the card", async () => {
-    bridgeState.setHost({ openCard: () => "nothing to show" });
+    bridgeState.setHost({ openCard: () => "nothing to show", confirmDestructive: () => confirmDestructive() });
     const result = (await call("cards.create", { ...characterParams, open: true })) as { opened: boolean };
     expect(result.opened).toBe(false);
   });

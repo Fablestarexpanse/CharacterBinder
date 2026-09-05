@@ -27,28 +27,28 @@ beforeEach(() => {
 
 describe("Templates", () => {
   it("lists the built-in templates alongside saved ones", () => {
-    render(<Templates onLoad={vi.fn()} />);
+    render(<Templates onOpenCharacterCard={vi.fn()} />);
     expect(screen.getByText("Blank Character")).toBeInTheDocument();
     expect(screen.getByText("Ronan Voss")).toBeInTheDocument();
     expect(screen.getByText("My Template")).toBeInTheDocument();
   });
 
   it("loads the card behind a template", async () => {
-    const onLoad = vi.fn();
-    render(<Templates onLoad={onLoad} />);
+    const onOpenCharacterCard = vi.fn();
+    render(<Templates onOpenCharacterCard={onOpenCharacterCard} />);
 
     // Each template card carries its own "Use Template" button; take the one
     // sitting in the Ronan Voss card.
     const useButtons = screen.getAllByRole("button", { name: /use template/i });
     const ronan = useButtons.find((b) => b.closest("div")?.textContent?.includes("Ronan Voss"))!;
     await userEvent.click(ronan);
-    expect(onLoad).toHaveBeenCalledTimes(1);
-    expect(onLoad.mock.calls[0][0].data.name).toBe("Ronan Voss");
+    expect(onOpenCharacterCard).toHaveBeenCalledTimes(1);
+    expect(onOpenCharacterCard.mock.calls[0][0].data.name).toBe("Ronan Voss");
   });
 
   it("confirms before deleting a saved template, since there is no undo", async () => {
     const user = userEvent.setup();
-    render(<Templates onLoad={vi.fn()} />);
+    render(<Templates onOpenCharacterCard={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: /delete my template/i }));
     expect(deleteCustomTemplate).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ describe("Templates", () => {
   it("says so when a delete is refused by the browser", async () => {
     const user = userEvent.setup();
     deleteCustomTemplate.mockImplementationOnce(() => { throw new Error("storage blocked"); });
-    render(<Templates onLoad={vi.fn()} />);
+    render(<Templates onOpenCharacterCard={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: /delete my template/i }));
     await user.click(screen.getByRole("button", { name: /^delete$/i }));

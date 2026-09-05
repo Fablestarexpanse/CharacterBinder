@@ -18,12 +18,12 @@ const NON_CHAR_META: Record<DataCardType, { label: string; icon: React.ReactNode
 };
 
 interface DecodePNGProps {
-  onLoad: LoadCharacterCard;
+  onOpenCharacterCard: LoadCharacterCard;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }
 
-export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
+export default function DecodePNG({ onOpenCharacterCard, onOpenDataCard }: DecodePNGProps) {
   const [result, setResult] = useState<{
     json: string;
     key: string;
@@ -88,7 +88,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
 
     if (result.cardType === "character" && result.sourcePlatform) {
       const card = convertCardFrom(parsed, result.sourcePlatform);
-      onLoad(card, result.imageSrc, result.meta, result.sourcePlatform);
+      onOpenCharacterCard(card, result.imageSrc, result.meta, result.sourcePlatform);
       return;
     }
 

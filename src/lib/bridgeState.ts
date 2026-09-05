@@ -129,7 +129,7 @@ export interface BridgeHost {
    * one way to destroy a card silently. Absent host: the call is refused rather
    * than allowed, so a missing hook cannot quietly widen what an agent may do.
    */
-  confirmDestructive?: (request: { action: "delete" | "overwrite"; card: LibraryCard }) => Promise<boolean>;
+  confirmDestructive?: (request: { action: "delete" | "overwrite" | "open"; card: LibraryCard }) => Promise<boolean>;
 }
 
 let host: BridgeHost | null = null;

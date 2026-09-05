@@ -26,7 +26,7 @@ describe("CharacterEditor", () => {
   it("reports each edited field to its owner rather than holding state of its own", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    render(<CharacterEditor card={cardWith()} onUpdate={onUpdate} onUpdateImage={vi.fn()} />);
+    render(<CharacterEditor card={cardWith()} imageSrc={null} onUpdate={onUpdate} onUpdateImage={vi.fn()} />);
 
     await user.type(screen.getByLabelText(/^name$/i), "!");
     expect(onUpdate).toHaveBeenCalledWith({ name: "Rook!" });
@@ -35,7 +35,7 @@ describe("CharacterEditor", () => {
   it("says an image could not be read, instead of looking like the drop worked", async () => {
     readImageFile.mockRejectedValueOnce(new Error("not a readable image"));
     const onUpdateImage = vi.fn();
-    render(<CharacterEditor card={cardWith()} onUpdate={vi.fn()} onUpdateImage={onUpdateImage} />);
+    render(<CharacterEditor card={cardWith()} imageSrc={null} onUpdate={vi.fn()} onUpdateImage={onUpdateImage} />);
 
     const input = screen.getByLabelText(/choose a character image/i);
     fireEvent.change(input, { target: { files: [new File(["x"], "broken.png", { type: "image/png" })] } });
@@ -46,7 +46,7 @@ describe("CharacterEditor", () => {
 
   it("passes a readable image up and clears any previous complaint", async () => {
     const onUpdateImage = vi.fn();
-    render(<CharacterEditor card={cardWith()} onUpdate={vi.fn()} onUpdateImage={onUpdateImage} />);
+    render(<CharacterEditor card={cardWith()} imageSrc={null} onUpdate={vi.fn()} onUpdateImage={onUpdateImage} />);
 
     const input = screen.getByLabelText(/choose a character image/i);
     fireEvent.change(input, { target: { files: [new File(["x"], "cover.png", { type: "image/png" })] } });
@@ -60,6 +60,7 @@ describe("CharacterEditor", () => {
     render(
       <CharacterEditor
         card={cardWith({ alternate_greetings: ["first", "second", "third"] })}
+        imageSrc={null}
         onUpdate={onUpdate}
         onUpdateImage={vi.fn()}
       />

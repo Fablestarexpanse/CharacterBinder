@@ -243,7 +243,7 @@ export function cancelPendingApprovals() {
 }
 
 /** Throws unless the user approves; the agent sees the refusal as an error. */
-async function requireApproval(action: "delete" | "overwrite", card: LibraryCard): Promise<void> {
+async function requireApproval(action: "delete" | "overwrite" | "open", card: LibraryCard): Promise<void> {
   const ask = getHost()?.confirmDestructive;
   if (!ask) {
     throw new Error(
@@ -262,7 +262,8 @@ async function requireApproval(action: "delete" | "overwrite", card: LibraryCard
     pendingApprovals.delete(settle);
   }
   if (!approved) {
-    recordActivity({ at: Date.now(), method: action === "delete" ? "cards.delete" : "cards.update", cardId: card.id, cardName: card.name, refused: true });
+    const method = action === "delete" ? "cards.delete" : action === "open" ? "app.open" : "cards.update";
+    recordActivity({ at: Date.now(), method, cardId: card.id, cardName: card.name, refused: true });
     throw new Error(`The user declined to ${action} "${card.name}".`);
   }
 }
@@ -298,6 +299,9 @@ async function removeCard(params: DeleteParams): Promise<BridgeCalls["cards.dele
 
 async function openCard(params: OpenParams): Promise<BridgeCalls["app.open"]["result"]> {
   const card = await findCard(params.id);
+  // Asked for like a mutation: this replaces whatever the user has open, and
+  // unsaved work in that editor does not survive it.
+  await requireApproval("open", card);
   const host = getHost();
   if (!host) {
     throw new Error("CharacterBinder is connected but has no editor to open cards in. Reload the app tab.");

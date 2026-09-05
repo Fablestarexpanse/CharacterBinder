@@ -22,6 +22,28 @@ import ConfirmModal from "./components/ui/ConfirmModal";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 import { coerceCardBody } from "./shared/blankCards";
 
+/** What the user is asked, for each thing an agent can ask to do. */
+const BRIDGE_ASK_COPY = {
+  delete: {
+    title: "Let the agent delete this card?",
+    confirmLabel: "Delete Card",
+    message: (name: string) =>
+      `A connected coding agent wants to permanently delete "${name}" from your library. This cannot be undone.`,
+  },
+  overwrite: {
+    title: "Let the agent overwrite this card?",
+    confirmLabel: "Allow Change",
+    message: (name: string) =>
+      `A connected coding agent wants to change "${name}" in your library. The current version is replaced.`,
+  },
+  open: {
+    title: "Let the agent open this card?",
+    confirmLabel: "Open Card",
+    message: (name: string) =>
+      `A connected coding agent wants to open "${name}" in the editor. Whatever you have open there is replaced, and anything unsaved in it is lost.`,
+  },
+} as const;
+
 function App() {
   const [activePage, setActivePage] = useState<NavPage>("create");
   const settings = useAppSettings();
@@ -32,7 +54,7 @@ function App() {
   // this promise until they answer, so nothing is deleted or overwritten
   // without the same confirmation the UI itself requires.
   const [bridgeAsk, setBridgeAsk] = useState<{
-    action: "delete" | "overwrite";
+    action: "delete" | "overwrite" | "open";
     cardName: string;
     decide: (approved: boolean) => void;
   } | null>(null);
@@ -118,13 +140,9 @@ function App() {
 
       {bridgeAsk && (
         <ConfirmModal
-          title={bridgeAsk.action === "delete" ? "Let the agent delete this card?" : "Let the agent overwrite this card?"}
-          message={
-            bridgeAsk.action === "delete"
-              ? `A connected coding agent wants to permanently delete "${bridgeAsk.cardName}" from your library. This cannot be undone.`
-              : `A connected coding agent wants to change "${bridgeAsk.cardName}" in your library. The current version is replaced.`
-          }
-          confirmLabel={bridgeAsk.action === "delete" ? "Delete Card" : "Allow Change"}
+          title={BRIDGE_ASK_COPY[bridgeAsk.action].title}
+          message={BRIDGE_ASK_COPY[bridgeAsk.action].message(bridgeAsk.cardName)}
+          confirmLabel={BRIDGE_ASK_COPY[bridgeAsk.action].confirmLabel}
           cancelLabel="Refuse"
           destructive={bridgeAsk.action === "delete"}
           onConfirm={() => bridgeAsk.decide(true)}
@@ -140,9 +158,9 @@ function App() {
           <CreateCard
             project={character.project}
             targetPlatform={character.targetPlatform}
-            onUpdateCard={character.updateCard}
-            onUpdateImage={character.updateImage}
-            onUpdateOutputFileName={character.updateOutputFileName}
+            onUpdateCard={character.update}
+            onUpdateImage={character.setImageSrc}
+            onUpdateOutputFileName={character.setOutputFileName}
             onSavedToLibrary={character.adoptLibraryId}
             onPlatformChange={character.setTargetPlatform}
             onNewCard={() => setShowClearConfirm(true)}
@@ -181,16 +199,16 @@ function App() {
           />
         )}
         {activePage === "import" && (
-          <ImportPNG onLoad={character.loadCard} onOpenDataCard={openDataCard} />
+          <ImportPNG onOpenCharacterCard={character.loadCard} onOpenDataCard={openDataCard} />
         )}
         {activePage === "decode" && (
-          <DecodePNG onLoad={character.loadCard} onOpenDataCard={openDataCard} />
+          <DecodePNG onOpenCharacterCard={character.loadCard} onOpenDataCard={openDataCard} />
         )}
-        {activePage === "templates" && <Templates onLoad={character.loadCard} />}
+        {activePage === "templates" && <Templates onOpenCharacterCard={character.loadCard} />}
         {activePage === "library" && (
           <Library
             libraryRevision={libraryRevision}
-            onEditCard={character.loadFromLibrary}
+            onOpenCharacterCard={character.loadFromLibrary}
             onOpenDataCard={openDataCard}
           />
         )}

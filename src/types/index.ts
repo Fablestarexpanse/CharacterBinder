@@ -95,7 +95,8 @@ export interface MetadataInfo {
 export interface CardProject {
   id: string;
   card: TavernCardV2;
-  imageSrc?: string;
+  /** Cover art as a data URL; null when the card has none. */
+  imageSrc: string | null;
   outputFileName: string;
   lastModified: string;
   metadataInfo?: MetadataInfo;
@@ -210,9 +211,22 @@ export type DataCardType = Exclude<LibraryCardType, "character">;
  */
 export type LoadCharacterCard = (
   card: TavernCardV2,
-  imageSrc?: string,
+  imageSrc: string | null,
   meta?: MetadataInfo,
   sourcePlatform?: PlatformId,
+) => void;
+
+/**
+ * Open a character card that is already in the library, adopting its identity
+ * so the next save updates that record rather than forking a copy.
+ *
+ * Separate from LoadCharacterCard because a library card needs no conversion
+ * and carries no decode metadata — it needs the id instead.
+ */
+export type OpenCharacterFromLibrary = (
+  card: TavernCardV2,
+  imageSrc: string | null,
+  libraryId: string,
 ) => void;
 
 /**

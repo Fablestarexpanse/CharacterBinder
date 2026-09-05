@@ -58,7 +58,7 @@ export default function CardPreviewPanel({
   const outputFileId = useId();
   const [compatOpen, setCompatOpen] = useState(false);
   const [tokenOpen, setTokenOpen] = useState(false);
-  const { exporting, saving, status: exportStatus, setStatus } = actions;
+  const { exporting, saving, status: exportStatus, setMsg } = actions;
 
   const platform = PLATFORMS[targetPlatform];
 
@@ -87,9 +87,9 @@ export default function CardPreviewPanel({
 
   const handleValidate = () => {
     if (validation.valid) {
-      setStatus(`Valid! ${validation.warnings.length} warning(s).`, true);
+      setMsg(`Valid! ${validation.warnings.length} warning(s).`, true);
     } else {
-      setStatus(`${validation.errors.length} error(s): ${validation.errors[0]}`, false);
+      setMsg(`${validation.errors.length} error(s): ${validation.errors[0]}`, false);
     }
   };
 

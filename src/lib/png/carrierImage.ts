@@ -62,7 +62,7 @@ function base64ToBytes(base64: string): Uint8Array {
  * shows the reason, which is the only chance the user has to learn that the
  * image they picked did not make it into the file.
  */
-export async function getCarrierPng(imageSrc?: string | null): Promise<Uint8Array> {
+export async function getCarrierPng(imageSrc: string | null): Promise<Uint8Array> {
   if (!imageSrc) return MINIMAL_PNG;
   if (imageSrc.startsWith("data:image/png")) {
     return base64ToBytes(imageSrc.split(",")[1] ?? "");

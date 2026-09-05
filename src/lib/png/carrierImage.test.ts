@@ -28,8 +28,9 @@ describe("pngBytesToDataUrl", () => {
 
 describe("getCarrierPng", () => {
   it("falls back to the 1x1 PNG when there is no image", async () => {
+    // null and "" are the two ways a card says it has no cover art; undefined
+    // is no longer one of them, since every caller now passes string | null.
     expect(await getCarrierPng(null)).toEqual(MINIMAL_PNG);
-    expect(await getCarrierPng(undefined)).toEqual(MINIMAL_PNG);
     expect(await getCarrierPng("")).toEqual(MINIMAL_PNG);
   });
 

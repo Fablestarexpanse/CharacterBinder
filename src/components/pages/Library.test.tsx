@@ -29,7 +29,7 @@ beforeEach(() => {
   getAllCards.mockResolvedValue([libraryCharacter("c1", "Rook"), persona("p1", "Kael")]);
 });
 
-const props = { onEditCard: vi.fn(), onOpenDataCard: vi.fn() };
+const props = { onOpenCharacterCard: vi.fn(), onOpenDataCard: vi.fn() };
 
 describe("Library", () => {
   it("groups cards under their kind", async () => {
@@ -70,14 +70,14 @@ describe("Library", () => {
     expect(screen.getByRole("button", { name: /deselect all/i })).toBeInTheDocument();
   });
 
-  it("opens a character through onEditCard and a data card through onOpenDataCard", async () => {
+  it("opens a character through onOpenCharacterCard and a data card through onOpenDataCard", async () => {
     const user = userEvent.setup();
-    const onEditCard = vi.fn();
+    const onOpenCharacterCard = vi.fn();
     const onOpenDataCard = vi.fn();
-    render(<Library onEditCard={onEditCard} onOpenDataCard={onOpenDataCard} />);
+    render(<Library onOpenCharacterCard={onOpenCharacterCard} onOpenDataCard={onOpenDataCard} />);
 
     await user.click(await screen.findByRole("button", { name: /edit rook/i }));
-    expect(onEditCard).toHaveBeenCalledWith(expect.objectContaining({ spec: "chara_card_v2" }), null, "c1");
+    expect(onOpenCharacterCard).toHaveBeenCalledWith(expect.objectContaining({ spec: "chara_card_v2" }), null, "c1");
 
     await user.click(screen.getByRole("button", { name: /edit kael/i }));
     expect(onOpenDataCard).toHaveBeenCalledWith("persona", expect.objectContaining({ name: "Kael" }), null, "p1");
@@ -115,12 +115,12 @@ describe("Library", () => {
     // The type allows this now, because the store really can hold it.
     const broken: LibraryCard = { ...libraryCharacter("c2", "Damaged"), cardData: undefined };
     getAllCards.mockResolvedValue([broken]);
-    const onEditCard = vi.fn();
+    const onOpenCharacterCard = vi.fn();
     const user = userEvent.setup();
-    render(<Library onEditCard={onEditCard} onOpenDataCard={vi.fn()} />);
+    render(<Library onOpenCharacterCard={onOpenCharacterCard} onOpenDataCard={vi.fn()} />);
 
     await user.click(await screen.findByRole("button", { name: /edit damaged/i }));
-    expect(onEditCard).not.toHaveBeenCalled();
+    expect(onOpenCharacterCard).not.toHaveBeenCalled();
     expect(screen.getByText(/its character data is missing or damaged/i)).toBeInTheDocument();
   });
 });

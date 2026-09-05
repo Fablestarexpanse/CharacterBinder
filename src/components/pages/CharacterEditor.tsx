@@ -11,7 +11,7 @@ import type { CardField } from "../../shared/cardTextParser";
 
 interface CharacterEditorProps {
   card: TavernCardV2;
-  imageSrc?: string;
+  imageSrc: string | null;
   onUpdate: (updates: Partial<TavernCardV2["data"]>) => void;
   onUpdateImage: (src: string) => void;
 }

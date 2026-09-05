@@ -28,7 +28,7 @@ export interface CharacterCardActions {
   exporting: boolean;
   saving: boolean;
   status: ReturnType<typeof useStatusMessage>["status"];
-  setStatus: ReturnType<typeof useStatusMessage>["setMsg"];
+  setMsg: ReturnType<typeof useStatusMessage>["setMsg"];
 }
 
 interface Options {
@@ -47,7 +47,7 @@ export function useCharacterCardActions({
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedVersion, setSavedVersion] = useState(project.card.data.character_version ?? "1.0");
-  const { status, setMsg: setStatus } = useStatusMessage();
+  const { status, setMsg } = useStatusMessage();
   const platform = PLATFORMS[targetPlatform];
 
   // Loading a different card from the library swaps `project` without
@@ -65,36 +65,36 @@ export function useCharacterCardActions({
     // produce a perfectly valid file — it just has to be imported somewhere
     // else, so the UI warns rather than refusing.
     if (settings.autoValidateBeforeExport && !valid) {
-      setStatus("Fix validation errors before exporting.", false);
+      setMsg("Fix validation errors before exporting.", false);
       return;
     }
     setExporting(true);
     try {
       const bytes = await encodeCharacterCardPng(project.card, project.imageSrc, targetPlatform, settings);
       downloadPng(bytes, project.outputFileName);
-      setStatus(
+      setMsg(
         platform.pngSupport
           ? "PNG exported!"
           : `PNG exported — remember ${platform.name} needs the JSON instead.`,
         true
       );
     } catch (err) {
-      setStatus(`Export failed: ${errorMessage(err)}`, false);
+      setMsg(`Export failed: ${errorMessage(err)}`, false);
     } finally {
       setExporting(false);
     }
-  }, [project, settings, valid, platform, targetPlatform, setStatus]);
+  }, [project, settings, valid, platform, targetPlatform, setMsg]);
 
   const exportJson = useCallback(() => {
     try {
       const converted = convertCardTo(project.card, targetPlatform);
       const name = project.outputFileName.replace(/\.png$/i, "") + `_${targetPlatform}`;
       downloadJson(converted, name, settings.prettyPrintJson);
-      setStatus("JSON exported!", true);
+      setMsg("JSON exported!", true);
     } catch (err) {
-      setStatus(`JSON export failed: ${errorMessage(err)}`, false);
+      setMsg(`JSON export failed: ${errorMessage(err)}`, false);
     }
-  }, [project, settings, targetPlatform, setStatus]);
+  }, [project, settings, targetPlatform, setMsg]);
 
   const save = useCallback(async () => {
     setSaving(true);
@@ -107,7 +107,7 @@ export function useCharacterCardActions({
         cardType: "character",
         body: project.card,
         pngData,
-        imageSrc: project.imageSrc ?? null,
+        imageSrc: project.imageSrc,
         platform: targetPlatform,
         existingId: target.existingId,
       });
@@ -116,26 +116,26 @@ export function useCharacterCardActions({
       // next save overwrote the version the user had just preserved.
       onSavedToLibrary?.(saved.id);
       setSavedVersion(currentVersion);
-      setStatus(target.message, true);
+      setMsg(target.message, true);
     } catch (err) {
       // The reason matters: a save fails on quota, a blocked upgrade, or
       // private-mode storage, and "Failed to save" tells the user none of it.
-      setStatus(`Failed to save to library: ${errorMessage(err)}`, false);
+      setMsg(`Failed to save to library: ${errorMessage(err)}`, false);
     } finally {
       setSaving(false);
     }
-  }, [project, targetPlatform, savedVersion, settings, onSavedToLibrary, setStatus]);
+  }, [project, targetPlatform, savedVersion, settings, onSavedToLibrary, setMsg]);
 
   // Synchronous: writing a template is one localStorage put, so there is no
   // in-flight state to show. Failure arrives through the status line.
   const saveAsTemplate = useCallback(() => {
     try {
       saveCustomTemplate(project.card);
-      setStatus("Saved as template!", true);
+      setMsg("Saved as template!", true);
     } catch (err) {
-      setStatus(`Failed to save template: ${errorMessage(err)}`, false);
+      setMsg(`Failed to save template: ${errorMessage(err)}`, false);
     }
-  }, [project.card, setStatus]);
+  }, [project.card, setMsg]);
 
-  return { exportPng, exportJson, save, saveAsTemplate, exporting, saving, status, setStatus };
+  return { exportPng, exportJson, save, saveAsTemplate, exporting, saving, status, setMsg };
 }

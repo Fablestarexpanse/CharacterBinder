@@ -10,7 +10,7 @@ import { errorMessage } from "../../shared/errorMessage";
 
 
 interface ImportPNGProps {
-  onLoad: LoadCharacterCard;
+  onOpenCharacterCard: LoadCharacterCard;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }
@@ -38,7 +38,7 @@ const TYPE_KEYS: Record<LibraryCardType, string> = {
   persona: "persona",
 };
 
-export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
+export default function ImportPNG({ onOpenCharacterCard, onOpenDataCard }: ImportPNGProps) {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [detectedType, setDetectedType] = useState<LibraryCardType | null>(null);
@@ -98,7 +98,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
         setDetectedPlatform(sourcePlatformId);
         setStatus("success");
         setMessage(`Loaded character "${card.data.name}" — detected as ${platform.name}${mismatchNote}. Opening in editor…`);
-        onLoad(card, imageSrc, meta, sourcePlatformId);
+        onOpenCharacterCard(card, imageSrc, meta, sourcePlatformId);
         return;
       }
 
@@ -121,7 +121,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
       setStatus("error");
       setMessage(`Error: ${errorMessage(err)}`);
     }
-  }, [onLoad, onOpenDataCard]);
+  }, [onOpenCharacterCard, onOpenDataCard]);
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-8">

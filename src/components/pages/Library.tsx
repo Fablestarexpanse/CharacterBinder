@@ -5,7 +5,7 @@ import {
   SortAsc, SortDesc, CheckSquare, Square,
   type LucideIcon,
 } from "lucide-react";
-import { CARD_TYPES, type LibraryCard, type LibraryCardType, type TavernCardV2, type OpenDataCard } from "../../types";
+import { CARD_TYPES, type LibraryCard, type LibraryCardType, type OpenDataCard, type OpenCharacterFromLibrary } from "../../types";
 import { getAllCards, deleteCard, cardVersion } from "../../lib/library";
 import { exportCardsAsZip } from "../../lib/archive";
 import ConfirmModal from "../ui/ConfirmModal";
@@ -28,12 +28,12 @@ const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; c
 interface LibraryProps {
   /** Bumped by the MCP bridge after it mutates the library; forces a reload. */
   libraryRevision?: number;
-  onEditCard: (card: TavernCardV2, imageSrc: string | null, id: string) => void;
+  onOpenCharacterCard: OpenCharacterFromLibrary;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }
 
-export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCard }: LibraryProps) {
+export default function Library({ libraryRevision = 0, onOpenCharacterCard, onOpenDataCard }: LibraryProps) {
   const [cards, setCards] = useState<LibraryCard[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
@@ -158,7 +158,7 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
         setMsg(`Can't open "${card.name}" — its character data is missing or damaged.`, false);
         return;
       }
-      onEditCard(card.cardData, card.imageSrc, card.id);
+      onOpenCharacterCard(card.cardData, card.imageSrc, card.id);
       return;
     }
     onOpenDataCard(card.cardType, card.rawData, card.imageSrc, card.id);

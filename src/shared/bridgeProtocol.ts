@@ -162,8 +162,12 @@ export const ALLOWED_APP_ORIGINS: readonly string[] = [
  * Methods the app answers only after asking the user. Declared with the
  * protocol because both sides need to agree: the app raises a confirmation, and
  * the server has to allow time for a person to read it.
+ *
+ * `app.open` is here because opening a card replaces whatever is in the editor,
+ * and anything unsaved there is gone — destructive in the way that matters to
+ * the person watching, even though it writes nothing to the library.
  */
-export const USER_GATED_METHODS: readonly BridgeMethod[] = ["cards.update", "cards.delete"];
+export const USER_GATED_METHODS: readonly BridgeMethod[] = ["cards.update", "cards.delete", "app.open"];
 
 export interface BridgeRequest {
   id: string;

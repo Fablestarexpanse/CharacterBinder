@@ -22,7 +22,7 @@ const project = (name: string, description = "A dockhand of few words."): CardPr
   const card = createBlankTavernCard(name);
   card.data.description = description;
   card.data.first_mes = "Evening.";
-  return { id: "default", card, imageSrc: undefined, outputFileName: `${name}.png`, lastModified: "" };
+  return { id: "default", card, imageSrc: null, outputFileName: `${name}.png`, lastModified: "" };
 };
 
 // The panel is exercised through the page that owns the card: export, save and
