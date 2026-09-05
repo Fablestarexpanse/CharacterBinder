@@ -86,10 +86,14 @@ export function useCharacterCardActions({
   }, [project, settings, valid, platform, targetPlatform, setStatus]);
 
   const exportJson = useCallback(() => {
-    const converted = convertCardTo(project.card, targetPlatform);
-    const name = project.outputFileName.replace(/\.png$/i, "") + `_${targetPlatform}`;
-    downloadJson(converted, name, settings.prettyPrintJson);
-    setStatus("JSON exported!", true);
+    try {
+      const converted = convertCardTo(project.card, targetPlatform);
+      const name = project.outputFileName.replace(/\.png$/i, "") + `_${targetPlatform}`;
+      downloadJson(converted, name, settings.prettyPrintJson);
+      setStatus("JSON exported!", true);
+    } catch (err) {
+      setStatus(`JSON export failed: ${errorMessage(err)}`, false);
+    }
   }, [project, settings, targetPlatform, setStatus]);
 
   const save = useCallback(async () => {

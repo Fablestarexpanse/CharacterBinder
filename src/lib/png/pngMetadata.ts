@@ -252,15 +252,16 @@ export function encodeCharaToPng(
     }
   }
 
-  // Build new PNG
+  // Chunk order is the part that matters: the card and name chunks go ahead of
+  // IDAT, because readers that scan for metadata routinely stop at the first
+  // image data chunk and would never see them otherwise.
   const parts: Uint8Array[] = [PNG_SIGNATURE];
   if (ihdChunk) parts.push(makeChunkBytes("IHDR", ihdChunk.data));
   for (const chunk of keepChunks) {
     parts.push(makeChunkBytes(chunk.type, chunk.data));
   }
-  // Insert metadata tEXt chunk before IDAT
   parts.push(makeTextChunk(metadataKey, base64Data));
-  // Also write the name chunk for SillyTavern compatibility.
+  // The name chunk is written for SillyTavern compatibility.
   // Parsed rather than regex-scraped: a regex over the serialised string breaks
   // on escaped quotes in the name and can match a nested `character_book.name`
   // that happens to appear earlier in the document.
@@ -273,7 +274,6 @@ export function encodeCharaToPng(
   }
   if (iendChunk) parts.push(makeChunkBytes("IEND", iendChunk.data));
 
-  // Concatenate
   const totalLength = parts.reduce((sum, p) => sum + p.length, 0);
   const result = new Uint8Array(totalLength);
   let offset = 0;

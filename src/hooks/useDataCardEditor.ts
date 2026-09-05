@@ -5,6 +5,7 @@ import { resolveSaveTarget } from "../lib/librarySave";
 import { encodeCharaToPng } from "../lib/png/pngMetadata";
 import { getCarrierPng } from "../lib/png/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
+import { getAppSettings } from "../lib/settings";
 import { useStatusMessage } from "./useStatusMessage";
 import { useUnsavedWarning } from "./useUnsavedWarning";
 import { errorMessage } from "../shared/errorMessage";
@@ -118,8 +119,16 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
   const payload = useCallback(() => (toExport ? toExport(card) : card), [card, toExport]);
 
   const exportJson = useCallback(() => {
-    downloadJson(payload(), outputFileName);
-    setMsg("JSON exported!", true);
+    try {
+      // The same app setting the character export honours: a JSON file written
+      // from one editor should not be formatted differently from another's.
+      downloadJson(payload(), outputFileName, getAppSettings().prettyPrintJson);
+      setMsg("JSON exported!", true);
+    } catch (err) {
+      // Every other action here reports its failures; this one used to be the
+      // exception, so a refused download looked like a successful export.
+      setMsg(`JSON export failed: ${errorMessage(err)}`, false);
+    }
   }, [payload, outputFileName, setMsg]);
 
   const exportPng = useCallback(async () => {

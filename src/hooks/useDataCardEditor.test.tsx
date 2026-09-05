@@ -104,7 +104,10 @@ describe("useDataCardEditor", () => {
     render(<Probe initialCard={scriptCard()} />);
 
     fireEvent.click(screen.getByText("export json"));
-    expect(downloadJson).toHaveBeenCalledWith(expect.objectContaining({ name: "Runner" }), "Runner_script.png");
+    // The app's prettyPrintJson setting reaches this path too, so a JSON file
+    // written from a data-card editor matches one written from the character
+    // editor rather than being minified.
+    expect(downloadJson).toHaveBeenCalledWith(expect.objectContaining({ name: "Runner" }), "Runner_script.png", true);
 
     fireEvent.click(screen.getByText("export png"));
     await waitFor(() => expect(downloadPng).toHaveBeenCalledWith(expect.any(Uint8Array), "Runner_script.png"));
