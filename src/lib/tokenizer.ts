@@ -52,11 +52,23 @@ export function getCardTokenBreakdown(card: TavernCardV2): CardTokenBreakdown {
 
 export type TokenBudgetLevel = "low" | "medium" | "high" | "over";
 
+/**
+ * The top of the budget: past this a card is "Very Large", and the meters that
+ * draw a fill percentage treat it as full. Exported so the meters and the level
+ * thresholds cannot disagree — the number was restated in two components.
+ */
+export const TOKEN_BUDGET_MAX = 3000;
+
 export function getTokenBudgetLevel(total: number): TokenBudgetLevel {
   if (total <= 1000) return "low";
   if (total <= 2000) return "medium";
-  if (total <= 3000) return "high";
+  if (total <= TOKEN_BUDGET_MAX) return "high";
   return "over";
+}
+
+/** How full the budget meter should be drawn, 0-100. */
+export function tokenBudgetPercent(total: number): number {
+  return Math.min((total / TOKEN_BUDGET_MAX) * 100, 100);
 }
 
 export const TOKEN_BUDGET_LABELS: Record<TokenBudgetLevel, string> = {

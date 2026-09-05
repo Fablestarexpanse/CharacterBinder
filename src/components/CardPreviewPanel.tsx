@@ -6,6 +6,7 @@ import { saveCustomTemplate } from "../lib/customTemplates";
 import {
   getCardTokenBreakdown,
   getTokenBudgetLevel,
+  tokenBudgetPercent,
   TOKEN_BUDGET_LABELS,
   TOKEN_BUDGET_COLORS,
   TOKEN_BUDGET_BAR_COLORS,
@@ -74,8 +75,7 @@ export default function CardPreviewPanel({
   const dataSize = useMemo(() => formatDataSize(project.card), [project.card]);
 
   const budgetLevel = getTokenBudgetLevel(tokenBreakdown.total);
-  const MAX_TOKENS = 3000;
-  const barPct = Math.min((tokenBreakdown.total / MAX_TOKENS) * 100, 100);
+  const barPct = tokenBudgetPercent(tokenBreakdown.total);
 
   // Only warn about fields the card actually uses — otherwise every card reports
   // the platform's full theoretical loss list, including empty fields.

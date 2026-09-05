@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import type { TavernCardV2, MetadataInfo, OpenDataCard } from "../types";
+import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType } from "../types";
 import type { PlatformId } from "../lib/platforms";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
@@ -7,7 +7,7 @@ import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { convertCardFrom } from "../lib/platforms/converters";
 import FieldCompatibility from "./FieldCompatibility";
 import { useTimedFlag } from "../hooks/useTimedFlag";
-import { CHARACTER_KEYS, shapeForKey } from "../lib/cardShape";
+import { effectiveShape } from "../lib/cardShape";
 import { pngBytesToDataUrl } from "../lib/carrierImage";
 import { errorMessage } from "../lib/errorMessage";
 
@@ -30,6 +30,10 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
   const [result, setResult] = useState<{
     json: string;
     key: string;
+    /** What the payload actually is, which need not match the keyword. */
+    shape: LibraryCardType | null;
+    /** Set when the keyword and the payload disagree; shown to the user. */
+    mismatch: boolean;
     sourcePlatform: PlatformId | null;
     meta: MetadataInfo;
     imageSrc: string;
@@ -63,15 +67,20 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
 
       const parsed = JSON.parse(json);
 
-      // Determine detected type
+      // The keyword says what the file claims to be; the payload shape says
+      // what it is. Import PNG has trusted the shape since a lorebook stored
+      // under `chara` was rebuilt as a blank character card; this panel loaded
+      // by keyword alone, so the same file opened as an empty card here.
+      const { shape, mismatch } = effectiveShape(key, parsed);
+
       let sourcePlatform: PlatformId | null = null;
       let formatLabel = "Unknown";
 
-      if (CHARACTER_KEYS.has(key)) {
+      if (shape === "character") {
         sourcePlatform = detectPlatform(parsed);
         formatLabel = PLATFORMS[sourcePlatform].name;
-      } else if (key in NON_CHAR_META) {
-        formatLabel = NON_CHAR_META[key as NonCharType].label;
+      } else if (shape && shape in NON_CHAR_META) {
+        formatLabel = NON_CHAR_META[shape as NonCharType].label;
       }
 
       const meta: MetadataInfo = {
@@ -84,7 +93,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
         rawKey: key,
       };
 
-      setResult({ json, key, sourcePlatform, meta, imageSrc });
+      setResult({ json, key, shape, mismatch, sourcePlatform, meta, imageSrc });
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -101,15 +110,14 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     if (!result) return;
     const parsed = JSON.parse(result.json);
 
-    if (CHARACTER_KEYS.has(result.key) && result.sourcePlatform) {
+    if (result.shape === "character" && result.sourcePlatform) {
       const card = convertCardFrom(parsed, result.sourcePlatform);
       onLoad(card, result.imageSrc, result.meta, result.sourcePlatform);
       return;
     }
 
-    const shape = shapeForKey(result.key);
-    if (shape && shape !== "character") {
-      onOpenDataCard(shape, parsed, result.imageSrc);
+    if (result.shape && result.shape !== "character") {
+      onOpenDataCard(result.shape, parsed, result.imageSrc);
     }
   };
 
@@ -119,7 +127,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     flashCopied();
   };
 
-  const isCharCard = result && result.sourcePlatform !== null && CHARACTER_KEYS.has(result.key);
+  const isCharCard = result && result.sourcePlatform !== null && result.shape === "character";
   const platform = isCharCard && result.sourcePlatform ? PLATFORMS[result.sourcePlatform] : null;
 
   return (
@@ -179,17 +187,24 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                     <span className={`text-sm font-semibold ${platform.textColor}`}>{platform.name}</span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>
-                ) : result.key in NON_CHAR_META ? (
+                ) : result.shape && result.shape in NON_CHAR_META ? (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-accent-purple/30 bg-accent-purple/5">
-                    <span className={NON_CHAR_META[result.key as NonCharType].color}>
-                      {NON_CHAR_META[result.key as NonCharType].icon}
+                    <span className={NON_CHAR_META[result.shape as NonCharType].color}>
+                      {NON_CHAR_META[result.shape as NonCharType].icon}
                     </span>
                     <span className="text-sm font-semibold text-text-primary">
-                      {NON_CHAR_META[result.key as NonCharType].label}
+                      {NON_CHAR_META[result.shape as NonCharType].label}
                     </span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>
                 ) : null}
+
+                {result.mismatch && (
+                  <p className="text-xs text-status-warn bg-status-warn-soft border border-status-warn-border rounded-lg px-3 py-2">
+                    This file is labelled <code className="font-mono">{result.key}</code>, but its contents are a{" "}
+                    {result.shape} card. It will open as a {result.shape}.
+                  </p>
+                )}
 
                 <table className="w-full text-xs">
                   <tbody>

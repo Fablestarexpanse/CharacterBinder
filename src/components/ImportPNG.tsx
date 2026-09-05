@@ -5,7 +5,7 @@ import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map,
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata";
 import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
-import { detectCardShape, shapeForKey } from "../lib/cardShape";
+import { effectiveShape } from "../lib/cardShape";
 import { pngBytesToDataUrl } from "../lib/carrierImage";
 import { errorMessage } from "../lib/errorMessage";
 
@@ -81,10 +81,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
       // says what it is. When they disagree, trust the shape — otherwise a
       // lorebook stored under `chara` was rebuilt as a blank character card and
       // every entry was silently dropped behind a success message.
-      const claimed = shapeForKey(key);
-      const actual = detectCardShape(parsed);
-      const mismatch = actual !== null && claimed !== null && actual !== claimed;
-      const effective = mismatch ? actual : claimed;
+      const { shape: effective, actual, mismatch } = effectiveShape(key, parsed);
       const mismatchNote = mismatch
         ? ` (the file is labelled '${key}' but its contents are a ${actual} card, so it was opened as one)`
         : "";

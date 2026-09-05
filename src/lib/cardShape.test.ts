@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectCardShape, shapeForKey } from "./cardShape";
+import { detectCardShape, shapeForKey, effectiveShape } from "./cardShape";
 
 describe("shapeForKey", () => {
   it("maps every character keyword", () => {
@@ -56,5 +56,31 @@ describe("detectCardShape", () => {
     expect(detectCardShape(null)).toBeNull();
     expect(detectCardShape([1, 2, 3])).toBeNull();
     expect(detectCardShape("a string")).toBeNull();
+  });
+});
+
+describe("effectiveShape", () => {
+  it("trusts the payload when the keyword disagrees", () => {
+    const r = effectiveShape("chara", { entries: [{ keys: ["a"], content: "b" }] });
+    expect(r.shape).toBe("lorebook");
+    expect(r.claimed).toBe("character");
+    expect(r.mismatch).toBe(true);
+  });
+
+  it("reports no mismatch when they agree", () => {
+    const r = effectiveShape("persona", { spec: "persona_card_v1", name: "M" });
+    expect(r.shape).toBe("persona");
+    expect(r.mismatch).toBe(false);
+  });
+
+  it("falls back to the keyword when the payload says nothing", () => {
+    const r = effectiveShape("script", { name: "S" });
+    expect(r.shape).toBe("script");
+    expect(r.actual).toBeNull();
+    expect(r.mismatch).toBe(false);
+  });
+
+  it("is null for a keyword this app does not know", () => {
+    expect(effectiveShape("comment", { hello: 1 }).shape).toBeNull();
   });
 });

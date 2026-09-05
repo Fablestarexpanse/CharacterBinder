@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Download, FileJson, Map, Save } from "lucide-react";
 import type { ScenarioCard } from "../types";
 import ResizableTextArea from "./ResizableTextArea";
-import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
+import { countTokens, getTokenBudgetLevel, tokenBudgetPercent, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../lib/tokenizer";
 import ImageDropzone from "./ImageDropzone";
 import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
@@ -90,7 +90,7 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
             <span className={`font-bold ${TOKEN_BUDGET_COLORS[level]}`}>{totalTokens} tk</span>
           </div>
           <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
-            <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${Math.min((totalTokens / 3000) * 100, 100)}%` }} />
+            <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${tokenBudgetPercent(totalTokens)}%` }} />
           </div>
         </div>
 

@@ -60,3 +60,23 @@ export function detectCardShape(parsed: unknown): CardShape | null {
 
   return null;
 }
+
+/**
+ * Reconcile what a file says it is with what it contains.
+ *
+ * Both import paths need this and got it separately: Import PNG trusted the
+ * payload, Decode PNG trusted the keyword, so the same file could open as a
+ * lorebook in one and an empty character card in the other.
+ */
+export function effectiveShape(key: string, parsed: unknown): {
+  shape: CardShape | null;
+  claimed: CardShape | null;
+  actual: CardShape | null;
+  /** The keyword and the payload disagree; the payload wins and the UI says so. */
+  mismatch: boolean;
+} {
+  const claimed = shapeForKey(key);
+  const actual = detectCardShape(parsed);
+  const mismatch = actual !== null && claimed !== null && actual !== claimed;
+  return { shape: mismatch ? actual : claimed, claimed, actual, mismatch };
+}
