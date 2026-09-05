@@ -25,7 +25,7 @@
 
 import type { ParsedPersona, CardField } from "../../shared/cardTextParser";
 import { parsePersonaText } from "../../shared/cardTextParser";
-import { countTokens } from "../tokenizer";
+import { budgetInput, coerceJson, CONTEXT_TOKENS, MAX_OUTPUT_TOKENS } from "./modelIo";
 import { getSorterSettings, isRemoteUrl, type SorterSettings } from "./settings";
 
 // ── Prompt + schema ─────────────────────────────────────────────────────────
@@ -104,24 +104,6 @@ function buildUserPrompt(text: string): string {
  * would get cut off mid-JSON. These models support far more, so the window is
  * raised at load time and the output budget sized to match.
  */
-const CONTEXT_TOKENS = 8192;
-const MAX_OUTPUT_TOKENS = 3000;
-const RESERVED_TOKENS = MAX_OUTPUT_TOKENS + 500; // generated JSON + system prompt
-
-function budgetInput(text: string): { text: string; truncated: boolean } {
-  const limit = CONTEXT_TOKENS - RESERVED_TOKENS;
-  if (countTokens(text) <= limit) return { text, truncated: false };
-
-  // Trim by characters, then walk back to a paragraph edge so we don't cut mid-thought.
-  let slice = text;
-  while (slice.length > 200 && countTokens(slice) > limit) {
-    slice = slice.slice(0, Math.floor(slice.length * 0.9));
-  }
-  const lastBreak = slice.lastIndexOf("\n\n");
-  if (lastBreak > slice.length * 0.5) slice = slice.slice(0, lastBreak);
-  return { text: slice.trim(), truncated: true };
-}
-
 // ── Engine lifecycle (WebLLM) ───────────────────────────────────────────────
 
 export interface LoadProgress {
@@ -443,31 +425,6 @@ async function runEndpoint(input: string, settings: SorterSettings, target: Sort
  * WebLLM's grammar guarantees clean JSON, but arbitrary endpoints don't — some
  * ignore response_format and wrap the object in prose or a code fence.
  */
-function coerceJson(text: string): Record<string, unknown> | null {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-
-  const candidates = [trimmed];
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenced) candidates.push(fenced[1]);
-
-  const first = trimmed.indexOf("{");
-  const last = trimmed.lastIndexOf("}");
-  if (first !== -1 && last > first) candidates.push(trimmed.slice(first, last + 1));
-
-  for (const c of candidates) {
-    try {
-      const parsed = JSON.parse(c);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      /* try the next shape */
-    }
-  }
-  return null;
-}
 
 function toParsedPersona(
   obj: Record<string, unknown>,
