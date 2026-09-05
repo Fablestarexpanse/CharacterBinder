@@ -8,8 +8,9 @@
  * one place that says what each card kind is made of.
  */
 
-import type { LoreBook, PersonaCard, ScenarioCard, ScriptCard, LibraryCardType, RawCardFor } from "../types";
+import type { LoreBook, PersonaCard, ScenarioCard, ScriptCard, LibraryCardType, RawCardFor, TavernCardV2 } from "../types";
 import { parseLorebook } from "./lorebook";
+import { createBlankTavernCard } from "./tavernCard";
 
 export const blankScriptCard = (): ScriptCard => ({
   spec: "script_card_v1",
@@ -87,4 +88,33 @@ export function coerceCardBody<T extends Exclude<LibraryCardType, "character">>(
       : str(body[key], fallback as string);
   }
   return out as unknown as RawCardFor<T>;
+}
+
+/**
+ * Build the `data` block of a character card from an arbitrary object, keeping
+ * only the v2 fields and only where the value has the right type.
+ *
+ * The bridge used to spread a peer's object straight over a blank card's data,
+ * so an agent could put a number in `personality` or invent a field, and the
+ * editor and every converter downstream would then be handling a card whose
+ * type says one thing and whose contents say another.
+ */
+export function coerceCharacterData(body: Record<string, unknown>): TavernCardV2["data"] {
+  const blank = createBlankTavernCard().data;
+  const out: Record<string, unknown> = { ...blank };
+
+  for (const [key, fallback] of Object.entries(blank)) {
+    if (!(key in body)) continue;
+    const value = body[key];
+    if (key === "extensions") {
+      // Free-form by spec, but it must at least be an object.
+      if (value && typeof value === "object" && !Array.isArray(value)) out[key] = value;
+      continue;
+    }
+    out[key] = Array.isArray(fallback)
+      ? strList(value, fallback as string[])
+      : str(value, fallback as string);
+  }
+
+  return out as unknown as TavernCardV2["data"];
 }

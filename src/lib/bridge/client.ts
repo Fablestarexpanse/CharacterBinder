@@ -38,9 +38,9 @@ import {
 } from "./protocol";
 import { getAllCards, getCard as readCard, saveLibraryCard, deleteCard } from "../library";
 import { createBlankTavernCard } from "../tavernCard";
-import { coerceCardBody } from "../blankCards";
+import { coerceCardBody, coerceCharacterData } from "../blankCards";
 import { createPersistedSettings } from "../persistedSettings";
-import { CARD_TYPES, type LibraryCard, type TavernCardV2 } from "../../types";
+import { CARD_TYPES, isCardType, type LibraryCard, type TavernCardV2 } from "../../types";
 
 /** Same read/patch contract as the app's other persisted settings. */
 const bridgeStore = createPersistedSettings("cb_bridge", { token: "", enabled: false });
@@ -311,22 +311,65 @@ function open() {
 
 // ── RPC handlers ────────────────────────────────────────────────────────────
 
+/**
+ * Params arrive as whatever the peer sent. Each accessor below states what the
+ * method needs and fails with a message the agent can act on, rather than the
+ * handler casting and discovering the problem as a TypeError halfway through a
+ * save.
+ */
+function paramsObject(params: unknown): Record<string, unknown> {
+  return params && typeof params === "object" && !Array.isArray(params)
+    ? (params as Record<string, unknown>)
+    : {};
+}
+
+function requiredId(params: unknown, method: string): string {
+  const id = paramsObject(params).id;
+  if (typeof id !== "string" || !id) {
+    throw new Error(`${method} needs an "id" string. Call list_cards to see what exists.`);
+  }
+  return id;
+}
+
+function requiredBody(params: unknown, field: string, method: string): Record<string, unknown> {
+  const value = paramsObject(params)[field];
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${method} needs "${field}" to be an object of card fields.`);
+  }
+  return value as Record<string, unknown>;
+}
+
 async function handle(req: BridgeRequest): Promise<unknown> {
+  const p = paramsObject(req.params);
   switch (req.method) {
     case "ping":
       return { ok: true, app: "CharacterBinder", version: __APP_VERSION__ };
-    case "cards.list":
-      return listCards(req.params as ListParams);
+    case "cards.list": {
+      const type = p.type;
+      if (type !== undefined && !isCardType(type)) {
+        throw new Error(`Unknown card type "${String(type)}". Expected one of: ${CARD_TYPES.join(", ")}.`);
+      }
+      return listCards({ type });
+    }
     case "cards.get":
-      return getCard(req.params as GetParams);
+      return getCard({ id: requiredId(req.params, "get_card") });
     case "cards.create":
-      return createCard(req.params as CreateParams);
+      return createCard({
+        cardType: p.cardType as CardType,
+        data: requiredBody(req.params, "data", "create"),
+        imageSrc: p.imageSrc as string | null | undefined,
+        open: p.open === true,
+      });
     case "cards.update":
-      return updateCard(req.params as UpdateParams);
+      return updateCard({
+        id: requiredId(req.params, "update_card"),
+        patch: requiredBody(req.params, "patch", "update_card"),
+        open: p.open === true,
+      });
     case "cards.delete":
-      return removeCard(req.params as DeleteParams);
+      return removeCard({ id: requiredId(req.params, "delete_card") });
     case "app.open":
-      return openCard(req.params as OpenParams);
+      return openCard({ id: requiredId(req.params, "open_card") });
     default:
       throw new Error(`Unknown bridge method: ${req.method}`);
   }
@@ -390,7 +433,7 @@ async function persist(
 
   if (cardType === "character") {
     const blank = createBlankTavernCard();
-    const card: TavernCardV2 = { ...blank, data: { ...blank.data, ...(body as object) } };
+    const card: TavernCardV2 = { ...blank, data: coerceCharacterData(body) };
     // Carry the embedded card PNG and target platform across an edit. Passing
     // null/"sillytavern" unconditionally meant an agent editing one field threw
     // away the encoded PNG the archive exports, and silently retargeted the card.
@@ -440,7 +483,7 @@ async function createCard(params: CreateParams): Promise<MutationResult> {
   }
   const saved = await persist(params.cardType, params.data ?? {}, safeImageSrc(params.imageSrc));
   host?.onLibraryChanged?.();
-  recordActivity({ at: Date.now(), method: "cards.update", cardId: saved.id, cardName: saved.name });
+  recordActivity({ at: Date.now(), method: "cards.create", cardId: saved.id, cardName: saved.name });
   if (params.open) host?.openCard(saved);
   return { id: saved.id, name: saved.name, cardType: saved.cardType };
 }
