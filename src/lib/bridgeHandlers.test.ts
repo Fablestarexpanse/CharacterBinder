@@ -19,7 +19,8 @@ vi.stubGlobal("localStorage", {
   removeItem: (k: string) => void store.delete(k),
 });
 
-let client: typeof import("./bridgeClient");
+let handlers: typeof import("./bridgeHandlers");
+let bridgeState: typeof import("./bridgeState");
 let library: typeof import("./library");
 const opened: LibraryCard[] = [];
 const confirmDestructive = vi.fn(async () => true);
@@ -32,8 +33,9 @@ beforeEach(async () => {
   opened.length = 0;
 
   library = await import("./library");
-  client = await import("./bridgeClient");
-  client.initBridge({
+  handlers = await import("./bridgeHandlers");
+  bridgeState = await import("./bridgeState");
+  bridgeState.setHost({
     openCard: (card) => {
       opened.push(card);
       return true;
@@ -44,7 +46,7 @@ beforeEach(async () => {
 
 /** Drives one RPC the way an authenticated peer would. */
 async function call(method: string, params: unknown) {
-  return client.handleBridgeRequest({ id: "1", method, params } as never);
+  return handlers.handleBridgeRequest({ id: "1", method, params } as never);
 }
 
 const characterParams = {
@@ -172,7 +174,7 @@ describe("activity", () => {
     const created = (await call("cards.create", characterParams)) as { id: string };
     await call("cards.delete", { id: created.id });
 
-    const activity = client.getBridgeState().activity;
+    const activity = bridgeState.getBridgeState().activity;
     expect(activity.map((a) => a.method)).toEqual(["cards.delete", "cards.create"]);
     expect(activity[0].cardName).toBe("Rook");
   });
@@ -182,7 +184,7 @@ describe("activity", () => {
     confirmDestructive.mockResolvedValueOnce(false);
     await expect(call("cards.delete", { id: created.id })).rejects.toThrow();
 
-    expect(client.getBridgeState().activity[0]).toMatchObject({ method: "cards.delete", refused: true });
+    expect(bridgeState.getBridgeState().activity[0]).toMatchObject({ method: "cards.delete", refused: true });
   });
 });
 
@@ -198,13 +200,13 @@ describe("opening a card reports what happened", () => {
     // A record whose body is gone: the editor has nothing to show.
     opened.length = 0;
     const host = { openCard: () => false };
-    client.initBridge(host);
+    bridgeState.setHost(host);
 
     await expect(call("app.open", { id: created.id })).rejects.toThrow(/nothing was opened/i);
   });
 
   it("reports open:false on create when the editor did not take the card", async () => {
-    client.initBridge({ openCard: () => false });
+    bridgeState.setHost({ openCard: () => false });
     const result = (await call("cards.create", { ...characterParams, open: true })) as { opened: boolean };
     expect(result.opened).toBe(false);
   });

@@ -5,8 +5,8 @@ import Settings from "./Settings";
 import { DEFAULT_SETTINGS } from "../../lib/settings";
 
 const setBridgeToken = vi.fn((_t: string) => {});
-vi.mock("../../lib/bridgeClient", async () => {
-  const actual = await vi.importActual<typeof import("../../lib/bridgeClient")>("../../lib/bridgeClient");
+vi.mock("../../lib/bridgeState", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/bridgeState")>("../../lib/bridgeState");
   return { ...actual, getBridgeToken: () => "", setBridgeToken: (t: string) => setBridgeToken(t) };
 });
 

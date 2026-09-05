@@ -54,11 +54,13 @@ class FakeSocket {
 }
 
 let client: typeof import("./bridgeClient");
+let bridgeState: typeof import("./bridgeState");
 
 beforeEach(async () => {
   vi.resetModules();
   vi.stubGlobal("WebSocket", FakeSocket);
   client = await import("./bridgeClient");
+  bridgeState = await import("./bridgeState");
   client.initBridge({ openCard: () => true });
   client.connectBridge();
   FakeSocket.last!.onopen?.();
@@ -84,7 +86,7 @@ describe("app-side handshake", () => {
     expect(socket.sent[1].type).toBe("auth");
 
     await socket.deliver({ type: "ready" });
-    expect(client.getBridgeState().status).toBe("connected");
+    expect(bridgeState.getBridgeState().status).toBe("connected");
   });
 
   it("refuses a server that skips the challenge and just claims ready", async () => {
@@ -94,8 +96,8 @@ describe("app-side handshake", () => {
 
     // A process that grabbed the port must not be served the card library for
     // saying the magic word.
-    expect(client.getBridgeState().status).toBe("error");
-    expect(client.getBridgeState().error).toMatch(/skipped the pairing check/i);
+    expect(bridgeState.getBridgeState().status).toBe("error");
+    expect(bridgeState.getBridgeState().error).toMatch(/skipped the pairing check/i);
     expect(socket.closedWith).toBe(4004);
   });
 
@@ -105,13 +107,14 @@ describe("app-side handshake", () => {
     await socket.deliver({ type: "challenge", serverNonce: "abcdef0123456789", proof: "0".repeat(64) });
 
     expect(socket.sent.some((f) => f.type === "auth")).toBe(false);
-    expect(client.getBridgeState().error).toMatch(/failed to prove/i);
+    expect(bridgeState.getBridgeState().error).toMatch(/failed to prove/i);
   });
 
   it("never sends anything when no token is stored", async () => {
     store.set("cb_bridge", JSON.stringify({ token: "", enabled: true }));
     vi.resetModules();
     const fresh = await import("./bridgeClient");
+    const freshState = await import("./bridgeState");
     fresh.initBridge({ openCard: () => true });
     fresh.connectBridge();
     const socket = FakeSocket.last!;
@@ -122,6 +125,6 @@ describe("app-side handshake", () => {
     expect(socket.sent.some((f) => f.type === "auth")).toBe(false);
     // Without the token check ahead of proveToken, WebCrypto's rejection on an
     // empty key left this stuck on "connecting" and said nothing.
-    expect(String(fresh.getBridgeState().error)).toMatch(/no pairing token/i);
+    expect(String(freshState.getBridgeState().error)).toMatch(/no pairing token/i);
   });
 });

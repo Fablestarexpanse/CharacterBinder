@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import BridgeStatusLight from "./BridgeStatusLight";
-import type { BridgeState } from "../../lib/bridgeClient";
+import type { BridgeState } from "../../lib/bridgeState";
 
 const bridgeState = vi.fn((): BridgeState => ({ status: "off", error: null, served: 0, lastMethod: null, activity: [] }));
 const connectBridge = vi.fn();
@@ -12,12 +12,11 @@ const getBridgeToken = vi.fn(() => "a-token");
 vi.mock("../../hooks/useBridgeState", () => ({ useBridgeState: () => bridgeState() }));
 vi.mock("../../lib/bridgeClient", async () => {
   const actual = await vi.importActual<typeof import("../../lib/bridgeClient")>("../../lib/bridgeClient");
-  return {
-    ...actual,
-    connectBridge: () => connectBridge(),
-    disconnectBridge: () => disconnectBridge(),
-    getBridgeToken: () => getBridgeToken(),
-  };
+  return { ...actual, connectBridge: () => connectBridge(), disconnectBridge: () => disconnectBridge() };
+});
+vi.mock("../../lib/bridgeState", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/bridgeState")>("../../lib/bridgeState");
+  return { ...actual, getBridgeToken: () => getBridgeToken() };
 });
 
 beforeEach(() => {
