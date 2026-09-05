@@ -1,4 +1,9 @@
-import { encode } from "gpt-tokenizer";
+// cl100k, not the newer o200k the package exports by default: its BPE table is
+// 1.06 MB against 2.22 MB, and it made up most of the entry chunk. The counts
+// here are a budget estimate shown next to each field — every target platform
+// runs a different model with a different tokenizer anyway, so the extra
+// megabyte bought no accuracy that means anything to the user.
+import { encode } from "gpt-tokenizer/encoding/cl100k_base";
 import type { TavernCardV2 } from "../types";
 
 export function countTokens(text: string): number {

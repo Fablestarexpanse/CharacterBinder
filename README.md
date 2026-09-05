@@ -489,18 +489,21 @@ PNG Signature (8 bytes)
 CharacterBinder/
 ├── src/
 │   ├── components/          # UI components (editors, sidebar, library, modals)
-│   ├── hooks/               # Shared React hooks (status messages, AI engine state)
+│   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
 │   ├── lib/
 │   │   ├── bridge/          # MCP bridge: wire protocol + app-side client
-│   │   ├── pngMetadata/     # PNG tEXt chunk encoder/decoder
 │   │   ├── platforms/       # Platform definitions + format converters
-│   │   ├── validators/      # Card validation logic
-│   │   ├── library/         # IndexedDB card storage (idb)
-│   │   ├── archive/         # ZIP export (jszip)
-│   │   ├── tokenizer/       # Token counting (cl100k)
-│   │   ├── personaParser/   # Quick Import: labelled / JSON / W++ / prose parsing
 │   │   ├── personaLlm/      # Quick Import: in-browser AI sorter (WebLLM) + settings
-│   │   ├── customTemplates/ # User-saved templates (localStorage)
+│   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
+│   │   ├── validators.ts    # Card validation logic
+│   │   ├── library.ts       # IndexedDB card storage (idb)
+│   │   ├── archive.ts       # ZIP export (jszip)
+│   │   ├── tokenizer.ts     # Token counting (cl100k)
+│   │   ├── personaParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
+│   │   ├── customTemplates.ts # User-saved templates (localStorage)
+│   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
+│   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
+│   │   ├── persistedSettings.ts # localStorage-backed settings store
 │   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
 │   │   ├── download.ts      # Blob download helper (all export paths)
 │   │   ├── settings.ts      # App settings + localStorage persistence
