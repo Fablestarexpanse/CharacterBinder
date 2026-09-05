@@ -49,10 +49,16 @@ describe("MCP tool surface", () => {
     expect(inlineOpenDeclarations).toHaveLength(0);
   });
 
-  it("knows the same platforms the app does", () => {
-    const compat = source.slice(source.indexOf('"platform_compatibility"'));
-    for (const id of Object.keys(PLATFORMS)) {
-      expect(compat.slice(0, 2000)).toContain(id);
-    }
+  it("takes its card-kind and platform lists from the app rather than restating them", () => {
+    // Restated literals is how a tool ends up offering a kind the app dropped,
+    // or missing a platform it gained.
+    expect(source).toMatch(/\.?enum\(CARD_TYPES\)/);
+    expect(source).toMatch(/\.?enum\(PLATFORM_IDS\)/);
+    expect(source).not.toMatch(/z\.enum\(\s*\[/);
+  });
+
+  it("knows every platform the app defines", async () => {
+    const { PLATFORM_IDS } = await import("../../src/shared/platforms/index.js");
+    expect([...PLATFORM_IDS].sort()).toEqual(Object.keys(PLATFORMS).sort());
   });
 });
