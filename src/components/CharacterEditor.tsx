@@ -2,6 +2,7 @@ import { useState, useRef, useId } from "react";
 import type { TavernCardV2 } from "../types";
 import { Plus, Minus, ChevronDown, ChevronUp, Image } from "lucide-react";
 import { readImageFile } from "../lib/readImageFile";
+import { errorMessage } from "../lib/errorMessage";
 import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
 import ResizableTextArea from "./ResizableTextArea";
@@ -36,9 +37,16 @@ export default function CharacterEditor({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const { data } = card;
 
+  const [imageError, setImageError] = useState<string | null>(null);
+
   async function handleImageFile(file: File) {
-    const src = await readImageFile(file);
-    onUpdateImage(src);
+    try {
+      onUpdateImage(await readImageFile(file));
+      setImageError(null);
+    } catch (err) {
+      // Unhandled, an unreadable file left the drop looking like it worked.
+      setImageError(`Couldn't read that image: ${errorMessage(err)}`);
+    }
   }
 
   function handleImageDrop(e: React.DragEvent) {
@@ -214,6 +222,11 @@ export default function CharacterEditor({
                 if (file) handleImageFile(file);
               }}
             />
+            {imageError && (
+              <p role="status" aria-live="polite" className="mt-1 text-[11px] text-status-danger">
+                {imageError}
+              </p>
+            )}
           </div>
         </div>
       </section>

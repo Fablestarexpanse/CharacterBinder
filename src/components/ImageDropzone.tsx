@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { readImageFile } from "../lib/readImageFile";
+import { errorMessage } from "../lib/errorMessage";
 
 interface ImageDropzoneProps {
   imageSrc: string | null;
@@ -15,11 +16,21 @@ interface ImageDropzoneProps {
  */
 export default function ImageDropzone({ imageSrc, onFile, label, className = "h-28 w-full" }: ImageDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // FileReader rejects on an unreadable or removed file. Unhandled, the drop
+  // simply did nothing and the user was left dropping the same file again.
+  const [error, setError] = useState<string | null>(null);
 
   async function handleFile(file: File) {
-    if (!file.type.startsWith("image/")) return;
-    const src = await readImageFile(file);
-    onFile(src);
+    if (!file.type.startsWith("image/")) {
+      setError("That file isn't an image.");
+      return;
+    }
+    try {
+      onFile(await readImageFile(file));
+      setError(null);
+    } catch (err) {
+      setError(`Couldn't read that image: ${errorMessage(err)}`);
+    }
   }
 
   return (
@@ -56,6 +67,11 @@ export default function ImageDropzone({ imageSrc, onFile, label, className = "h-
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ""; }}
       />
+      {error && (
+        <p role="status" aria-live="polite" className="mt-1 text-[11px] text-status-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
