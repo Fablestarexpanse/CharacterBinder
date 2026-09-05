@@ -31,13 +31,24 @@ const store = createPersistedSettings("cb_sorter_settings", {
  * through to the WebLLM branch and try to download a model. Read it back to a
  * known value rather than trusting what is in storage.
  */
-export function getSorterSettings(): SorterSettings {
+function readSettings(): SorterSettings {
   const stored = store.get();
   return {
     ...stored,
     backend: stored.backend === "endpoint" ? "endpoint" : "webllm",
     remoteAcknowledged: stored.remoteAcknowledged === true,
   };
+}
+
+// Cached, and replaced only on a save: useSyncExternalStore compares snapshots
+// by identity, so handing it a fresh object per call would re-render forever.
+let snapshot: SorterSettings = readSettings();
+store.subscribe(() => {
+  snapshot = readSettings();
+});
+
+export function getSorterSettings(): SorterSettings {
+  return snapshot;
 }
 
 /**

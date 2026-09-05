@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useEngineState } from "../hooks/useEngineState";
 import { preloadModel, unloadModel, isModelCached, isWebGpuAvailable } from "../lib/cardTextSorter";
-import { getSorterSettings, subscribeSorterSettings } from "../lib/cardTextSorter/settings";
+import { useSorterSettings } from "../hooks/useSorterSettings";
 import { findModel, formatSize } from "../lib/cardTextSorter/models";
 
 /**
@@ -13,13 +13,12 @@ import { findModel, formatSize } from "../lib/cardTextSorter/models";
  */
 export default function LlmStatusLight() {
   const engine = useEngineState();
-  const [settings, setSettings] = useState(() => getSorterSettings());
+  const settings = useSorterSettings();
   const [cached, setCached] = useState<boolean | null>(null);
 
   // Settings are edited elsewhere (the Quick Import panel), so subscribe rather
   // than sampling. Sampling on engine.status left this holding a stale model id
   // between loads, and clicking would then fetch the wrong model.
-  useEffect(() => subscribeSorterSettings(setSettings), []);
 
   const model = findModel(settings.modelId);
   const usingServer = settings.backend === "endpoint";

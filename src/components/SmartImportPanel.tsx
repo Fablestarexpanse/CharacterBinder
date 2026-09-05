@@ -15,7 +15,8 @@ import {
 } from "../lib/cardTextParser";
 import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../lib/cardTextSorter";
 import { useEngineState } from "../hooks/useEngineState";
-import { getSorterSettings, saveSorterSettings, type SorterSettings as Settings } from "../lib/cardTextSorter/settings";
+import { saveSorterSettings, type SorterSettings as Settings } from "../lib/cardTextSorter/settings";
+import { useSorterSettings } from "../hooks/useSorterSettings";
 import SorterSettings from "./SorterSettings";
 
 interface SmartImportPanelProps {
@@ -65,7 +66,7 @@ export default function SmartImportPanel({
   const [takeTags, setTakeTags] = useState(true);
   const [mode, setMode] = useState<ApplyMode>("replace");
 
-  const [settings, setSettings] = useState<Settings>(() => getSorterSettings());
+  const settings = useSorterSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<LoadProgress | null>(null);
@@ -111,7 +112,7 @@ export default function SmartImportPanel({
   }
 
   function updateSettings(patch: Partial<Settings>) {
-    setSettings(saveSorterSettings(patch));
+    saveSorterSettings(patch);
   }
 
   async function handleUnload() {
