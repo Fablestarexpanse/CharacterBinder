@@ -113,8 +113,12 @@ export function recordActivity(entry: BridgeActivity) {
 // this module reaching up into component state.
 
 export interface BridgeHost {
-  /** @returns false when there was nothing to open — a record with no body. */
-  openCard: (card: LibraryCard) => boolean;
+  /**
+   * @returns null once the card is on screen, or why it could not be opened —
+   *   a damaged record with no body, say. The reason reaches the agent, which
+   *   otherwise heard "opened" for a card nobody could see.
+   */
+  openCard: (card: LibraryCard) => string | null;
   onLibraryChanged?: () => void;
   /**
    * Ask the user to approve a destructive call before it happens.

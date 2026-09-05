@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType, DataCardType } from "../../types";
+import type { MetadataInfo, OpenDataCard, LibraryCardType, DataCardType, LoadCharacterCard } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { readCardPng } from "../../lib/readCardPng";
@@ -18,7 +18,7 @@ const NON_CHAR_META: Record<DataCardType, { label: string; icon: React.ReactNode
 };
 
 interface DecodePNGProps {
-  onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
+  onLoad: LoadCharacterCard;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }

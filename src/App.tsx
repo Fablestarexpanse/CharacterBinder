@@ -87,16 +87,18 @@ function App() {
       openCard: (card) => {
         const image = card.imageSrc ?? null;
         if (card.cardType === "character") {
-          // A record with no body opens nothing; the caller is told so rather
+          // A record with no body opens nothing; the caller is told why rather
           // than being shown an editor holding a blank card.
-          if (!card.cardData?.data) return false;
+          if (!card.cardData?.data) {
+            return `"${card.name}" has no character data — the stored record is damaged.`;
+          }
           character.loadFromLibrary(card.cardData, image, card.id);
-          return true;
+          return null;
         }
         // Pass the library id: without it the editor would treat an agent-opened
         // card as new, and the next save would fork a duplicate record.
         openDataCard(card.cardType, card.rawData, image, card.id);
-        return true;
+        return null;
       },
     });
   }, [character.loadFromLibrary, openDataCard]);
@@ -137,7 +139,6 @@ function App() {
         {activePage === "create" && (
           <CreateCard
             project={character.project}
-            settings={settings}
             targetPlatform={character.targetPlatform}
             onUpdateCard={character.updateCard}
             onUpdateImage={character.updateImage}

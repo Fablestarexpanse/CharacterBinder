@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { TavernCardV2, MetadataInfo, LibraryCardType, OpenDataCard } from "../../types";
+import type { MetadataInfo, LibraryCardType, OpenDataCard, LoadCharacterCard } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { readCardPng } from "../../lib/readCardPng";
@@ -11,7 +11,7 @@ import { errorMessage } from "../../shared/errorMessage";
 type DetectedType = LibraryCardType | null;
 
 interface ImportPNGProps {
-  onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
+  onLoad: LoadCharacterCard;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }

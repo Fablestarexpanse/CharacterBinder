@@ -61,7 +61,7 @@ beforeEach(async () => {
   vi.stubGlobal("WebSocket", FakeSocket);
   client = await import("./bridgeClient");
   bridgeState = await import("./bridgeState");
-  client.initBridge({ openCard: () => true });
+  client.initBridge({ openCard: () => null });
   client.connectBridge();
   FakeSocket.last!.onopen?.();
 });
@@ -115,7 +115,7 @@ describe("app-side handshake", () => {
     vi.resetModules();
     const fresh = await import("./bridgeClient");
     const freshState = await import("./bridgeState");
-    fresh.initBridge({ openCard: () => true });
+    fresh.initBridge({ openCard: () => null });
     fresh.connectBridge();
     const socket = FakeSocket.last!;
     socket.onopen?.();

@@ -38,7 +38,7 @@ beforeEach(async () => {
   bridgeState.setHost({
     openCard: (card) => {
       opened.push(card);
-      return true;
+      return null;
     },
     confirmDestructive: () => confirmDestructive(),
   });
@@ -149,7 +149,7 @@ describe("cards.list and cards.get", () => {
   });
 
   it("refuses a card type filter it does not have", async () => {
-    await expect(call("cards.list", { type: "spaceship" })).rejects.toThrow(/unknown card type/i);
+    await expect(call("cards.list", { type: "spaceship" })).rejects.toThrow(/unknown cardType/i);
   });
 
   it("returns a card in full, and says so when it is missing", async () => {
@@ -199,14 +199,15 @@ describe("opening a card reports what happened", () => {
     const created = (await call("cards.create", characterParams)) as { id: string };
     // A record whose body is gone: the editor has nothing to show.
     opened.length = 0;
-    const host = { openCard: () => false };
+    const host = { openCard: () => "\"Rook\" has no character data — the stored record is damaged." };
     bridgeState.setHost(host);
 
-    await expect(call("app.open", { id: created.id })).rejects.toThrow(/nothing was opened/i);
+    // The agent hears why, rather than a generic failure or a false success.
+    await expect(call("app.open", { id: created.id })).rejects.toThrow(/stored record is damaged/i);
   });
 
   it("reports open:false on create when the editor did not take the card", async () => {
-    bridgeState.setHost({ openCard: () => false });
+    bridgeState.setHost({ openCard: () => "nothing to show" });
     const result = (await call("cards.create", { ...characterParams, open: true })) as { opened: boolean };
     expect(result.opened).toBe(false);
   });

@@ -7,6 +7,7 @@
 
 import {
   type BridgeCalls,
+  type BridgeMethod,
   type BridgeRequest,
   type CardSummary,
   type CreateParams,
@@ -59,32 +60,40 @@ function requiredBody(params: unknown, field: string, method: string): Record<st
  * covered from the server side, and what a call does to the library is what
  * matters here.
  */
-export async function handleBridgeRequest(req: BridgeRequest): Promise<unknown> {
+/**
+ * One place a bad card type is rejected, with one message. Both the list filter
+ * and the create call take a kind from the agent, and each used to test it
+ * again with wording of its own.
+ */
+function requireCardType(value: unknown): LibraryCardType {
+  if (!isCardType(value)) {
+    throw new Error(`Unknown cardType "${String(value)}". Expected one of: ${CARD_TYPES.join(", ")}.`);
+  }
+  return value;
+}
+
+export async function handleBridgeRequest(
+  req: BridgeRequest
+): Promise<BridgeCalls[BridgeMethod]["result"]> {
   const p = paramsObject(req.params);
   switch (req.method) {
     case "ping":
       return { ok: true, app: "CharacterBinder", version: __APP_VERSION__ };
-    case "cards.list": {
-      const type = p.type;
-      if (type !== undefined && !isCardType(type)) {
-        throw new Error(`Unknown card type "${String(type)}". Expected one of: ${CARD_TYPES.join(", ")}.`);
-      }
-      return listCards({ type });
-    }
+    case "cards.list":
+      return listCards({ type: p.type === undefined ? undefined : requireCardType(p.type) });
     case "cards.get":
       return getCard({ id: requiredId(req.params, "get_card") });
-    case "cards.create":
-      if (!isCardType(p.cardType)) {
-        throw new Error(`Unknown cardType "${String(p.cardType)}". Expected one of: ${CARD_TYPES.join(", ")}.`);
-      }
+    case "cards.create": {
+      const cardType = requireCardType(p.cardType);
       return createCard({
-        cardType: p.cardType,
+        cardType,
         // Named for the tool the agent actually called: cards.create serves
         // one create_* tool per kind, and "create" is not a tool at all.
-        data: requiredBody(req.params, "data", `create_${p.cardType}`),
+        data: requiredBody(req.params, "data", `create_${cardType}`),
         imageSrc: p.imageSrc as string | null | undefined,
         open: p.open === true,
       });
+    }
     case "cards.update":
       return updateCard({
         id: requiredId(req.params, "update_card"),
@@ -203,17 +212,30 @@ function requireInlineImageSrc(src: unknown): string | null {
 
 
 async function createCard(params: CreateParams): Promise<BridgeCalls["cards.create"]["result"]> {
-  if (!params?.cardType) throw new Error("cardType is required.");
-  if (!CARD_TYPES.includes(params.cardType)) {
-    throw new Error(`Unknown cardType "${params.cardType}". Expected one of: ${CARD_TYPES.join(", ")}.`);
-  }
   const saved = await persist(params.cardType, params.data ?? {}, requireInlineImageSrc(params.imageSrc));
   getHost()?.onLibraryChanged?.();
   recordActivity({ at: Date.now(), method: "cards.create", cardId: saved.id, cardName: saved.name });
-  // Reported rather than assumed: `open: true` with no host, or a card the
-  // editor cannot show, would otherwise be answered "opened in the app".
-  const opened = params.open ? getHost()?.openCard(saved) ?? false : false;
+  const opened = params.open ? tryOpen(saved) : false;
   return { id: saved.id, name: saved.name, cardType: saved.cardType, opened };
+}
+
+/**
+ * Open a card the agent asked to be shown, alongside a write.
+ *
+ * The write itself succeeded, so a failure to open is not an error for the
+ * call — but it is not silence either: the reason goes into the activity list
+ * the user can read, and the agent is answered `opened: false` rather than
+ * being told the card is on screen.
+ */
+function tryOpen(card: LibraryCard): boolean {
+  const host = getHost();
+  if (!host) return false;
+  const reason = host.openCard(card);
+  if (reason) {
+    recordActivity({ at: Date.now(), method: "app.open", cardId: card.id, cardName: card.name, refused: true });
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -267,7 +289,7 @@ async function updateCard(params: UpdateParams): Promise<BridgeCalls["cards.upda
   );
   getHost()?.onLibraryChanged?.();
   recordActivity({ at: Date.now(), method: "cards.update", cardId: saved.id, cardName: saved.name });
-  const opened = params.open ? getHost()?.openCard(saved) ?? false : false;
+  const opened = params.open ? tryOpen(saved) : false;
   return { id: saved.id, name: saved.name, cardType: saved.cardType, opened };
 }
 
@@ -288,12 +310,11 @@ async function openCard(params: OpenParams): Promise<BridgeCalls["app.open"]["re
   if (!host) {
     throw new Error("CharacterBinder is connected but has no editor to open cards in. Reload the app tab.");
   }
-  const opened = host.openCard(card);
+  const reason = host.openCard(card);
   // Recorded like the others: opening a card replaces whatever the user was
-  // editing, so it belongs in the list of what the agent did.
-  recordActivity({ at: Date.now(), method: "app.open", cardId: card.id, cardName: card.name });
-  if (!opened) {
-    throw new Error(`"${card.name}" has no editable data, so nothing was opened.`);
-  }
-  return { id: card.id, opened };
+  // editing, so it belongs in the list of what the agent did — and a refusal
+  // belongs there too.
+  recordActivity({ at: Date.now(), method: "app.open", cardId: card.id, cardName: card.name, refused: !!reason });
+  if (reason) throw new Error(reason);
+  return { id: card.id, opened: true };
 }

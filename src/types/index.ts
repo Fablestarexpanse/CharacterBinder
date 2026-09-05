@@ -186,6 +186,20 @@ export type LibraryCardType = (typeof CARD_TYPES)[number];
 export type DataCardType = Exclude<LibraryCardType, "character">;
 
 /**
+ * Open a character card in the editor, from an import, a decode or a template.
+ *
+ * The counterpart to OpenDataCard: character cards are converted per platform
+ * on the way in, so this carries the metadata and source platform they were
+ * read with. Named once here because three panels take it.
+ */
+export type LoadCharacterCard = (
+  card: TavernCardV2,
+  imageSrc?: string,
+  meta?: MetadataInfo,
+  sourcePlatform?: PlatformId,
+) => void;
+
+/**
  * Open a non-character card in the editor for its kind.
  *
  * Character cards do not come through here: they are converted per platform on

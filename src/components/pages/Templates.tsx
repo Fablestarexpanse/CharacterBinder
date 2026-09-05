@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import type { TavernCardV2, MetadataInfo } from "../../types";
-import type { PlatformId } from "../../shared/platforms/registry";
+import type { LoadCharacterCard } from "../../types";
 import { templates } from "../../data/builtinTemplates";
 import { getCustomTemplates, deleteCustomTemplate, type CustomTemplate } from "../../lib/customTemplates";
 import ConfirmModal from "../ui/ConfirmModal";
@@ -8,7 +7,7 @@ import { FileText, Plus, Trash2 } from "lucide-react";
 import { errorMessage } from "../../shared/errorMessage";
 
 interface TemplatesProps {
-  onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
+  onLoad: LoadCharacterCard;
 }
 
 export default function Templates({ onLoad }: TemplatesProps) {
