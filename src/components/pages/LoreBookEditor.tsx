@@ -123,8 +123,7 @@ export default function LoreBookEditor({ initialCard, initialImageSrc, initialLi
     >
       {/* Full-screen JSON drop overlay */}
       {draggingJson && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 pointer-events-none"
-          style={{ background: "rgba(139,92,246,0.12)", border: "2px dashed rgba(139,92,246,0.5)" }}>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 pointer-events-none bg-accent-purple/10 border-2 border-dashed border-accent-purple/50">
           <Upload size={36} className="text-accent-purple opacity-80" />
           <p className="text-sm font-semibold text-accent-purple">Drop SillyTavern lorebook JSON</p>
         </div>

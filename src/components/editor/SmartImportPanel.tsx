@@ -182,7 +182,7 @@ export default function SmartImportPanel({
   const pct = progress ? Math.round(progress.progress * 100) : 0;
 
   return (
-    <div className="border border-accent-purple/30 rounded-lg overflow-hidden" style={{ background: "rgba(124,58,237,0.04)" }}>
+    <div className="border border-accent-purple/30 rounded-lg overflow-hidden bg-accent-purple/5">
       {/* Header */}
       <button
         type="button"

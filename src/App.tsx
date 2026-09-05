@@ -6,10 +6,10 @@ import type {
 import type { PlatformId } from "./shared/platforms/registry";
 import { saveAppSettings } from "./lib/settings";
 import { useAppSettings } from "./hooks/useAppSettings";
-import { initBridge } from "./lib/bridge/client";
+import { initBridge } from "./lib/bridgeClient";
 import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
 import { blankTemplate } from "./data/builtinTemplates";
-import Sidebar from "./components/pages/Sidebar";
+import Sidebar from "./components/ui/Sidebar";
 import CreateCard from "./components/pages/CreateCard";
 import ImportPNG from "./components/pages/ImportPNG";
 import DecodePNG from "./components/pages/DecodePNG";
@@ -22,7 +22,7 @@ import ScriptEditor from "./components/pages/ScriptEditor";
 import ScenarioEditor from "./components/pages/ScenarioEditor";
 import PersonaEditor from "./components/pages/PersonaEditor";
 import ConfirmModal from "./components/ui/ConfirmModal";
-import ErrorBoundary from "./components/pages/ErrorBoundary";
+import ErrorBoundary from "./components/ui/ErrorBoundary";
 import { coerceCardBody } from "./lib/blankCards";
 
 /** Output filename derived from the character name, e.g. "Mira Vale" → "Mira_Vale_Tavern_Card.png". */

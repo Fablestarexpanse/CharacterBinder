@@ -72,13 +72,12 @@ const ResizableTextArea = forwardRef<HTMLTextAreaElement, ResizableTextAreaProps
         tabIndex={0}
         onPointerDown={startResize}
         onKeyDown={onKeyDown}
-        className="flex items-center justify-center h-3 rounded-b-lg cursor-s-resize select-none transition-colors touch-none"
-        style={{ background: "rgba(124,58,237,0.14)", borderTop: "1px solid rgba(124,58,237,0.28)" }}
+        className="flex items-center justify-center h-3 rounded-b-lg cursor-s-resize select-none transition-colors touch-none bg-accent-purple/15 border-t border-accent-purple/30"
         title="Drag to resize"
       >
-        <svg width="24" height="6" viewBox="0 0 24 6" fill="none" aria-hidden="true">
-          <line x1="3" y1="1.5" x2="21" y2="1.5" stroke="rgba(109,40,217,0.7)" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="3" y1="4.5" x2="21" y2="4.5" stroke="rgba(109,40,217,0.7)" strokeWidth="1.5" strokeLinecap="round" />
+        <svg width="24" height="6" viewBox="0 0 24 6" fill="none" aria-hidden="true" className="text-accent-purple-light/70">
+          <line x1="3" y1="1.5" x2="21" y2="1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="3" y1="4.5" x2="21" y2="4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
     </div>

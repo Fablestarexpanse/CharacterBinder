@@ -1,6 +1,6 @@
 import { Plug } from "lucide-react";
 import { useBridgeState } from "../../hooks/useBridgeState";
-import { connectBridge, disconnectBridge, getBridgeToken } from "../../lib/bridge/client";
+import { connectBridge, disconnectBridge, getBridgeToken } from "../../lib/bridgeClient";
 import { BRIDGE_PORT } from "../../shared/bridgeProtocol";
 
 /**

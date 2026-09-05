@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import App from "./App";
 
 // The bridge dials a socket on mount; the app's own routing is what these cover.
-vi.mock("./lib/bridge/client", async () => {
-  const actual = await vi.importActual<typeof import("./lib/bridge/client")>("./lib/bridge/client");
+vi.mock("./lib/bridgeClient", async () => {
+  const actual = await vi.importActual<typeof import("./lib/bridgeClient")>("./lib/bridgeClient");
   return { ...actual, initBridge: vi.fn(), getBridgeToken: () => "" };
 });
 vi.mock("./lib/library", () => ({

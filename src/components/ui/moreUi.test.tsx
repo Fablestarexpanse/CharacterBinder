@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import ErrorBoundary from "../pages/ErrorBoundary";
+import ErrorBoundary from "./ErrorBoundary";
 import ConfirmClearPanel from "./ConfirmClearPanel";
 import JSONView from "./JSONView";
 import { errorMessage } from "../../shared/errorMessage";

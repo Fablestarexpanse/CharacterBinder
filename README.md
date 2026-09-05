@@ -503,9 +503,9 @@ PNG Signature (8 bytes)
 CharacterBinder/
 ├── src/
 │   ├── components/
-│   │   ├── pages/           # The views App mounts (editors, library, import, settings)
+│   │   ├── pages/           # The views App mounts (five card editors, library, import, settings)
 │   │   ├── editor/          # Panels owned by one page (card preview, export panel, smart import, lights)
-│   │   └── ui/              # Shared primitives (inputs, modals, dropzone, JSON views)
+│   │   └── ui/              # Shared primitives (inputs, modals, dropzone, sidebar, error boundary)
 │   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
 │   ├── shared/              # Browser-neutral: the only code mcp/ may import
 │   │   ├── bridgeProtocol.ts # Wire protocol, shared by both sides of the bridge
@@ -515,8 +515,8 @@ CharacterBinder/
 │   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   └── errorMessage.ts  # The message from a caught unknown
 │   ├── lib/                 # Browser-only: IndexedDB, localStorage, DOM, WebGPU
-│   │   ├── bridge/          # MCP bridge: the app-side client
 │   │   ├── cardTextSorter/  # Quick Import: engine.ts (WebLLM) + models + settings
+│   │   ├── bridgeClient.ts  # MCP bridge: the app-side client
 │   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
 │   │   ├── library.ts       # IndexedDB card storage (idb)
 │   │   ├── archive.ts       # ZIP export (jszip)

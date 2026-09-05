@@ -1,7 +1,7 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 
-interface Props {
+interface ErrorBoundaryProps {
   children: ReactNode;
   /** Shown in the message so the user knows which part failed. */
   area?: string;
@@ -9,7 +9,7 @@ interface Props {
   onReset?: () => void;
 }
 
-interface State {
+interface ErrorBoundaryState {
   error: Error | null;
 }
 
@@ -22,10 +22,10 @@ interface State {
  * leaves the sidebar and the Library reachable, so a user can still get to their
  * saved work.
  */
-export default class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { error: null };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error };
   }
 

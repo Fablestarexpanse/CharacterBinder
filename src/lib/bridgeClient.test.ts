@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
-import type { LibraryCard } from "../../types";
+import type { LibraryCard } from "../types";
 
 /**
  * The app side of the bridge: what an agent's calls do to the library.
@@ -19,8 +19,8 @@ vi.stubGlobal("localStorage", {
   removeItem: (k: string) => void store.delete(k),
 });
 
-let client: typeof import("./client");
-let library: typeof import("../library");
+let client: typeof import("./bridgeClient");
+let library: typeof import("./library");
 const opened: LibraryCard[] = [];
 const confirmDestructive = vi.fn(async () => true);
 
@@ -31,8 +31,8 @@ beforeEach(async () => {
   vi.resetModules();
   opened.length = 0;
 
-  library = await import("../library");
-  client = await import("./client");
+  library = await import("./library");
+  client = await import("./bridgeClient");
   client.initBridge({
     openCard: (card) => {
       opened.push(card);

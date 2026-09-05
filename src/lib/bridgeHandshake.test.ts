@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PROOF_SERVER, BRIDGE_PROTOCOL_VERSION, proveToken } from "../../shared/bridgeProtocol";
+import { PROOF_SERVER, BRIDGE_PROTOCOL_VERSION, proveToken } from "../shared/bridgeProtocol";
 
 /**
  * The app's side of the handshake, against a stand-in for whatever is on the
@@ -53,12 +53,12 @@ class FakeSocket {
   }
 }
 
-let client: typeof import("./client");
+let client: typeof import("./bridgeClient");
 
 beforeEach(async () => {
   vi.resetModules();
   vi.stubGlobal("WebSocket", FakeSocket);
-  client = await import("./client");
+  client = await import("./bridgeClient");
   client.initBridge({ openCard: () => true });
   client.connectBridge();
   FakeSocket.last!.onopen?.();
@@ -111,7 +111,7 @@ describe("app-side handshake", () => {
   it("never sends anything when no token is stored", async () => {
     store.set("cb_bridge", JSON.stringify({ token: "", enabled: true }));
     vi.resetModules();
-    const fresh = await import("./client");
+    const fresh = await import("./bridgeClient");
     fresh.initBridge({ openCard: () => true });
     fresh.connectBridge();
     const socket = FakeSocket.last!;
