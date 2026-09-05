@@ -30,7 +30,7 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 import { validateTavernCardV2 } from "../../src/shared/validators.js";
 import { PLATFORMS, type PlatformId } from "../../src/shared/platforms/index.js";
 import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
-import type { CardType } from "../../src/shared/bridgeProtocol.js";
+import type { LibraryCardType } from "../../src/types/index.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });
 
@@ -110,7 +110,7 @@ server.registerTool(
 
 // ── Creating ────────────────────────────────────────────────────────────────
 
-async function create(cardType: CardType, data: Record<string, unknown>, open?: boolean) {
+async function create(cardType: LibraryCardType, data: Record<string, unknown>, open?: boolean) {
   const opened = open ?? false;
   const res = await callApp("cards.create", { cardType, data, open: opened });
   return asTextContent({

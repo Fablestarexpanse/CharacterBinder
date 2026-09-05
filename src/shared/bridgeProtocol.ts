@@ -108,8 +108,9 @@ export function randomNonce(): string {
 
 import type { LibraryCardType } from "../types";
 
-/** The wire uses the app's own card vocabulary — no parallel union to cast across. */
-export type CardType = LibraryCardType;
+// The wire uses the app's own card vocabulary; there is no separate wire type.
+
+
 
 /** Methods the app implements and the server calls. */
 export type BridgeMethod =
@@ -160,14 +161,14 @@ export function isBridgeRequest(msg: unknown): msg is BridgeRequest {
 // ── Params / results ────────────────────────────────────────────────────────
 
 export interface ListParams {
-  type?: CardType;
+  type?: LibraryCardType;
 }
 
 /** Summary shape — deliberately excludes image bytes, which are large. */
 export interface CardSummary {
   id: string;
   name: string;
-  cardType: CardType;
+  cardType: LibraryCardType;
   tags: string[];
   hasImage: boolean;
   updatedAt: number;
@@ -181,7 +182,7 @@ export interface GetParams {
 export interface GetResult {
   id: string;
   name: string;
-  cardType: CardType;
+  cardType: LibraryCardType;
   tags: string[];
   /** Tavern V2 object for characters; the card's own shape for everything else. */
   data: unknown;
@@ -190,7 +191,7 @@ export interface GetResult {
 }
 
 export interface CreateParams {
-  cardType: CardType;
+  cardType: LibraryCardType;
   /** Tavern V2 `data` fields for characters, or the card body for other types. */
   data: Record<string, unknown>;
   /** Optional cover art as a data: URL. */
@@ -235,5 +236,5 @@ export interface BridgeCalls {
 export interface MutationResult {
   id: string;
   name: string;
-  cardType: CardType;
+  cardType: LibraryCardType;
 }

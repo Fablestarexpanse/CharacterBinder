@@ -12,14 +12,13 @@
 
 import type { LibraryCardType } from "../types";
 
-/** Alias kept for readability at call sites; the vocabulary lives in ../types. */
-export type CardShape = LibraryCardType;
+
 
 /** Metadata keywords that are meant to carry a character card. */
 export const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
 
 /** The card type a given metadata keyword claims. */
-export function shapeForKey(key: string): CardShape | null {
+export function shapeForKey(key: string): LibraryCardType | null {
   if (CHARACTER_KEYS.has(key)) return "character";
   if (key === "lorebook" || key === "script" || key === "scenario" || key === "persona") {
     return key;
@@ -37,7 +36,7 @@ function hasEntries(obj: Record<string, unknown>): boolean {
  * `spec` is authoritative when present; otherwise we look for the field that
  * only one card type has.
  */
-export function detectCardShape(parsed: unknown): CardShape | null {
+export function detectCardShape(parsed: unknown): LibraryCardType | null {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const obj = parsed as Record<string, unknown>;
 
@@ -69,9 +68,9 @@ export function detectCardShape(parsed: unknown): CardShape | null {
  * lorebook in one and an empty character card in the other.
  */
 export function effectiveShape(key: string, parsed: unknown): {
-  shape: CardShape | null;
-  claimed: CardShape | null;
-  actual: CardShape | null;
+  shape: LibraryCardType | null;
+  claimed: LibraryCardType | null;
+  actual: LibraryCardType | null;
   /** The keyword and the payload disagree; the payload wins and the UI says so. */
   mismatch: boolean;
 } {

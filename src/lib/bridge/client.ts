@@ -26,7 +26,6 @@ import {
   type BridgeMethod,
   type BridgeRequest,
   type BridgeResponse,
-  type CardType,
   type CardSummary,
   type CreateParams,
   type DeleteParams,
@@ -41,7 +40,7 @@ import { getAllCards, getCard as readCard, saveLibraryCard, deleteCard } from ".
 import { createBlankTavernCard } from "../../shared/tavernCard";
 import { coerceCardBody, coerceCharacterData } from "../blankCards";
 import { createPersistedSettings } from "../persistedSettings";
-import { CARD_TYPES, isCardType, type LibraryCard, type TavernCardV2 } from "../../types";
+import { CARD_TYPES, isCardType, type LibraryCard, type LibraryCardType, type TavernCardV2 } from "../../types";
 import { errorMessage } from "../../shared/errorMessage";
 
 /** Same read/patch contract as the app's other persisted settings. */
@@ -401,8 +400,11 @@ export async function handleBridgeRequest(req: BridgeRequest): Promise<unknown> 
     case "cards.get":
       return getCard({ id: requiredId(req.params, "get_card") });
     case "cards.create":
+      if (!isCardType(p.cardType)) {
+        throw new Error(`Unknown cardType "${String(p.cardType)}". Expected one of: ${CARD_TYPES.join(", ")}.`);
+      }
       return createCard({
-        cardType: p.cardType as CardType,
+        cardType: p.cardType,
         data: requiredBody(req.params, "data", "create"),
         imageSrc: p.imageSrc as string | null | undefined,
         open: p.open === true,
@@ -471,7 +473,7 @@ async function getCard(params: GetParams): Promise<GetResult> {
 }
 
 async function persist(
-  cardType: CardType,
+  cardType: LibraryCardType,
   body: Record<string, unknown>,
   imageSrc: string | null,
   existing?: LibraryCard
@@ -582,8 +584,8 @@ async function updateCard(params: UpdateParams): Promise<MutationResult> {
   await requireApproval("overwrite", existing);
   const merged = { ...(bodyOf(existing) ?? {}), ...(params.patch ?? {}) };
   const saved = await persist(
-    existing.cardType as CardType,
-    merged as Record<string, unknown>,
+    existing.cardType,
+    merged,
     existing.imageSrc,
     existing
   );
