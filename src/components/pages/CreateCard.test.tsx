@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import CardPreviewPanel from "./CardPreviewPanel";
+import CreateCard from "./CreateCard";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 import { DEFAULT_SETTINGS } from "../../lib/settings";
 import type { CardProject } from "../../types";
@@ -25,8 +25,13 @@ const project = (name: string, description = "A dockhand of few words."): CardPr
   return { id: "default", card, imageSrc: undefined, outputFileName: `${name}.png`, lastModified: "" };
 };
 
+// The panel is exercised through the page that owns the card: export, save and
+// template writing live in useCharacterCardActions, which CreateCard calls and
+// the panel only renders.
 const props = {
   settings: DEFAULT_SETTINGS,
+  onUpdateCard: vi.fn(),
+  onUpdateImage: vi.fn(),
   targetPlatform: "sillytavern" as const,
   onUpdateOutputFileName: vi.fn(),
   onSavedToLibrary: vi.fn(),
@@ -36,20 +41,20 @@ const props = {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("CardPreviewPanel", () => {
+describe("CreateCard", () => {
   it("shows a token count that grows with the card", () => {
-    const { unmount } = render(<CardPreviewPanel project={project("Rook", "short")} {...props} />);
+    const { unmount } = render(<CreateCard project={project("Rook", "short")} {...props} />);
     const small = Number(screen.getByRole("button", { name: /token count/i }).textContent!.replace(/\D/g, ""));
     unmount();
 
-    render(<CardPreviewPanel project={project("Rook", "a much longer description ".repeat(20))} {...props} />);
+    render(<CreateCard project={project("Rook", "a much longer description ".repeat(20))} {...props} />);
     const large = Number(screen.getByRole("button", { name: /token count/i }).textContent!.replace(/\D/g, ""));
     expect(large).toBeGreaterThan(small);
   });
 
   it("reports validation errors for a card that is missing required fields", async () => {
     const user = userEvent.setup();
-    render(<CardPreviewPanel project={project("", "")} {...props} />);
+    render(<CreateCard project={project("", "")} {...props} />);
 
     await user.click(screen.getByRole("button", { name: /^validate$/i }));
     expect((await screen.findAllByText(/name is required/i)).length).toBeGreaterThan(0);
@@ -58,7 +63,7 @@ describe("CardPreviewPanel", () => {
 
   it("reports a valid card as valid", async () => {
     const user = userEvent.setup();
-    render(<CardPreviewPanel project={project("Rook")} {...props} />);
+    render(<CreateCard project={project("Rook")} {...props} />);
 
     await user.click(screen.getByRole("button", { name: /^validate$/i }));
     expect((await screen.findAllByText(/valid/i)).length).toBeGreaterThan(0);
@@ -66,7 +71,7 @@ describe("CardPreviewPanel", () => {
 
   it("exports JSON under the project's filename", async () => {
     const user = userEvent.setup();
-    render(<CardPreviewPanel project={project("Rook")} {...props} />);
+    render(<CreateCard project={project("Rook")} {...props} />);
 
     await user.click(screen.getByRole("button", { name: /export json/i }));
     // The platform is appended and the .png extension dropped, because the JSON
@@ -78,7 +83,7 @@ describe("CardPreviewPanel", () => {
   it("saves to the library and reports the new id", async () => {
     const user = userEvent.setup();
     const onSavedToLibrary = vi.fn();
-    render(<CardPreviewPanel project={project("Rook")} {...props} onSavedToLibrary={onSavedToLibrary} />);
+    render(<CreateCard project={project("Rook")} {...props} onSavedToLibrary={onSavedToLibrary} />);
 
     await user.click(screen.getByRole("button", { name: /save to library/i }));
     await waitFor(() => expect(onSavedToLibrary).toHaveBeenCalledWith("saved-1"));
@@ -87,7 +92,7 @@ describe("CardPreviewPanel", () => {
   it("says why a save failed instead of a bare failure", async () => {
     const user = userEvent.setup();
     saveLibraryCard.mockRejectedValueOnce(new Error("quota exceeded"));
-    render(<CardPreviewPanel project={project("Rook")} {...props} />);
+    render(<CreateCard project={project("Rook")} {...props} />);
 
     await user.click(screen.getByRole("button", { name: /save to library/i }));
     expect(await screen.findByText(/quota exceeded/i)).toBeInTheDocument();

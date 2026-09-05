@@ -1,17 +1,15 @@
 /**
- * The character card's export panel — deliberately not built on
- * useDataCardEditor.
+ * The character card's right-hand panel: preview, target platform, token
+ * budget, validation output, and the buttons for the card's actions.
  *
- * A character card is converted per target platform, validated against the v2
- * spec before export, and versioned so a version bump forks a library record.
- * The other four kinds do none of that, and folding both paths into one shell
- * would mean a shell whose larger half is conditional on one kind.
+ * Presentation only. The actions themselves — export, save to library, save as
+ * template — belong to the page that owns the card and arrive as props; this
+ * panel decides nothing about what gets written.
  */
-import { useState, useCallback, useEffect, useMemo, useId } from "react";
-import type { AppSettings, CardProject } from "../../types";
+import { useState, useMemo, useId } from "react";
+import type { CardProject, ValidationResult } from "../../types";
 import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
-import { saveLibraryCard } from "../../lib/library";
-import { saveCustomTemplate } from "../../lib/customTemplates";
+import type { CharacterCardActions } from "../../hooks/useCharacterCardActions";
 import {
   getCardTokenBreakdown,
   getTokenBudgetLevel,
@@ -20,15 +18,10 @@ import {
   TOKEN_BUDGET_COLORS,
   TOKEN_BUDGET_BAR_COLORS,
 } from "../../lib/tokenizer";
-import { validateTavernCardV2 } from "../../shared/validators";
-import { encodeCharacterCardPng, metadataKeyFor } from "../../lib/characterCardPng";
-import { downloadJson, downloadPng } from "../../lib/download";
-import { useStatusMessage } from "../../hooks/useStatusMessage";
+import { metadataKeyFor } from "../../lib/characterCardPng";
 import { PLATFORMS, type PlatformId } from "../../shared/platforms/registry";
-import { convertCardTo } from "../../shared/platforms/converters";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";
-import { errorMessage } from "../../shared/errorMessage";
 import { useTokenizer } from "../../hooks/useTokenizer";
 
 /**
@@ -39,46 +32,38 @@ import { useTokenizer } from "../../hooks/useTokenizer";
 
 interface CardPreviewPanelProps {
   project: CardProject;
-  settings: AppSettings;
+  /** Computed by the page, which also feeds it to the export gate. */
+  validation: ValidationResult;
   targetPlatform: PlatformId;
   onPlatformChange: (id: PlatformId) => void;
   onUpdateOutputFileName: (name: string) => void;
-  /** Adopt the id the library assigned, so the next save updates that record. */
-  onSavedToLibrary?: (id: string) => void;
+  /**
+   * Export, save-to-library and save-as-template, owned by the page that owns
+   * the card. The panel renders them and reports what they say; it does not
+   * decide when the library gains a record.
+   */
+  actions: CharacterCardActions;
   onNewCard?: () => void;
 }
 
 export default function CardPreviewPanel({
   project,
-  settings,
+  validation,
   targetPlatform,
   onPlatformChange,
   onUpdateOutputFileName,
-  onSavedToLibrary,
+  actions,
   onNewCard,
 }: CardPreviewPanelProps) {
   const outputFileId = useId();
-  const [exporting, setExporting] = useState(false);
   const [compatOpen, setCompatOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [savedCharVersion, setSavedCharVersion] = useState<string>(project.card.data.character_version ?? "1.0");
-  const [savingTemplate, setSavingTemplate] = useState(false);
   const [tokenOpen, setTokenOpen] = useState(false);
-  const { status: exportStatus, setMsg: setStatus } = useStatusMessage();
-
-  // Loading a different card from the library swaps `project` without remounting
-  // this panel, so the "has the version been bumped?" baseline has to follow it —
-  // otherwise it keeps comparing against the previously-open card's version.
-  useEffect(() => {
-    setSavedCharVersion(project.card.data.character_version ?? "1.0");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id]);
+  const { exporting, saving, savingTemplate, status: exportStatus, setStatus } = actions;
 
   const platform = PLATFORMS[targetPlatform];
 
   // Tokenizing is a full BPE encode over nine fields; without memoizing it runs
   // on every render, i.e. on every keystroke anywhere in the editor.
-  const validation = useMemo(() => validateTavernCardV2(project.card), [project.card]);
   const exactTokens = useTokenizer();
   const tokenBreakdown = useMemo(() => getCardTokenBreakdown(project.card), [project.card, exactTokens]);
   const dataSize = useMemo(() => formatDataSize(project.card), [project.card]);
@@ -100,38 +85,6 @@ export default function CardPreviewPanel({
   const lossCount = usedFields.filter((f) => f.support === "none").length;
   const partialCount = usedFields.filter((f) => f.support === "partial" || f.support === "renamed").length;
 
-  const exportPng = useCallback(async () => {
-    // PNG export is never blocked. Platforms that can't read card PNGs still
-    // produce a perfectly valid file — it just has to be imported somewhere
-    // else, so the UI warns rather than refusing.
-    if (settings.autoValidateBeforeExport && !validation.valid) {
-      setStatus("Fix validation errors before exporting.", false);
-      return;
-    }
-    setExporting(true);
-    try {
-      const resultBytes = await encodeCharacterCardPng(project.card, project.imageSrc, targetPlatform, settings);
-      downloadPng(resultBytes, project.outputFileName);
-      setStatus(
-        platform.pngSupport
-          ? "PNG exported!"
-          : `PNG exported — remember ${platform.name} needs the JSON instead.`,
-        true
-      );
-    } catch (err) {
-      setStatus(`Export failed: ${errorMessage(err)}`, false);
-    } finally {
-      setExporting(false);
-    }
-  }, [project, settings, validation, platform, targetPlatform, setStatus]);
-
-  const exportJson = useCallback(() => {
-    const converted = convertCardTo(project.card, targetPlatform);
-    const name = project.outputFileName.replace(/\.png$/i, "") + `_${targetPlatform}`;
-    downloadJson(converted, name, settings.prettyPrintJson);
-    setStatus("JSON exported!", true);
-  }, [project, settings, targetPlatform, setStatus]);
-
   const handleValidate = () => {
     if (validation.valid) {
       setStatus(`Valid! ${validation.warnings.length} warning(s).`, true);
@@ -139,50 +92,6 @@ export default function CardPreviewPanel({
       setStatus(`${validation.errors.length} error(s): ${validation.errors[0]}`, false);
     }
   };
-
-  const save = useCallback(async () => {
-    setSaving(true);
-    const currentVersion = project.card.data.character_version ?? "";
-    const hasExistingId = project.id !== "default";
-    const versionChanged = hasExistingId && currentVersion.trim() !== savedCharVersion;
-    try {
-      const pngData = await encodeCharacterCardPng(project.card, project.imageSrc, targetPlatform, settings);
-
-      const existingId = hasExistingId && !versionChanged ? project.id : undefined;
-      const saved = await saveLibraryCard({
-        cardType: "character",
-        body: project.card,
-        pngData,
-        imageSrc: project.imageSrc ?? null,
-        platform: targetPlatform,
-        existingId,
-      });
-      // Adopt the new id. Without this every save created another record, and a
-      // version bump left the editor still pointing at the previous row — so the
-      // next save overwrote the version the user had just preserved.
-      onSavedToLibrary?.(saved.id);
-      setSavedCharVersion(currentVersion);
-      setStatus(versionChanged ? "Saved as new version!" : hasExistingId ? "Library updated!" : "Saved to library!", true);
-    } catch (err) {
-      // The reason matters: a save fails on quota, a blocked upgrade, or
-      // private-mode storage, and "Failed to save" tells the user none of it.
-      setStatus(`Failed to save to library: ${errorMessage(err)}`, false);
-    } finally {
-      setSaving(false);
-    }
-  }, [project, targetPlatform, savedCharVersion, setStatus, settings, platform, onSavedToLibrary]);
-
-  const handleSaveAsTemplate = useCallback(() => {
-    setSavingTemplate(true);
-    try {
-      saveCustomTemplate(project.card);
-      setStatus("Saved as template!", true);
-    } catch (err) {
-      setStatus(`Failed to save template: ${errorMessage(err)}`, false);
-    } finally {
-      setSavingTemplate(false);
-    }
-  }, [project.card, setStatus]);
 
   const metaInfo = project.metadataInfo;
 
@@ -395,7 +304,7 @@ export default function CardPreviewPanel({
       {/* Export buttons */}
       <div className="p-4 border-t border-border space-y-2 shrink-0">
         <button
-          onClick={exportPng}
+          onClick={actions.exportPng}
           disabled={exporting}
           className="w-full btn-primary justify-center py-3 text-sm font-semibold"
         >
@@ -428,7 +337,7 @@ export default function CardPreviewPanel({
 
         {/* Save to Library / Update in Library */}
         <button
-          onClick={save}
+          onClick={actions.save}
           disabled={saving}
           className="w-full btn-secondary justify-center py-2 text-sm"
         >
@@ -437,7 +346,7 @@ export default function CardPreviewPanel({
         </button>
 
         <button
-          onClick={handleSaveAsTemplate}
+          onClick={actions.saveAsTemplate}
           disabled={savingTemplate}
           className="w-full btn-secondary justify-center py-2 text-sm"
         >
@@ -452,7 +361,7 @@ export default function CardPreviewPanel({
             <button onClick={handleValidate} className="btn-secondary flex-1 justify-center text-xs py-1.5">
               <Shield size={13} /> Validate
             </button>
-            <button onClick={exportJson} className="btn-secondary flex-1 justify-center text-xs py-1.5">
+            <button onClick={actions.exportJson} className="btn-secondary flex-1 justify-center text-xs py-1.5">
               <FileJson size={13} /> Export JSON
             </button>
           </div>

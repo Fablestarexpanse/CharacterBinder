@@ -1,14 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import type {
-  TavernCardV2, NavPage, MetadataInfo, CardProject,
-  LoreBook, ScriptCard, ScenarioCard, PersonaCard, OpenDataCard,
+  NavPage, LoreBook, ScriptCard, ScenarioCard, PersonaCard, OpenDataCard,
 } from "./types";
-import type { PlatformId } from "./shared/platforms/registry";
 import { saveAppSettings } from "./lib/settings";
 import { useAppSettings } from "./hooks/useAppSettings";
+import { useCharacterCardEditor } from "./hooks/useCharacterCardEditor";
 import { initBridge } from "./lib/bridgeClient";
-import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
-import { blankTemplate } from "./data/builtinTemplates";
 import Sidebar from "./components/ui/Sidebar";
 import CreateCard from "./components/pages/CreateCard";
 import ImportPNG from "./components/pages/ImportPNG";
@@ -25,17 +22,12 @@ import ConfirmModal from "./components/ui/ConfirmModal";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 import { coerceCardBody } from "./shared/blankCards";
 
-/** Output filename derived from the character name, e.g. "Mira Vale" → "Mira_Vale_Tavern_Card.png". */
-function defaultFileName(name: string): string {
-  const trimmed = name.trim();
-  return trimmed ? `${trimmed.replace(/\s+/g, "_")}_Tavern_Card.png` : "New_Character_Tavern_Card.png";
-}
-
 function App() {
   const [activePage, setActivePage] = useState<NavPage>("create");
   const settings = useAppSettings();
-  const [targetPlatform, setTargetPlatform] = useState<PlatformId>("sillytavern");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const openCreatePage = useCallback(() => setActivePage("create"), []);
+  const character = useCharacterCardEditor(openCreatePage);
   // A destructive bridge call waiting on the user. The agent's RPC is parked on
   // this promise until they answer, so nothing is deleted or overwritten
   // without the same confirmation the UI itself requires.
@@ -49,15 +41,6 @@ function App() {
   // reloads instead of showing a stale list until the user navigates away.
   const [libraryRevision, setLibraryRevision] = useState(0);
 
-  // ── Character card state ──
-  const [project, setProject] = useState<CardProject>({
-    id: "default",
-    card: blankTemplate,
-    imageSrc: undefined,
-    outputFileName: defaultFileName(""),
-    lastModified: new Date().toISOString(),
-  });
-
   // ── Non-character editor state ──
   // One slot per kind, so returning to a tab restores what was last opened
   // there, and one key that remounts the editor whenever a new card arrives.
@@ -68,101 +51,6 @@ function App() {
     scenario?: { card: ScenarioCard; imageSrc: string | null; id?: string };
     persona?:  { card: PersonaCard;  imageSrc: string | null; id?: string };
   }>({});
-
-  // Once the user edits the output filename themselves, stop deriving it from
-  // the character name — otherwise the next keystroke in the Name field would
-  // silently throw their filename away.
-  const [fileNameTouched, setFileNameTouched] = useState(false);
-
-  useEffect(() => {
-    if (fileNameTouched) return;
-    setProject((p) => ({ ...p, outputFileName: defaultFileName(p.card.data.name) }));
-  }, [project.card.data.name, fileNameTouched]);
-
-  // The editor holds plain React state until it is saved or exported, so closing
-  // the tab mid-edit used to discard it silently. Only guard once there is
-  // something worth losing.
-  const hasUnsavedWork =
-    project.id === "default" &&
-    (!!project.card.data.name.trim() ||
-      !!project.card.data.description.trim() ||
-      !!project.card.data.personality.trim() ||
-      !!project.card.data.first_mes.trim());
-  useUnsavedWarning(hasUnsavedWork);
-
-  // ── Character card handlers ──
-  const updateCard = useCallback((updates: Partial<TavernCardV2["data"]>) => {
-    setProject((p) => ({
-      ...p,
-      card: { ...p.card, data: { ...p.card.data, ...updates } },
-      lastModified: new Date().toISOString(),
-    }));
-  }, []);
-
-  const loadCard = useCallback((
-    card: TavernCardV2,
-    imageSrc?: string,
-    meta?: MetadataInfo,
-    sourcePlatform?: PlatformId
-  ) => {
-    setProject((p) => ({
-      ...p,
-      card,
-      imageSrc,
-      outputFileName: defaultFileName(card.data.name),
-      lastModified: new Date().toISOString(),
-      metadataInfo: meta,
-    }));
-    setFileNameTouched(false);
-    if (sourcePlatform) setTargetPlatform(sourcePlatform);
-    setActivePage("create");
-  }, []);
-
-  const loadFromLibrary = useCallback((
-    card: TavernCardV2,
-    imageSrc: string | null,
-    libraryId: string
-  ) => {
-    setProject((p) => ({
-      ...p,
-      id: libraryId,
-      card,
-      imageSrc: imageSrc ?? undefined,
-      outputFileName: defaultFileName(card.data.name),
-      lastModified: new Date().toISOString(),
-      metadataInfo: undefined,
-    }));
-    setFileNameTouched(false);
-    setActivePage("create");
-  }, []);
-
-  const adoptLibraryId = useCallback((id: string) => {
-    setProject((p) => (p.id === id ? p : { ...p, id }));
-  }, []);
-
-  const updateImage = useCallback((imageSrc: string) => {
-    setProject((p) => ({ ...p, imageSrc }));
-  }, []);
-
-  const updateOutputFileName = useCallback((name: string) => {
-    setFileNameTouched(true);
-    setProject((p) => ({ ...p, outputFileName: name }));
-  }, []);
-
-  const clearCard = useCallback(() => {
-    setProject({
-      id: "default",
-      card: blankTemplate,
-      imageSrc: undefined,
-      outputFileName: defaultFileName(""),
-      lastModified: new Date().toISOString(),
-      metadataInfo: undefined,
-    });
-    setFileNameTouched(false);
-    setTargetPlatform("sillytavern");
-    setActivePage("create");
-    setShowClearConfirm(false);
-  }, []);
 
   /**
    * Open a non-character card, from wherever it came: a decoded PNG, a dropped
@@ -205,7 +93,7 @@ function App() {
           // A record with no body opens nothing; the caller is told so rather
           // than being shown an editor holding a blank card.
           if (!card.cardData?.data) return false;
-          loadFromLibrary(card.cardData, image, card.id);
+          character.loadFromLibrary(card.cardData, image, card.id);
           return true;
         }
         // Pass the library id: without it the editor would treat an agent-opened
@@ -214,7 +102,7 @@ function App() {
         return true;
       },
     });
-  }, [loadFromLibrary, openDataCard]);
+  }, [character.loadFromLibrary, openDataCard]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
@@ -224,7 +112,7 @@ function App() {
           message="All unsaved changes to the current character will be lost. This cannot be undone."
           confirmLabel="Clear Card"
           destructive
-          onConfirm={clearCard}
+          onConfirm={() => { character.clear(); setShowClearConfirm(false); }}
           onCancel={() => setShowClearConfirm(false)}
         />
       )}
@@ -251,14 +139,14 @@ function App() {
         <ErrorBoundary area="editor" key={`boundary-${activePage}`}>
         {activePage === "create" && (
           <CreateCard
-            project={project}
+            project={character.project}
             settings={settings}
-            targetPlatform={targetPlatform}
-            onUpdateCard={updateCard}
-            onUpdateImage={updateImage}
-            onUpdateOutputFileName={updateOutputFileName}
-            onSavedToLibrary={adoptLibraryId}
-            onPlatformChange={setTargetPlatform}
+            targetPlatform={character.targetPlatform}
+            onUpdateCard={character.updateCard}
+            onUpdateImage={character.updateImage}
+            onUpdateOutputFileName={character.updateOutputFileName}
+            onSavedToLibrary={character.adoptLibraryId}
+            onPlatformChange={character.setTargetPlatform}
             onNewCard={() => setShowClearConfirm(true)}
           />
         )}
@@ -295,16 +183,16 @@ function App() {
           />
         )}
         {activePage === "import" && (
-          <ImportPNG onLoad={loadCard} onOpenDataCard={openDataCard} />
+          <ImportPNG onLoad={character.loadCard} onOpenDataCard={openDataCard} />
         )}
         {activePage === "decode" && (
-          <DecodePNG onLoad={loadCard} onOpenDataCard={openDataCard} />
+          <DecodePNG onLoad={character.loadCard} onOpenDataCard={openDataCard} />
         )}
-        {activePage === "templates" && <Templates onLoad={loadCard} />}
+        {activePage === "templates" && <Templates onLoad={character.loadCard} />}
         {activePage === "library" && (
           <Library
             libraryRevision={libraryRevision}
-            onEditCard={loadFromLibrary}
+            onEditCard={character.loadFromLibrary}
             onOpenDataCard={openDataCard}
           />
         )}

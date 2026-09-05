@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DataCardType, RawCardFor } from "../types";
 import { saveCardInput, saveLibraryCard } from "../lib/library";
+import { resolveSaveTarget } from "../lib/librarySave";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
@@ -134,13 +135,11 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
   const save = useCallback(async () => {
     setSaving(true);
     try {
-      // A changed version means "keep the old one too": save without the id so
-      // the library gains a second record rather than overwriting the first.
-      const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
+      const target = resolveSaveTarget(libraryId, card.version, savedVersion);
       const common = {
         imageSrc,
         tags: tagsOf ? tagsOf(card) : (card as { tags?: string[] }).tags ?? [],
-        existingId: versionChanged ? undefined : libraryId,
+        existingId: target.existingId,
       };
 
       // saveCardInput proves the kind and the body match; a mismatch here is a
@@ -149,7 +148,7 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
       setLibraryId(saved.id);
       setSavedVersion(card.version);
       setSavedCard(card);
-      setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);
+      setMsg(target.message, true);
     } catch (err) {
       // The message matters: a save fails on quota, a blocked upgrade, or
       // private-mode storage, and "Failed to save" tells the user none of it.
