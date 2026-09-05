@@ -403,7 +403,9 @@ export async function handleBridgeRequest(req: BridgeRequest): Promise<unknown> 
       }
       return createCard({
         cardType: p.cardType,
-        data: requiredBody(req.params, "data", "create"),
+        // Named for the tool the agent actually called: cards.create serves
+        // one create_* tool per kind, and "create" is not a tool at all.
+        data: requiredBody(req.params, "data", `create_${p.cardType}`),
         imageSrc: p.imageSrc as string | null | undefined,
         open: p.open === true,
       });
