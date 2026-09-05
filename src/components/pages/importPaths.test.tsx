@@ -13,7 +13,7 @@ import { createBlankTavernCard } from "../../shared/tavernCard";
 
 function pngWith(key: Parameters<typeof encodeCharaToPng>[2], payload: unknown): File {
   const bytes = encodeCharaToPng(MINIMAL_PNG, JSON.stringify(payload), key, false);
-  const file = new File([bytes], "card.png", { type: "image/png" });
+  const file = new File([bytes as BlobPart], "card.png", { type: "image/png" });
   // jsdom's File has no arrayBuffer in this version; the panels use it.
   Object.defineProperty(file, "arrayBuffer", { value: async () => bytes.buffer });
   return file;
@@ -66,7 +66,7 @@ describe("ImportPNG", () => {
 
   it("says a PNG carries no card rather than failing silently", async () => {
     const { container } = render(<ImportPNG onLoad={vi.fn()} onOpenDataCard={vi.fn()} />);
-    const bare = new File([MINIMAL_PNG], "plain.png", { type: "image/png" });
+    const bare = new File([MINIMAL_PNG as BlobPart], "plain.png", { type: "image/png" });
     Object.defineProperty(bare, "arrayBuffer", { value: async () => MINIMAL_PNG.buffer });
 
     drop(container, bare);
