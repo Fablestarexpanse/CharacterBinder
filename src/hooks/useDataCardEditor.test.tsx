@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { useDataCardEditor } from "./useDataCardEditor";
-import { blankScriptCard } from "../lib/blankCards";
+import { blankScriptCard } from "../shared/blankCards";
 import type { ScriptCard } from "../types";
 
 const saveLibraryCard = vi.fn(async () => ({ id: "saved-1" }));

@@ -512,18 +512,18 @@ CharacterBinder/
 │   │   ├── platforms/       # registry.ts (definitions) + converters.ts
 │   │   ├── validators.ts    # Card validation logic
 │   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
+│   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
+│   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
 │   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   └── errorMessage.ts  # The message from a caught unknown
 │   ├── lib/                 # Browser-only: IndexedDB, localStorage, DOM, WebGPU
-│   │   ├── cardTextSorter/  # Quick Import: engine.ts (WebLLM) + models + settings
+│   │   ├── cardTextSorter/  # Quick Import: engine, prompts, sorter, models, settings
 │   │   ├── bridgeClient.ts  # MCP bridge: the app-side client
 │   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
 │   │   ├── library.ts       # IndexedDB card storage (idb)
 │   │   ├── archive.ts       # ZIP export (jszip)
 │   │   ├── tokenizer.ts     # Token counting (cl100k)
 │   │   ├── customTemplates.ts # User-saved templates (localStorage)
-│   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
-│   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
 │   │   ├── persistedSettings.ts # localStorage-backed settings store
 │   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
 │   │   ├── download.ts      # Blob download helper (all export paths)

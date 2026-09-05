@@ -30,6 +30,8 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 import { validateTavernCardV2 } from "../../src/shared/validators.js";
 import { PLATFORMS, PLATFORM_IDS } from "../../src/shared/platforms/registry.js";
 import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
+import { blankPersonaCard, blankScenarioCard, blankScriptCard } from "../../src/shared/blankCards.js";
+import { createBlankTavernCard } from "../../src/shared/tavernCard.js";
 import { CARD_TYPES, type LibraryCardType } from "../../src/types/index.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });
@@ -173,7 +175,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ open, ...data }) => create("persona", { spec: "persona_card_v1", ...data, version: data.version ?? "1.0" }, open)
+  async ({ open, ...data }) => create("persona", { ...blankPersonaCard(), ...data }, open)
 );
 
 server.registerTool(
@@ -246,7 +248,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ open, ...data }) => create("scenario", { spec: "scenario_card_v1", ...data, version: data.version ?? "1.0" }, open)
+  async ({ open, ...data }) => create("scenario", { ...blankScenarioCard(), ...data }, open)
 );
 
 server.registerTool(
@@ -265,7 +267,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ open, ...data }) => create("script", { spec: "script_card_v1", ...data, version: data.version ?? "1.0" }, open)
+  async ({ open, ...data }) => create("script", { ...blankScriptCard(), ...data }, open)
 );
 
 // ── Editing ─────────────────────────────────────────────────────────────────
@@ -334,12 +336,9 @@ server.registerTool(
     }
     if (!data) throw new Error("Pass either an id or a card object.");
 
-    const result = validateTavernCardV2({
-      spec: "chara_card_v2",
-      spec_version: "2.0",
-      // The validator expects a full data block; missing keys read as empty.
-      data: { name: "", description: "", personality: "", scenario: "", first_mes: "", mes_example: "", creator_notes: "", system_prompt: "", post_history_instructions: "", alternate_greetings: [], tags: [], creator: "", character_version: "", extensions: {}, ...data },
-    });
+    const blank = createBlankTavernCard();
+    // The validator expects a full data block; missing keys read as empty.
+    const result = validateTavernCardV2({ ...blank, data: { ...blank.data, ...data } });
 
     return asTextContent({ valid: result.valid, errors: result.errors, warnings: result.warnings });
   }

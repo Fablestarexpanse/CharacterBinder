@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { createBlankTavernCard } from "../shared/tavernCard";
-import { blankPersonaCard } from "./blankCards";
+import { blankPersonaCard } from "../shared/blankCards";
 
 // A fresh factory per test: the library caches its database handle, so the
 // module is re-imported alongside it.

@@ -8,7 +8,7 @@ import ImageDropzone from "../ui/ImageDropzone";
 import CardExportPanel from "../editor/CardExportPanel";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
-import { blankScenarioCard } from "../../lib/blankCards";
+import { blankScenarioCard } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 
 

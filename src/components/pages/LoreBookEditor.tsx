@@ -8,8 +8,8 @@ import {
 import type { LoreBook, LoreEntry } from "../../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../../lib/tokenizer";
 import { useTokenizer } from "../../hooks/useTokenizer";
-import { parseLorebook, toExportedLorebook } from "../../lib/lorebook";
-import { blankLoreBook } from "../../lib/blankCards";
+import { parseLorebook, toExportedLorebook } from "../../shared/lorebook";
+import { blankLoreBook } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 import ImageDropzone from "../ui/ImageDropzone";
 import CardExportPanel from "../editor/CardExportPanel";

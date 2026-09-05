@@ -23,7 +23,7 @@ import ScenarioEditor from "./components/pages/ScenarioEditor";
 import PersonaEditor from "./components/pages/PersonaEditor";
 import ConfirmModal from "./components/ui/ConfirmModal";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
-import { coerceCardBody } from "./lib/blankCards";
+import { coerceCardBody } from "./shared/blankCards";
 
 /** Output filename derived from the character name, e.g. "Mira Vale" → "Mira_Vale_Tavern_Card.png". */
 function defaultFileName(name: string): string {

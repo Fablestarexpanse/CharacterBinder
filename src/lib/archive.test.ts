@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import JSZip from "jszip";
 import { exportCardsAsZip, uniqueArchiveName } from "./archive";
 import { createBlankTavernCard } from "../shared/tavernCard";
-import { blankPersonaCard } from "./blankCards";
+import { blankPersonaCard } from "../shared/blankCards";
 import type { LibraryCard } from "../types";
 
 /** The archive is the app's only backup route, so what it contains matters. */

@@ -37,7 +37,7 @@ import {
 } from "../shared/bridgeProtocol";
 import { getAllCards, getCard as readCard, saveCardInput, saveLibraryCard, deleteCard } from "./library";
 import { createBlankTavernCard } from "../shared/tavernCard";
-import { coerceCardBody, coerceCharacterData } from "./blankCards";
+import { coerceCardBody, coerceCharacterData } from "../shared/blankCards";
 import { createPersistedSettings } from "./persistedSettings";
 import { CARD_TYPES, isCardType, type LibraryCard, type LibraryCardType, type TavernCardV2 } from "../types";
 import { errorMessage } from "../shared/errorMessage";

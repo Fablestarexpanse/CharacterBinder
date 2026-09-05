@@ -5,7 +5,7 @@ import type { ScriptCard } from "../../types";
 import ImageDropzone from "../ui/ImageDropzone";
 import CardExportPanel from "../editor/CardExportPanel";
 import TagInput from "../ui/TagInput";
-import { blankScriptCard } from "../../lib/blankCards";
+import { blankScriptCard } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 
 

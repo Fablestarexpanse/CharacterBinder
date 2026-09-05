@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import Library from "./Library";
 import type { LibraryCard } from "../../types";
 import { createBlankTavernCard } from "../../shared/tavernCard";
-import { blankPersonaCard } from "../../lib/blankCards";
+import { blankPersonaCard } from "../../shared/blankCards";
 
 const getAllCards = vi.fn(async (): Promise<LibraryCard[]> => []);
 const deleteCard = vi.fn(async (_id: string) => {});
