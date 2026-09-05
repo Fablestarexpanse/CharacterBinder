@@ -8,6 +8,8 @@ import {
   CLOSE_BAD_ORIGIN,
   CLOSE_BAD_TOKEN,
   CLOSE_PROTOCOL,
+  PROOF_SERVER,
+  PROOF_CLIENT,
   type BridgeMethod,
   type BridgeResponse,
 } from "../../src/lib/bridge/protocol.js";
@@ -157,12 +159,12 @@ export function startBridge(): void {
           serverNonce = randomNonce();
           // Prove we hold the token before the app proves anything, so a
           // squatter can never harvest it.
-          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(clientNonce) }));
+          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(PROOF_SERVER + clientNonce) }));
           return;
         }
 
         if (msg.type === "auth") {
-          if (!serverNonce || !proofsMatch(String(msg.proof ?? ""), hmac(serverNonce))) {
+          if (!serverNonce || !proofsMatch(String(msg.proof ?? ""), hmac(PROOF_CLIENT + serverNonce))) {
             console.error("[characterbinder-mcp] rejected a connection with a bad token");
             ws.send(JSON.stringify({ type: "auth_failed", reason: "Token did not match" }));
             ws.close(CLOSE_BAD_TOKEN, "Bad token");

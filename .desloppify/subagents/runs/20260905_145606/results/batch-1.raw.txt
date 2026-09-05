@@ -1,0 +1,159 @@
+{
+  "batch": "cross_module_architecture",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 86.5
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Full import-graph walk over all 69 .ts/.tsx files in src/ and mcp/src/ (relative specifiers resolved through index files, .js suffixes stripped) found ZERO import cycles.",
+        "Dependency direction is strictly one-way: types/ <- lib/ <- hooks/ <- components/ <- App.tsx. No file under src/lib or src/hooks imports from src/components (grep for '../components' in those trees returns nothing).",
+        "The only high fan-in module is src/types/index.ts (29 importers), a pure type-declaration file with no runtime behaviour - shared vocabulary, not a god module. Next highest is src/lib/platforms/index.ts (11), a static platform data table whose only import is `import type` from ../../types.",
+        "No import-time side effects anywhere: every module-scope `let` (src/lib/bridge/client.ts:61-100, src/lib/library/index.ts:8, src/lib/personaLlm/index.ts:132-156, src/lib/pngMetadata/index.ts:14, mcp/src/bridge.ts:32-34) is a lazily-initialised singleton. Nothing reads localStorage or opens a socket at module scope; App.tsx calls initBridge() explicitly in an effect.",
+        "The two cross-cutting singletons (MCP bridge, WebLLM engine) use an identical getState/subscribe pair consumed by a one-line useSyncExternalStore hook (src/hooks/useBridgeState.ts, src/hooks/useEngineState.ts) - one shared-state protocol, applied twice.",
+        "The bridge deliberately inverts its dependency rather than reaching upward: src/lib/bridge/client.ts:80-94 defines a BridgeHost callback interface that App.tsx registers (App.tsx:219-244), with the reason written down in the code.",
+        "mcp/ is a separate package that reaches into the app tree via relative paths (mcp/src/index.ts:24-27 imports ../../src/lib/{validators,platforms,personaParser,bridge/protocol}). This is documented in README.md ('mcp/ - MCP server (own package; shares src/lib)') and justified in mcp/src/index.ts:9-14; the four shared modules are genuinely platform-neutral (type-only imports, no DOM).",
+        "src/lib/bridge/protocol.ts is explicitly written as the dependency-free seam between the two packages ('This file is imported by both sides. Keep it dependency-free.') and holds nothing but constants, frame types and a shared HMAC helper.",
+        "Defect: the persist-and-export protocol for the four non-character card types is copied verbatim across LoreBookEditor/ScriptEditor/ScenarioEditor/PersonaEditor (identical exportPng and handleSaveToLibrary bodies differing only in a card-type string literal), with a fifth variant for character cards in CardPreviewPanel.tsx. No src/lib module owns this workflow.",
+        "Defect: protocol.ts:97 re-declares `CardType` identically to `LibraryCardType` in types/index.ts:163; src/lib/bridge/client.ts bridges them with four unchecked `as CardType` casts (lines 281, 313, 360, 374), so adding a card type on one side would not fail the build.",
+        "Defect: mcp/tsconfig.json's include list names only ../src/lib/bridge/protocol.ts and ../src/lib/personaParser/index.ts, but the package imports two more app modules (validators, platforms); the list reads as a declaration of the shared surface and is stale. Its `lib` also includes DOM, so nothing would flag a browser-only API creeping into a shared module.",
+        "package_size_census flags src as 99.9% of LOC; this is a single-app repo with one small sidecar package, not a lopsided monorepo - the signal is not a boundary problem here."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Card-type polymorphism is modelled by duplication rather than a shared boundary: the same save/export/version-bump sequence exists in five components, App.tsx carries four parallel init/key/handler state triples, and the library exposes saveCard vs saveAnyCard. On top of that, the app/MCP package seam is real but under-declared - a duplicated CardType joined by casts, and a tsconfig include list that no longer names everything the sidecar reaches into.",
+      "sub_axes": {}
+    }
+  },
+  "dimension_judgment": {
+    "cross_module_architecture": {
+      "dimension_character": "Structurally this is a clean codebase for its size: no import cycles at all, a strictly one-way types/lib/hooks/components/App layering that a newcomer could redraw from memory, no import-time side effects, and the two genuinely cross-cutting singletons both exposed through the same subscribe-plus-hook protocol with the reasoning written down beside them. The one seam that could have gone wrong - a Node MCP package reaching into a browser app's source tree - is documented in the README, justified in the code, and routed through a deliberately dependency-free protocol module. What pulls it down is a missing shared boundary rather than a violated one: the four non-character card types have no owning module, so their save/export workflow is copied into four editors plus a fifth character variant, and the app/MCP seam is held together by a duplicated type and a stale tsconfig include list.",
+      "score_rationale": "The dimension anchors for 80 describe recurring boundary violations, coupling hotspots, and hub modules that make changes ripple unexpectedly - none of that is present here, and the verified zero-cycle, one-way graph is stronger than most codebases this size. It falls short of 90-plus because a developer changing how a card is saved or exported edits five near-identical call sites, and because the cross-package contract is asserted in prose and casts rather than enforced by the compiler. 86.5 reflects coherent, intentional boundaries with one genuinely missing abstraction and two small honesty gaps at the package seam."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "no_owner_for_simple_card_workflow",
+      "summary": "Save/export workflow for the four non-character card types is copied into four editors with no owning lib module",
+      "related_files": [
+        "src/components/LoreBookEditor.tsx",
+        "src/components/ScriptEditor.tsx",
+        "src/components/ScenarioEditor.tsx",
+        "src/components/PersonaEditor.tsx",
+        "src/App.tsx",
+        "src/lib/library/index.ts"
+      ],
+      "evidence": [
+        "exportPng() in ScriptEditor.tsx:65-74, ScenarioEditor.tsx:68-77 and PersonaEditor.tsx:75-84 are byte-identical apart from the card-type string passed to encodeCharaToPng; LoreBookEditor.tsx:208-217 differs only in serialising buildExportData() instead of `card`.",
+        "handleSaveToLibrary() in the same four files repeats the same version-changed / saveAnyCard / setLibraryId / setSavedVersion / status-message sequence (ScriptEditor.tsx:76-86, ScenarioEditor.tsx:79-89, PersonaEditor.tsx:86-96, LoreBookEditor.tsx:219-230), including the identical three-way success message.",
+        "The same four-way fan-out reappears twice more: App.tsx:47-69 declares four parallel {key, init} state pairs and App.tsx:168-215 eight near-identical handlers, and src/lib/bridge/client.ts:222-241 switches over the same five card types again.",
+        "src/lib/library/index.ts exposes saveCard (character) and saveAnyCard (everything else) as separate entry points, so the character export path in CardPreviewPanel.tsx is a fifth copy of the same encode-and-download sequence."
+      ],
+      "suggestion": "Add one module, src/lib/simpleCard.ts, owning the non-character card workflow: `exportSimpleCardPng(cardType, body, imageSrc, fileName)` (carrier PNG + encodeCharaToPng + downloadPng) and `saveSimpleCard(cardType, name, body, imageSrc, tags, libraryId, versionChanged)` returning the saved LibraryCard. Have the four editors call those two functions instead of holding their own copies. That is one new file replacing eight duplicated function bodies, so net complexity drops; do not add a generic editor component or a card-type registry on top of it.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "card_type_polymorphism_by_duplication"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "bridge_cardtype_duplicated_and_cast",
+      "summary": "protocol.ts re-declares CardType identically to LibraryCardType and the two are joined by unchecked casts",
+      "related_files": [
+        "src/lib/bridge/protocol.ts",
+        "src/types/index.ts",
+        "src/lib/bridge/client.ts"
+      ],
+      "evidence": [
+        "src/lib/bridge/protocol.ts:97 declares `export type CardType = \"character\" | \"lorebook\" | \"script\" | \"scenario\" | \"persona\";` and src/types/index.ts:163 declares LibraryCardType with the same five members.",
+        "src/lib/bridge/client.ts converts between them with four unchecked assertions: `cardType: c.cardType as CardType` at lines 281 and 313, and `cardType: saved.cardType as CardType` at lines 360 and 374.",
+        "src/lib/bridge/client.ts:350 then maintains a third copy of the same list as a runtime ALLOWED_CARD_TYPES array. Adding a sixth card type to types/index.ts would compile cleanly while the bridge silently rejected or mistyped it."
+      ],
+      "suggestion": "The duplication itself is justified (protocol.ts must stay dependency-free for the mcp package), but the drift should be compile-checked. In src/lib/bridge/client.ts, which already imports both, add one line next to the imports: `type _CardTypeParity = [LibraryCardType] extends [CardType] ? ([CardType] extends [LibraryCardType] ? true : never) : never;` and drop the four `as CardType` casts so the mismatch surfaces at the cast sites instead. One line added, four casts removed.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "card_type_polymorphism_by_duplication"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "mcp_shared_surface_undeclared",
+      "summary": "mcp/tsconfig.json declares only half the app modules the MCP package actually imports, and nothing enforces their browser-neutrality",
+      "related_files": [
+        "mcp/tsconfig.json",
+        "mcp/src/index.ts",
+        "src/lib/platforms/index.ts",
+        "src/lib/validators/index.ts"
+      ],
+      "evidence": [
+        "mcp/tsconfig.json's include list is [\"src/**/*.ts\", \"../src/lib/bridge/protocol.ts\", \"../src/lib/personaParser/index.ts\"], but mcp/src/index.ts:24-25 also imports ../../src/lib/validators/index.js and ../../src/lib/platforms/index.js.",
+        "The include list reads as the declaration of which app modules the Node package is allowed to reach into (README.md documents mcp/ as 'own package; shares src/lib'), so it is a documented contract that has drifted from what the code does.",
+        "mcp/tsconfig.json sets lib to [\"ES2022\", \"DOM\"], so a browser-only API added to any of those four shared modules would typecheck in the MCP package and only fail at runtime; there are no tests over mcp/src to catch it either."
+      ],
+      "suggestion": "Add the two missing entries to mcp/tsconfig.json's include list so it names the full shared surface (../src/lib/validators/index.ts and ../src/lib/platforms/index.ts), and add a one-line comment in mcp/src/index.ts above the ../../src imports stating that only browser-neutral modules may be imported there. Single-file edit, no new structure.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "The five card types (character plus four 'simple' types) were added incrementally, each by copying the previous editor, so no module ever came to own the shared save/export/version contract - the polymorphism is expressed as parallel code paths in components rather than as data plus one function."
+    ],
+    "likely_symptoms": [
+      "bridge_cardtype_duplicated_and_cast"
+    ],
+    "possible_false_positives": []
+  },
+  "context_updates": {
+    "cross_module_architecture": {
+      "add": [
+        {
+          "header": "Acyclic one-way layering across all 69 modules",
+          "description": "A full import-graph walk finds zero cycles and no upward imports: types is imported by lib, lib by hooks and components, components only by App.tsx. A developer can predict where a dependency may point without checking.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Highest fan-in module is pure type declarations",
+          "description": "src/types/index.ts has 29 importers but contains only interfaces and unions, so the coupling carries no runtime blast radius. The next hubs (platforms, pngMetadata) are self-contained data tables and codecs whose only imports are type-only.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Singletons are lazy, never import-time",
+          "description": "Every module-scope mutable binding (IndexedDB handle, WebLLM engine, bridge socket, CRC table) is initialised on first use, and nothing touches localStorage or opens a socket at module scope, so import order never matters and modules stay testable in isolation.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Shared singletons use one subscribe-plus-hook protocol",
+          "description": "The MCP bridge and the WebLLM engine both expose getState/subscribe pairs consumed by a one-line useSyncExternalStore hook, so the two pieces of cross-component state behave identically instead of each inventing its own propagation scheme.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Bridge inverts its dependency via a host callback",
+          "description": "src/lib/bridge/client.ts defines a BridgeHost interface that App.tsx registers, rather than importing component state, keeping the lib-to-components direction one-way even for a module that must drive the UI.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "MCP package shares src/lib through a dependency-free protocol",
+          "description": "mcp/ is a separate Node package that imports four browser-neutral app modules by relative path so validation and platform rules have one implementation; the seam is documented in README.md and in mcp/src/index.ts, and protocol.ts is explicitly kept import-free for both sides.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Card-type polymorphism modelled by parallel code paths",
+          "description": "The four non-character card types have no owning module, so their save/export sequence is duplicated across four editors, four state triples in App.tsx, a switch in the bridge client, and a saveCard/saveAnyCard split in the library. Changing save semantics is a five-site edit.",
+          "settled": true,
+          "positive": false
+        }
+      ]
+    }
+  }
+}

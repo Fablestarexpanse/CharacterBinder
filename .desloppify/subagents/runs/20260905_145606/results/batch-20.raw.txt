@@ -1,0 +1,219 @@
+{
+  "batch": "type_safety",
+  "batch_index": 20,
+  "assessments": { "type_safety": 83.5 },
+  "dimension_notes": {
+    "type_safety": {
+      "evidence": [
+        "Both tsconfigs set strict:true (root also noUnusedLocals/noUnusedParameters/noFallthroughCasesInSwitch); `npx tsc --noEmit` exits 0 with no errors.",
+        "Zero @ts-ignore / @ts-expect-error / @ts-nocheck anywhere in src or mcp/src; zero non-null assertions in app code (only mcp/src/bridge.ts:244 appSocket!.send).",
+        "Only three `any` occurrences in the whole codebase, all in src/components/LoreBookEditor.tsx:50/70, each preceded by an eslint-disable and a comment explaining the SillyTavern shape variance.",
+        "Untrusted boundaries are validated at runtime rather than asserted: src/lib/platforms/converters.ts coerces every foreign field with String()/Array.isArray; src/lib/personaLlm/index.ts coerceJson()/toParsedPersona() take Record<string, unknown> and typeof-check each field; mcp/src/index.ts declares every tool input as a zod schema.",
+        "The same five-value card-type union is declared independently six times: LibraryCardType (src/types/index.ts:163), CardShape (src/lib/cardShape.ts:13), CardType (src/lib/bridge/protocol.ts:97), NonCharType (src/components/DecodePNG.tsx:13), the MetadataKey superset (src/types/index.ts:52), plus raw literal arrays ALLOWED_CARD_TYPES (src/lib/bridge/client.ts:350), knownKeys (src/lib/pngMetadata/index.ts:128) and CHARACTER_KEYS declared twice (src/lib/cardShape.ts:16 and src/components/DecodePNG.tsx:11).",
+        "src/lib/bridge/client.ts crosses those parallel unions with five bare `as CardType` assertions (lines 281, 312, 360, 367, 374) that only type-check because the unions happen to coincide.",
+        "src/lib/bridge/client.ts:289 bodyOf() is annotated Record<string, string> | undefined but reaches its value via `as unknown as` over TavernCardV2Data, whose members include string[] (tags, alternate_greetings), CharacterBook and Record<string, unknown> — the annotation is false for real data and its result is spread into the update path at line 365.",
+        "src/lib/pngMetadata/index.ts:117 decodeCharaFromPng returns `key: string | null` even though it only ever sets foundKey from the knownKeys filter at line 162, so the MetadataKey narrowing that encodeCharaToPng (line 192) demands is thrown away on the read path.",
+        "LibraryCard (src/types/index.ts:178) carries cardType alongside optional cardData/rawData:unknown with the invariant written in comments rather than the type; consumers assert it back at ~10 sites (src/App.tsx:229-238, src/components/Library.tsx:20/132-138, src/components/ImportPNG.tsx:132-159, src/components/DecodePNG.tsx:116-119).",
+        "parseSillyTavernLorebook — the only code that normalises object-keyed `entries` into LoreEntry[] — runs solely on the drag-a-JSON-file path (src/components/LoreBookEditor.tsx:152); the PNG import path and the library-open path hand the editor `parsed as LoreBook` / `card.rawData as LoreBook` unchecked, so LoreBookEditor.tsx:97 `initialBook?.entries[0]` can meet a plain object.",
+        "src/lib/library/index.ts:88 declares `const all: LibraryCard[] = await db.getAll(STORE)` then immediately writes `c.cardType ?? \"character\"` — the type says cardType is required, the code says it may be absent on legacy rows.",
+        "src/lib/bridge/client.ts:260-271 asserts every inbound RPC payload (req.params as ListParams, as GetParams, as UpdateParams, ...) with no validation; only createCard checks cardType against ALLOWED_CARD_TYPES.",
+        "mcp/src/bridge.ts:230 callApp<T = unknown>(method, params?: unknown) leaves both params and result unrelated to the BridgeMethod, so each call site names its own result type by assertion.",
+        "mcp/src/index.ts:107 create(cardType: string, ...) widens to string in a file that already imports the protocol's typed contracts, and line 81 restates the card-type enum inline as a zod literal list."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "dimension_judgment": {
+    "type_safety": {
+      "dimension_character": "The baseline discipline here is genuinely strong: strict mode on both packages, a clean tsc run, essentially no `any`, no escape-hatch comments, no non-null assertions, and the truly untrusted edges (foreign platform JSON, LLM output, MCP tool input) are validated field-by-field at runtime instead of being asserted into shape. The weakness is concentrated on exactly one axis — card-type polymorphism. The same five-value union is redeclared six times, LibraryCard encodes its variant invariant in comments rather than as a discriminated union, and the PNG decoder deliberately widens its key back to `string`, so the import/library/bridge path carries roughly fifteen load-bearing assertions the compiler cannot check.",
+      "score_rationale": "This sits above the 80 anchor because a developer can trust the great majority of annotations and the boundary code is unusually honest about what it does not know, but below 90 because the friction is recurring rather than isolated: every card-type crossing needs a cast, one annotation (bodyOf's Record<string, string>) is flatly untrue for real data, and the lorebook path proves the assertions are not merely cosmetic — the only normaliser is bypassed on two of three entry routes. The defects share a single root cause and are fixable without new abstraction, which keeps the score from falling toward 70."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "type_safety",
+      "identifier": "card_type_union_declared_six_times",
+      "summary": "The five card-type values are redeclared as six separate types plus three literal arrays, bridged by `as` casts",
+      "related_files": [
+        "src/types/index.ts",
+        "src/lib/cardShape.ts",
+        "src/lib/bridge/protocol.ts",
+        "src/lib/bridge/client.ts",
+        "src/components/DecodePNG.tsx",
+        "mcp/src/index.ts"
+      ],
+      "evidence": [
+        "LibraryCardType (src/types/index.ts:163), CardShape (src/lib/cardShape.ts:13) and CardType (src/lib/bridge/protocol.ts:97) are byte-identical unions declared in three modules.",
+        "NonCharType (src/components/DecodePNG.tsx:13) is the same union minus \"character\"; ALLOWED_CARD_TYPES (src/lib/bridge/client.ts:350) and the z.enum at mcp/src/index.ts:81 restate the values again as data.",
+        "CHARACTER_KEYS is exported from src/lib/cardShape.ts:16 and independently re-declared at src/components/DecodePNG.tsx:11.",
+        "Because the unions are structurally equal but nominally separate, src/lib/bridge/client.ts uses `as CardType` at lines 281, 312, 360, 367 and 374 to move values between them; nothing checks these."
+      ],
+      "suggestion": "Keep one declaration. Export `const CARD_TYPES = [\"character\",\"lorebook\",\"script\",\"scenario\",\"persona\"] as const` and `type CardType = typeof CARD_TYPES[number]` from src/lib/bridge/protocol.ts (already shared by both packages), then re-export it as LibraryCardType/CardShape rather than redeclaring, derive ALLOWED_CARD_TYPES and the MCP z.enum from CARD_TYPES, replace NonCharType with Exclude<CardType, \"character\">, and import CHARACTER_KEYS in DecodePNG.tsx. The five `as CardType` casts in bridge/client.ts then delete themselves.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "card_type_union_duplication"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "decode_key_widened_to_string",
+      "summary": "decodeCharaFromPng returns `key: string | null` although it only ever emits a MetadataKey, forcing casts in both consumers",
+      "related_files": [
+        "src/lib/pngMetadata/index.ts",
+        "src/components/DecodePNG.tsx",
+        "src/lib/cardShape.ts"
+      ],
+      "evidence": [
+        "src/lib/pngMetadata/index.ts:128 holds `const knownKeys = [\"chara\", ...]` as an untyped string[] in a module that already imports MetadataKey (line 1) and uses it for the encode direction (line 192).",
+        "foundKey is only assigned inside `if (!foundJson && knownKeys.includes(keyword))` (line 162), so the return value is provably a MetadataKey, yet the signature at line 117 declares `key: string | null`.",
+        "Consumers pay for the lost narrowing: src/components/DecodePNG.tsx:80 and 190-194 write `result.key as NonCharType` even after guarding with `key in NON_CHAR_META`, and shapeForKey (src/lib/cardShape.ts:19) has to accept a bare string and re-test the literals."
+      ],
+      "suggestion": "Type the array as `const KNOWN_KEYS: readonly MetadataKey[] = [...]` (or derive both from a single const tuple) and change decodeCharaFromPng's return to `key: MetadataKey | null`. `key in NON_CHAR_META` then narrows on its own and the three `as NonCharType` casts in DecodePNG.tsx can go.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "card_type_union_duplication"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "bodyof_lies_about_value_type",
+      "summary": "bridge/client.ts bodyOf() is annotated Record<string, string> but returns objects holding arrays and nested records",
+      "related_files": ["src/lib/bridge/client.ts", "src/types/index.ts"],
+      "evidence": [
+        "src/lib/bridge/client.ts:289-292: `function bodyOf(c: LibraryCard): Record<string, string> | undefined` reaches its value through `c.cardData?.data as unknown as Record<string, string>`.",
+        "The real type there is TavernCardV2Data, whose members include alternate_greetings: string[], tags: string[], character_book?: CharacterBook and extensions: Record<string, unknown> — none of which are strings.",
+        "The non-character branch is worse: `c.rawData as Record<string, string> | undefined` re-labels an `unknown` that holds arbitrary lorebook/script/scenario bodies.",
+        "The falsehood is not inert: updateCard (line 365) spreads bodyOf(existing) into the merge and then has to cast it back with `merged as Record<string, unknown>` to pass it on."
+      ],
+      "suggestion": "Change bodyOf's return type to Record<string, unknown> | undefined — that is what the data actually is, it removes the `as unknown as` double cast and the compensating cast at line 365, and summarise()'s two reads only need a typeof check on character_version and version.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "lorebook_asserted_not_normalised",
+      "summary": "`parsed as LoreBook` on the PNG and library paths bypasses the only code that normalises SillyTavern's object-keyed entries",
+      "related_files": [
+        "src/components/LoreBookEditor.tsx",
+        "src/components/ImportPNG.tsx",
+        "src/components/DecodePNG.tsx",
+        "src/App.tsx"
+      ],
+      "evidence": [
+        "parseSillyTavernLorebook (src/components/LoreBookEditor.tsx:50) exists precisely because ST entries can be an object keyed by numeric strings or a plain array, and it also fills in every missing field.",
+        "It is called from exactly one place — the drag-a-JSON-file handler at line 152.",
+        "The PNG import path asserts instead: src/components/ImportPNG.tsx:132 `onLoadLorebook?.(parsed as LoreBook, imageSrc)` on a value straight out of JSON.parse; src/components/DecodePNG.tsx:116 does the same; the library path does `card.rawData as LoreBook` at src/App.tsx:229 and src/components/Library.tsx:132.",
+        "LoreBookEditor then trusts the annotation immediately — line 97 reads `initialBook?.entries[0]?.id` and lines 128-142 call .find/.map on book.entries — so an object-shaped `entries` reaching the editor by PNG is a runtime failure the type system was told could not happen."
+      ],
+      "suggestion": "Export parseSillyTavernLorebook from a lib module (e.g. src/lib/loreBook.ts) and run every inbound lorebook through it: replace `parsed as LoreBook` in ImportPNG.tsx/DecodePNG.tsx and `card.rawData as LoreBook` in App.tsx/Library.tsx with parseSillyTavernLorebook(parsed). That makes the LoreBook annotation earned on all three routes instead of one.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_card_payload_assertions"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "librarycard_not_discriminated_union",
+      "summary": "LibraryCard keeps its cardType/cardData/rawData invariant in comments, so ~10 call sites re-assert it by hand",
+      "related_files": ["src/types/index.ts", "src/App.tsx", "src/components/Library.tsx", "src/lib/bridge/client.ts"],
+      "evidence": [
+        "src/types/index.ts:184-186 documents the rule in trailing comments: `cardData?: TavernCardV2;   // present when cardType === \"character\"` and `rawData?: unknown;  // present when cardType is lorebook | script | scenario`.",
+        "Every consumer therefore switches on cardType and asserts the payload itself — src/App.tsx:229-238 (four `as` casts), src/components/Library.tsx:132-138 (four more), plus `card.rawData as { version?: string } | null` at Library.tsx:20 and the bodyOf branch at src/lib/bridge/client.ts:290-291.",
+        "src/lib/library/index.ts:88-90 also treats cardType as possibly absent (`c.cardType ?? \"character\"`) despite the field being declared required."
+      ],
+      "suggestion": "Split LibraryCard into a discriminated union over cardType — { cardType: \"character\"; cardData: TavernCardV2 } | { cardType: \"lorebook\"; rawData: LoreBook } | ... sharing a LibraryCardBase for the common id/name/tags/timestamp fields. Narrowing on card.cardType then supplies the payload type at all eight App.tsx/Library.tsx sites and the casts disappear rather than being replaced by anything.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_card_payload_assertions"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "lorebook_parser_any_defeats_annotations",
+      "summary": "parseSillyTavernLorebook takes `any`, so its `const scan_depth: number = raw.scan_depth ?? 50` annotations are unchecked",
+      "related_files": ["src/components/LoreBookEditor.tsx"],
+      "evidence": [
+        "src/components/LoreBookEditor.tsx:50 `function parseSillyTavernLorebook(raw: any): LoreBook`, and line 70 `rawEntries.map((e: any) => ...)`.",
+        "Lines 51-58 annotate each extraction — `const scan_depth: number = raw.scan_depth ?? 50`, `const recursive_scanning: boolean = raw.recursive_scanning ?? false` — but because raw is `any`, a card storing \"50\" or \"true\" passes straight through under a number/boolean annotation.",
+        "The entry mapper is looser still: keys and secondary_keys get Array.isArray guards, but content, insertion_order and priority are taken with a bare `??`, so a numeric content lands in a field typed string."
+      ],
+      "suggestion": "Change the parameter to `unknown`, narrow once (const r = (raw && typeof raw === \"object\" ? raw : {}) as Record<string, unknown>), and pull the per-field coercions through the same String()/Number() style that src/lib/platforms/converters.ts already uses on foreign card JSON. The eslint-disable comments then go away with the `any`.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "unchecked_card_payload_assertions"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "bridge_rpc_params_unvalidated",
+      "summary": "Inbound bridge RPC params are cast, not checked, and callApp<T> lets each caller name any result type",
+      "related_files": ["src/lib/bridge/client.ts", "mcp/src/bridge.ts", "src/lib/bridge/protocol.ts"],
+      "evidence": [
+        "src/lib/bridge/client.ts:260-271 dispatches with `req.params as ListParams`, `as GetParams`, `as CreateParams`, `as UpdateParams`, `as DeleteParams`, `as OpenParams` — the protocol declares params as `unknown` (protocol.ts:117) precisely because it arrives over a socket.",
+        "Only createCard validates anything (ALLOWED_CARD_TYPES at line 351); getCard/updateCard/removeCard/openCard trust params.id to be a string, and listCards trusts params.type to be a CardType.",
+        "On the other side, mcp/src/bridge.ts:230 `callApp<T = unknown>(method: BridgeMethod, params?: unknown)` ties neither params nor result to the method, so callApp<GetResult>(\"cards.get\", {}) type-checks.",
+        "The protocol module already names a params and a result interface for every method, so the information needed to check this exists and is simply not connected."
+      ],
+      "suggestion": "In protocol.ts add one mapped type — interface BridgeCalls { \"cards.get\": { params: GetParams; result: GetResult }; ... } — and type callApp as callApp<M extends BridgeMethod>(method: M, params: BridgeCalls[M][\"params\"]): Promise<BridgeCalls[M][\"result\"]>. That removes the explicit <T> from every MCP call site. On the app side, guard the two fields that matter (typeof p?.id === \"string\", type against ALLOWED_CARD_TYPES) before dispatch rather than asserting.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "The five card types were introduced incrementally (character first, then lorebook/script/scenario/persona), and each new consumer declared its own local union instead of importing one; cardShape.ts looks like the intended consolidation that was never propagated to DecodePNG.tsx, pngMetadata or the bridge.",
+      "LibraryCard models a variant record with optional fields plus prose comments rather than a discriminated union, which makes an `as` cast the cheapest way for every consumer to get its payload type back."
+    ],
+    "likely_symptoms": [
+      "decode_key_widened_to_string",
+      "lorebook_parser_any_defeats_annotations",
+      "bodyof_lies_about_value_type"
+    ]
+  },
+  "context_updates": {
+    "type_safety": {
+      "add": [
+        {
+          "header": "Strict mode enforced in both packages, tsc clean",
+          "description": "Root and mcp tsconfigs both set strict:true, with the root adding noUnusedLocals, noUnusedParameters and noFallthroughCasesInSwitch; tsc --noEmit passes with no errors. The compiler is a real gate here rather than advisory, which is why annotations elsewhere can generally be trusted.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "No escape hatches: zero ts-ignore, three any",
+          "description": "There are no @ts-ignore, @ts-expect-error or @ts-nocheck comments anywhere, no non-null assertions in application code, and only three `any` occurrences — all in LoreBookEditor's SillyTavern parser, each carrying an eslint-disable and a comment explaining the shape variance. Type errors get fixed rather than silenced.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Untrusted input validated rather than asserted",
+          "description": "Foreign platform JSON (converters.ts), LLM output (personaLlm coerceJson/toParsedPersona) and MCP tool arguments (zod schemas in mcp/src/index.ts) all enter as unknown or Record<string, unknown> and are coerced field-by-field with typeof/Array.isArray/String checks. The types these boundaries hand downstream are earned, not declared.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Card-type union redeclared across six modules",
+          "description": "The same five values exist as LibraryCardType, CardShape, CardType, NonCharType and the MetadataKey superset, plus raw literal arrays in pngMetadata, bridge/client and the MCP zod enum. They stay in sync by hand, and bridge/client.ts crosses between them with five unchecked casts.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "LibraryCard variant invariant lives in comments",
+          "description": "cardType is a discriminant but cardData/rawData are plain optional fields with the rule written as a trailing comment, so roughly ten consumers in App.tsx, Library.tsx and bridge/client.ts re-assert the payload type by hand. This is the single biggest source of load-bearing casts in the codebase.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "Card payload normalisers bypassed on some entry paths",
+          "description": "parseSillyTavernLorebook normalises object-keyed entries and missing fields, but only the drag-a-JSON path calls it; PNG import and library-open assert the type instead. The LoreBook annotation is therefore backed by a real check on one of three routes, which makes it a runtime hazard rather than a cosmetic one.",
+          "settled": true,
+          "positive": false
+        }
+      ]
+    }
+  }
+}

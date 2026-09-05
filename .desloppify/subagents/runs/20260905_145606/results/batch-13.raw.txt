@@ -1,0 +1,154 @@
+{
+  "batch": "ai_generated_debt",
+  "batch_index": 13,
+  "assessments": {
+    "ai_generated_debt": 88.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "The classic LLM hallmarks are essentially absent: 11 total console.* calls across all of src/ and mcp/src/ (ErrorBoundary.tsx:34 plus 10 lifecycle lines in mcp/src/bridge.ts and mcp/src/index.ts, all on stderr because stdout belongs to the MCP transport) — no entry/exit tracing, no object dumps.",
+        "Zero TODO/FIXME/XXX/HACK markers and only two `any` annotations in production code (src/components/LoreBookEditor.tsx:50,70, both with an eslint-disable and a comment saying ST entries can be an object or an array).",
+        "The ~324 line comments are overwhelmingly WHY, and most name the specific regression they prevent: src/lib/pngMetadata/index.ts:60-62 explains that `<<`/`|` coerce to signed int32 so a high-bit length walked the cursor backwards; src/components/ConfirmModal.tsx:40-44 explains why there is deliberately NO global Enter handler; src/lib/minimalPng.ts's header explains the previous constant declared an IDAT length of 12 with 11 bytes of data.",
+        "Defensive code is confined to genuine boundaries and annotated: src/lib/validators/index.ts:45-47 explains its `str()` guard exists because a field holding a number would throw on .trim() before the type check could report it; src/lib/personaLlm/settings.ts:75 explains an unparseable URL is treated as remote as the safer assumption. No null checks on non-nullable typed values, no try/catch around pure expressions.",
+        "DEFECT: exportPng() and handleSaveToLibrary() are copied verbatim across four editor components — src/components/ScenarioEditor.tsx:66-88, ScriptEditor.tsx:65-88, PersonaEditor.tsx:75-98, LoreBookEditor.tsx:208-232 — differing only in a card-type string literal and the \"Unnamed X\" label, right down to the identical `catch { setMsg(\"Failed to save to library.\", false); }` and the same `versionChanged ? \"Saved as new version!\" : libraryId ? \"Library updated!\" : \"Saved to library!\"` ternary.",
+        "DEFECT: the same four files each repeat `function update(patch)`, `function clearForNew()`, the same five useState declarations (libraryId/saving/savedVersion/outputFileName/imageSrc) and an identical `// Auto-sync filename to <type> name` useEffect (LoreBookEditor.tsx:110, PersonaEditor.tsx:46, ScenarioEditor.tsx:45, ScriptEditor.tsx:42).",
+        "DEFECT: src/App.tsx:167-212 declares eight handlers in two families of four (handleEditLorebook/Script/Scenario/Persona and handleImportLorebook/Script/Scenario/Persona) whose bodies are mechanically identical apart from which of four parallel `<type>Init` / `<type>Key` state pairs they touch; the Edit variants differ from the Import variants only by carrying an `id`.",
+        "DEFECT: an identical uint8-to-data-URL helper is copied in src/components/DecodePNG.tsx:54-58 (inline inside a useCallback) and src/components/ImportPNG.tsx:37-39 (module scope) — the same byte loop, the same `\"data:image/png;base64,\" + btoa(bin)`, in a codebase that already keeps this kind of helper in src/lib/ (download.ts, carrierImage.ts).",
+        "MINOR: src/lib/tokenizer/index.ts:21-57 names nine per-field token counts as locals, restates all nine in the returned object, then restates all nine again in a hand-written `total` sum — a mechanical triple-listing where a loop over the field list would be shorter and could not drift.",
+        "MINOR: a handful of restating comments survive amid otherwise strong prose — src/lib/pngMetadata/index.ts:229 `// Build new PNG` and :250 `// Concatenate`, src/components/Library.tsx:82 `// Group into sections`, src/components/DecodePNG.tsx:72 `// Determine detected type`, src/components/CardPreviewPanel.tsx:104 `// Convert card to target platform format for embedding`.",
+        "Shared helpers are extracted rather than copied where it counts: src/lib/download.ts is the single download path (and src/lib/archive/index.ts:43-45 explicitly says it uses the shared helper rather than a local copy), src/hooks/useTimedFlag.ts documents the two faults the hand-rolled copies all shared, and mcp/src/index.ts factors a `create()` helper plus shared `tags`/`openAfter` schema fragments across its tool registrations."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Four sibling editor components replicate the same ~50 lines of save/export/clear/filename logic verbatim, App.tsx fans the same pattern out into eight near-identical handlers over four parallel state pairs, and a small byte-encoding helper is copy-pasted between two components. These are genuine copy-paste boilerplate rather than an intentional convention, and they are the only thing standing between this codebase and a 95+ on this dimension."
+    }
+  },
+  "dimension_judgment": {
+    "ai_generated_debt": {
+      "dimension_character": "This codebase reads as deliberately purpose-driven: the comment corpus is almost entirely WHY, frequently naming the exact regression a line prevents, logging is limited to eleven purposeful calls, and there is no docstring bloat, no defensive ceremony away from real boundaries, and no generic handleData/processItem naming. The one systematic weakness is replication: the four non-character editors carry the same save, export, clear and filename-sync code verbatim, App.tsx repeats that fan-out as eight near-identical handlers over four parallel state pairs, and a small data-URL helper is duplicated between two components. The strengths are systemic and the defects are concentrated in one layer — the per-card-type UI family — so a developer's attention goes to logic almost everywhere except when adding a sixth card type, where they would be copying a template rather than filling in a seam.",
+      "score_rationale": "Against the anchors this sits between 90 (strong, minor friction) and 80 (solid but uneven, recurring friction), and lands nearer the former: the AI-debt hallmarks the rubric actually enumerates — restating comments, nosy logging, defensive overengineering, docstring bloat, pass-through wrappers, generic names — are close to absent, which is unusual enough to pull the score up substantially. What pulls it down is the last rubric bullet, identical boilerplate copied verbatim across multiple files, which is real and fourfold in src/components plus a fifth copy of it in App.tsx. Scored at 88.0 rather than higher because that replication is a recurring maintenance tax across a whole feature family, and lower than a clean 90 because the same shape recurs at two levels (the editors and their host)."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "editor_save_export_boilerplate",
+      "summary": "exportPng/handleSaveToLibrary/clearForNew copied verbatim across four editor components",
+      "related_files": [
+        "src/components/ScenarioEditor.tsx",
+        "src/components/ScriptEditor.tsx",
+        "src/components/PersonaEditor.tsx",
+        "src/components/LoreBookEditor.tsx"
+      ],
+      "evidence": [
+        "ScenarioEditor.tsx:66-74, ScriptEditor.tsx:65-74, PersonaEditor.tsx:75-84 and LoreBookEditor.tsx:208-217 contain byte-identical exportPng() bodies apart from the card-type string passed to encodeCharaToPng.",
+        "handleSaveToLibrary() is likewise identical at ScenarioEditor.tsx:76-88, ScriptEditor.tsx:76-88, PersonaEditor.tsx:86-98 and LoreBookEditor.tsx:219-232 — same setSaving dance, same `versionChanged` computation, same three-way success ternary, same bare `catch { setMsg(\"Failed to save to library.\", false); }`.",
+        "The same four files each repeat clearForNew(), a Partial-patch update(), the same five useState declarations, and an identical `// Auto-sync filename to <type> name` useEffect (LoreBookEditor.tsx:110, PersonaEditor.tsx:46, ScenarioEditor.tsx:45, ScriptEditor.tsx:42)."
+      ],
+      "suggestion": "Extract one hook, e.g. `useCardEditorIO(cardType, { card, imageSrc, fileSuffix })` in src/hooks/, returning `{ outputFileName, setOutputFileName, saving, libraryId, exportJson, exportPng, saveToLibrary, clearForNew, status, setMsg }`. Each of the four editors then calls it once and keeps only its own field JSX. This is a net reduction — one implementation replaces four copies and one new file replaces roughly 200 duplicated lines — and it removes the risk that a fix to the save path lands in three editors out of four.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "per_card_type_replication"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "app_per_type_handler_fanout",
+      "summary": "App.tsx repeats eight mechanically identical editor-open handlers over four parallel state pairs",
+      "related_files": [
+        "src/App.tsx"
+      ],
+      "evidence": [
+        "src/App.tsx:167-190 defines handleEditLorebook/handleEditScript/handleEditScenario/handleEditPersona, each a three-line body that sets `<type>Init`, bumps `<type>Key`, and calls setActivePage — differing only in which state setters they name.",
+        "src/App.tsx:192-212 then repeats all four as handleImportLorebook/Script/Scenario/Persona, whose only difference from the Edit variants is that the init object omits `id`.",
+        "Backing them are four parallel `<type>Init` / `<type>Key` useState pairs (App.tsx:47-70), which is a large share of why the file carries 15 useStates."
+      ],
+      "suggestion": "Collapse the four Init/Key pairs into one `editorInit` state of the shape `{ type: NonCharCardType; card: unknown; imageSrc: string | null; id?: string }` plus a single `editorKey`, and replace the eight handlers with one `openEditor(type, card, imageSrc, id?)`. Callers pass the type they already know; the four Init props feeding the editors become one lookup on `editorInit.type`. That deletes eight state variables and seven handlers without adding an abstraction layer.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "per_card_type_replication"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "duplicate_uint8_to_dataurl",
+      "summary": "Identical PNG-bytes-to-data-URL helper copy-pasted into two components",
+      "related_files": [
+        "src/components/DecodePNG.tsx",
+        "src/components/ImportPNG.tsx"
+      ],
+      "evidence": [
+        "src/components/DecodePNG.tsx:54-58 declares uint8ToDataUrl inside the processFile useCallback: a char-by-char accumulation loop followed by `return \"data:image/png;base64,\" + btoa(bin);`.",
+        "src/components/ImportPNG.tsx:37-39 contains the same loop and the same return expression at module scope.",
+        "The inverse conversion already lives in a lib module (base64ToBytes in src/lib/carrierImage.ts:33-38), so the codebase's own convention puts this helper in src/lib/."
+      ],
+      "suggestion": "Move it to src/lib/carrierImage.ts as `export function pngBytesToDataUrl(bytes: Uint8Array): string` next to the existing base64ToBytes, and import it in both components. One exported function replaces two inline copies — no new file, no new layer.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "token_breakdown_triple_listing",
+      "summary": "getCardTokenBreakdown restates the same nine field names three times over",
+      "related_files": [
+        "src/lib/tokenizer/index.ts"
+      ],
+      "evidence": [
+        "src/lib/tokenizer/index.ts:26-57 declares nine `const <field> = countTokens(d.<field>)` locals, then lists all nine again as object properties, then adds all nine again by hand to compute `total`.",
+        "Adding a tenth counted field means editing three places, and forgetting the third leaves `total` silently wrong — the kind of drift the shape invites rather than prevents."
+      ],
+      "suggestion": "Keep the CardTokenBreakdown interface, but build the counts by iterating a `const COUNTED_FIELDS = [\"description\", \"personality\", ...] as const` list into an object and computing `total` with a reduce over its values; alternate_greetings stays its own line since it sums an array. Shorter than the current body and makes the total impossible to desynchronise.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Each non-character card type (lorebook, script, scenario, persona) was added by copying the previous type's editor and host wiring rather than by parameterising a shared one, so the per-type replication compounds every time a type is added."
+    ],
+    "likely_symptoms": [
+      "duplicate_uint8_to_dataurl",
+      "app_per_type_handler_fanout"
+    ]
+  },
+  "context_updates": {
+    "ai_generated_debt": {
+      "add": [
+        {
+          "header": "Comments name the regression they prevent",
+          "description": "Comments across src/lib and src/components explain WHY by citing the concrete bug that motivated the line — the signed-int32 PNG length overflow, the deliberately absent Enter handler on the delete dialog, the corrupt IDAT length in the fallback PNG. This is why files like minimalPng.ts and useEngineState.ts carry a high comment ratio without carrying any noise.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Logging is eleven purposeful lines, all on stderr",
+          "description": "The entire codebase has 11 console.* calls: one crash report in ErrorBoundary and ten bridge/server lifecycle lines in mcp/src. The MCP ones use console.error deliberately because stdout is the transport, as bridge.ts:100 states. There is no entry/exit tracing or object dumping to filter out.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Defensive checks sit only at real boundaries",
+          "description": "Guards appear where untrusted data enters — parsed PNG JSON, localStorage, FileReader, canvas, user URLs — and each carries a note explaining what breaks without it (validators/index.ts:45-47, personaLlm/settings.ts:75). Typed internal values are not re-checked, so a reader can trust the type annotations rather than working around paranoia.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Shared helpers extracted rather than re-derived",
+          "description": "download.ts is the single download path and archive/index.ts explicitly notes it uses the shared helper instead of a local copy; useTimedFlag documents the faults its hand-rolled predecessors shared; mcp/src/index.ts factors a create() helper and reusable zod fragments across tool registrations. The instinct to consolidate is present and documented — which makes the surviving editor duplication look like an unfinished pass, not a convention.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Per-card-type code is replicated, not parameterised",
+          "description": "Lorebook, script, scenario and persona each got their own editor by copying the previous one, so save/export/clear/filename logic exists in four verbatim copies and App.tsx carries four parallel Init/Key state pairs plus eight near-identical handlers. Adding a fifth type means copying again rather than registering one.",
+          "settled": true,
+          "positive": false
+        }
+      ]
+    }
+  }
+}

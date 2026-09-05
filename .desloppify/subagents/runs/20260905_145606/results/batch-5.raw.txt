@@ -1,0 +1,228 @@
+{
+  "batch": "naming_quality",
+  "batch_index": 5,
+  "assessments": {
+    "naming_quality": 88.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "Domain verbs dominate the lib layer: src/lib/pngMetadata/index.ts exports decodeCharaFromPng/encodeCharaToPng/getPngDimensions/isPng; src/lib/carrierImage.ts exports imageSrcToPngBytes/getCarrierPng; src/lib/cardShape.ts exports shapeForKey/detectCardShape. None of these need a docstring to be understood.",
+        "src/lib/platforms/converters.ts uses a perfectly regular convertTo<Platform>/convertFrom<Platform> family with convertCardTo/convertCardFrom dispatchers - eight platforms, zero naming drift.",
+        "src/lib/personaParser/index.ts (649 LOC) names every private helper for what it decides: normaliseLabel, lookupLabel, matchHeading, isLabelShaped, isBulletLine, isDialogueLine, splitForClassification, classifyChunk, isNameLike, joinSections. Every is* predicate returns a real boolean.",
+        "Spelling and casing conventions hold codebase-wide: British 'normalise' in personaParser, library, converters and their tests with no 'normalize' anywhere; components/ are PascalCase.tsx whose filename equals the default export; lib/ and hooks/ are camelCase.ts.",
+        "snake_case appears only where it mirrors the on-wire Tavern Card v2 spec (src/types/index.ts TavernCardV2Data, LoreEntry) and in the shorthand-construction locals of parseSillyTavernLorebook (src/components/LoreBookEditor.tsx:51-58) - a deliberate, contained exception, not drift.",
+        "All ~45 React handlers are handle<SpecificVerb> (handleExportPng, handleSaveToLibrary, handleEditLorebook, handleImportScenario) rather than bare handleClick/handleData.",
+        "Defect: src/lib/library/index.ts:61 saveAnyCard is typed `cardType: Exclude<LibraryCardType, \"character\">` - the name advertises the opposite of what the signature permits.",
+        "Defect: mcp/src/index.ts:251 create_script declares `code: z.string()` and forwards it verbatim via `create(\"script\", {spec, ...data})`, but ScriptCard.content (src/types/index.ts) is what src/components/ScriptEditor.tsx:121 renders. No mapping exists anywhere in the persist path, so the field name divergence silently drops the script body.",
+        "Defect: src/components/Library.tsx:38 prop `refreshToken` is fed by App.tsx:36 `libraryRevision`; 'token' already means the bridge pairing secret (getBridgeToken/tokenPath) and separately an LLM token (countTokens/TokenBudgetLevel) in this codebase.",
+        "Defect: src/components/SmartImportPanel.tsx:18-19 imports `type SorterSettings as Settings` (widening a narrow name) on the line above `import SorterSettings from \"./SorterSettings\"` (the component), so within one file `Settings` means sorter settings while `SorterSettings` means a React component.",
+        "Defect: processFile appears in both src/components/DecodePNG.tsx:43 and src/components/ImportPNG.tsx:51 doing materially different work (inspect-and-display vs decode-and-load-into-editor) under an identical generic name.",
+        "Defect: mcp/src/index.ts:31 names its MCP content-envelope helper `text`, which collided with a real domain parameter at line 380 and forced the awkward destructuring `async ({ text: raw, target })`."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "One naming divergence has a functional consequence rather than a readability one: the MCP create_script tool's `code` field never becomes ScriptCard.content, so an agent-created script card opens empty. Beyond that, saveAnyCard actively misdescribes its own signature, and three local spots (refreshToken, the Settings alias, duplicate processFile) overload a word that already has a different established meaning nearby. These are small and isolated against otherwise systematically precise naming, but they are real."
+    }
+  },
+  "dimension_judgment": {
+    "naming_quality": {
+      "dimension_character": "Naming is one of this codebase's clear strengths: the library layer names functions after the decision they make (detectCardShape, encodeCharaToPng, classifyChunk, budgetInput, proveToken) rather than after generic mechanics, and conventions - PascalCase component files matching their exports, camelCase lib modules, British 'normalise', snake_case reserved strictly for wire-format fields - hold without exception across 63 files. A new reader can open almost any file and follow it without a docstring, which is exactly what the pragmatist test asks for. The defects are pinpricks rather than systemic: a handful of names that overload a word already in use nearby (refreshToken, the Settings alias, duplicate processFile, the mcp text() helper), one name that contradicts its own signature (saveAnyCard), and one field-name divergence across the MCP boundary that actually loses data.",
+      "score_rationale": "The systemic quality is well above the 80 'solid but uneven' anchor - the vocabulary is genuinely consistent across app, lib, and MCP server, and there is no generic-verb sprawl in domain code. What holds it short of the 95+ range is that one naming divergence (create_script's `code` vs ScriptCard.content) has a working consequence rather than a readability one, plus saveAnyCard's outright misdescription and three local word overloads in a codebase that is otherwise disciplined enough that these stand out. Scored 88 to reflect strong, consistent naming with a small number of real, individually cheap-to-fix defects."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "naming_quality",
+      "identifier": "mcp_script_code_vs_content",
+      "summary": "MCP create_script names the script body `code` while every consumer reads ScriptCard.content, so the body is silently dropped",
+      "related_files": [
+        "mcp/src/index.ts",
+        "src/types/index.ts",
+        "src/components/ScriptEditor.tsx"
+      ],
+      "evidence": [
+        "mcp/src/index.ts:251 declares `code: z.string().describe(\"The script body.\")` in create_script's inputSchema.",
+        "The handler forwards the payload verbatim: `create(\"script\", { spec: \"script_card_v1\", ...data, version: data.version ?? \"1.0\" }, open)` - no field mapping.",
+        "src/lib/bridge/client.ts:320 persist() passes the body straight to saveAnyCard for non-character types, so `code` is stored as-is.",
+        "src/types/index.ts ScriptCard declares `content: string`, and src/components/ScriptEditor.tsx:121 renders `card.content`. A grep for `code` across src/lib/bridge, mcp/src and ScriptEditor finds no code->content mapping anywhere."
+      ],
+      "suggestion": "Rename the MCP input field to match the card vocabulary: change `code: z.string().describe(\"The script body.\")` to `content: z.string().describe(\"The script body.\")` in mcp/src/index.ts:251. One-word edit, no new indirection, and it makes the tool schema use the same field name as the type and the editor.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "boundary_vocabulary_divergence"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "save_any_card_misnomer",
+      "summary": "saveAnyCard cannot save any card - its signature explicitly excludes the character type",
+      "related_files": [
+        "src/lib/library/index.ts",
+        "src/lib/bridge/client.ts",
+        "src/components/LoreBookEditor.tsx"
+      ],
+      "evidence": [
+        "src/lib/library/index.ts:61-62: `export async function saveAnyCard(cardType: Exclude<LibraryCardType, \"character\">, ...)` - the type parameter forbids exactly the case the name implies is covered.",
+        "Its sibling is saveCard (character only), so a reader scanning the module sees 'save a card' and 'save any card' and reasonably assumes the second supersedes the first.",
+        "The docstring on line 60 compounds it - \"Save / update a lorebook, script, or scenario card\" - omitting persona, which is also a valid argument.",
+        "Callers in src/lib/bridge/client.ts:332 and src/components/LoreBookEditor.tsx:224 pass only non-character types, confirming the narrower intent."
+      ],
+      "suggestion": "Rename to saveNonCharacterCard and update the four call sites (src/lib/bridge/client.ts:36 import and :332, src/components/LoreBookEditor.tsx, and the other editors that import it), and fix the docstring to read \"Save / update a lorebook, script, scenario, or persona card.\" No structural change - the name simply starts matching the Exclude<> in its own signature.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "library_refresh_token_prop",
+      "summary": "Library's `refreshToken` prop is a third meaning of \"token\" in a codebase where token already means a pairing secret and an LLM token",
+      "related_files": [
+        "src/components/Library.tsx",
+        "src/App.tsx"
+      ],
+      "evidence": [
+        "src/components/Library.tsx:38 declares `refreshToken?: number` and :62 uses it purely as a useEffect dependency to force a reload.",
+        "src/App.tsx:36 names the very same value `libraryRevision` and passes it at :329 as `refreshToken={libraryRevision}` - the two ends of one wire disagree on the word.",
+        "\"Token\" is already taken twice: the bridge pairing secret (src/lib/bridge/client.ts getBridgeToken/setBridgeToken, mcp/src/token.ts loadOrCreateToken/tokenPath) and LLM tokens (src/lib/tokenizer/index.ts countTokens, TokenBudgetLevel)."
+      ],
+      "suggestion": "Rename the prop to `libraryRevision` so both sides use the App's word: change `refreshToken?: number` to `libraryRevision?: number` in LibraryProps, the destructure and the effect dep in src/components/Library.tsx, and drop the rename in App.tsx:329 to `libraryRevision={libraryRevision}`. Three-line change, one fewer meaning of \"token\".",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "local_word_overload"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "settings_type_alias_widened",
+      "summary": "SmartImportPanel aliases the narrow SorterSettings type to the broad name `Settings` on the line above importing a component actually called SorterSettings",
+      "related_files": [
+        "src/components/SmartImportPanel.tsx",
+        "src/types/index.ts"
+      ],
+      "evidence": [
+        "src/components/SmartImportPanel.tsx:18: `import { getSorterSettings, saveSorterSettings, type SorterSettings as Settings } from \"../lib/personaLlm/settings\";` immediately followed by :19 `import SorterSettings from \"./SorterSettings\";`.",
+        "Inside the file `Settings` is the sorter's config type and `SorterSettings` is a React component - the two identifiers have swapped the reader's expectations.",
+        "src/types/index.ts already defines AppSettings for app-wide config and src/components/Settings.tsx is the app settings page, so an unqualified `Settings` in a component reads as app settings. Line 68 (`useState<Settings>(() => getSorterSettings())`) is where that misreads."
+      ],
+      "suggestion": "Drop the alias: import `type SorterSettings` under its real name and import the component as `SorterSettingsPanel` (or keep the component name and use `SorterSettings` for the type at the ~6 use sites in the file). Either way removes the alias rather than adding anything.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "local_word_overload"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "duplicate_generic_process_file",
+      "summary": "Two different functions both named processFile - a generic verb in domain code where the domain has precise words",
+      "related_files": [
+        "src/components/DecodePNG.tsx",
+        "src/components/ImportPNG.tsx"
+      ],
+      "evidence": [
+        "src/components/DecodePNG.tsx:43 processFile decodes a PNG's chunks and populates an inspection result (json, key, chunk list, metadata) for display - it never loads anything into an editor.",
+        "src/components/ImportPNG.tsx:51 processFile decodes, reconciles the claimed vs actual card shape, converts from the source platform, and hands the card to onLoad/onLoadLorebook - a full import.",
+        "Both files already use precise vocabulary elsewhere (decodeCharaFromPng, detectCardShape, shapeForKey, convertCardFrom), so the generic verb is an outlier against the file's own norms."
+      ],
+      "suggestion": "Rename to match what each actually does: `inspectPngFile` in DecodePNG.tsx (and its two call sites at the drop handler and the file input) and `importPngFile` in ImportPNG.tsx (likewise). Pure renames, no restructuring.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "mcp_text_helper_shadows_domain_word",
+      "summary": "The MCP content-envelope helper is named `text`, which collides with a real `text` tool parameter and forces an alias",
+      "related_files": [
+        "mcp/src/index.ts"
+      ],
+      "evidence": [
+        "mcp/src/index.ts:31: `const text = (value: unknown) => ({ content: [{ type: \"text\" as const, text: ... }] })` - it returns an MCP content envelope, not text.",
+        "mcp/src/index.ts:380 has to work around the collision: `async ({ text: raw, target }) => { const parsed = parsePersonaText(raw); ... return text({ ... }) }` - the genuine `text` input had to be renamed `raw` so the helper could keep the name.",
+        "Call sites like `text(await callApp<MutationResult>(...))` read as though a mutation result is text."
+      ],
+      "suggestion": "Rename the helper to `asTextContent` (or `reply`) at mcp/src/index.ts:31 and its ~12 call sites, then restore the natural destructure `async ({ text, target })` at line 380. Fewer aliases, not more.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "local_word_overload"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "bridge_client_bare_open",
+      "summary": "bridge/client.ts has a module-private `open()` sitting alongside an `openCard()` that means something entirely different",
+      "related_files": [
+        "src/lib/bridge/client.ts"
+      ],
+      "evidence": [
+        "src/lib/bridge/client.ts:137 `function open()` establishes the WebSocket connection; it is called from connectBridge (:109), initBridge (:124) and scheduleReconnect (:133).",
+        "The same module defines `async function openCard(params: OpenParams)` at :384 (opens a card in the app's editor) and a `host.openCard` callback, so 'open' carries two unrelated meanings 250 lines apart.",
+        "Every other function in this module is explicitly qualified - connectBridge, disconnectBridge, initBridge, scheduleReconnect - making the bare `open` the outlier against the file's own convention."
+      ],
+      "suggestion": "Rename to `openSocket` at src/lib/bridge/client.ts:137 and its three call sites, matching the qualified style the rest of the module already uses.",
+      "confidence": "low",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Vocabulary is defined per-layer rather than once: the card field names live in src/types/index.ts, but the MCP tool schemas in mcp/src/index.ts restate them by hand, which is how `code` diverged from `content` with nothing to catch it.",
+      "Local word overloads (refreshToken, Settings alias, text helper) all come from choosing a short name inside one file without checking what that word already means one directory over."
+    ],
+    "likely_symptoms": [
+      "duplicate_generic_process_file",
+      "bridge_client_bare_open"
+    ],
+    "possible_false_positives": []
+  },
+  "context_updates": {
+    "naming_quality": {
+      "add": [
+        {
+          "header": "Library functions named for the decision they make",
+          "description": "lib/ exports read as statements of intent - decodeCharaFromPng, detectCardShape, shapeForKey, getCarrierPng, classifyChunk, budgetInput, proveToken - so call sites are legible without opening the definition. This is why the codebase tolerates large files like personaParser/index.ts without becoming hard to navigate.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Regular convertTo/convertFrom platform family",
+          "description": "src/lib/platforms/converters.ts names all eight platform adapters convertTo<Platform>/convertFrom<Platform> behind convertCardTo/convertCardFrom dispatchers. The regularity means adding a platform has exactly one obvious naming answer, which is why no drift has crept in.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "snake_case confined to wire-format fields",
+          "description": "snake_case appears only in types that serialise to the Tavern Card v2 / SillyTavern lorebook formats (TavernCardV2Data, LoreEntry) and in shorthand-construction locals that build them. Keeping the external spelling means the mapping to disk is inspectable rather than translated, so this is a deliberate boundary, not casing drift.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "\"Sort\" is the product's word for field assignment",
+          "description": "sortPersonaAuto, SorterSettings, SortTarget, runSort and the user-facing \"Quick Sort\" button all use sort to mean \"assign pasted text into card fields\", never ordering. Used ~100 times across 6 files and surfaced in the UI, so it is established product vocabulary rather than a misnomer - do not flag it.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "Handlers are handle<SpecificVerb>, never bare",
+          "description": "All ~45 React callbacks qualify the verb (handleExportPng, handleSaveToLibrary, handleImportScenario) rather than stopping at handleClick or handleData, so the generic handle prefix still carries information at the call site.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "MCP tool schemas restate card field names by hand",
+          "description": "mcp/src/index.ts writes each tool's inputSchema field-by-field instead of deriving from src/types/index.ts, and the bridge persists whatever it receives verbatim. Nothing checks the two vocabularies agree, which is the structural reason create_script's `code` could diverge from ScriptCard.content unnoticed.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "\"Token\" carries three meanings",
+          "description": "Token means the bridge pairing secret (getBridgeToken, tokenPath), an LLM token (countTokens, TokenBudgetLevel), and a React refresh nonce (Library's refreshToken prop). The first two are unavoidable domain terms; new code should avoid adding a fourth sense.",
+          "settled": false,
+          "positive": false
+        }
+      ]
+    }
+  }
+}

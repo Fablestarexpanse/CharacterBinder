@@ -20,6 +20,8 @@ import {
   proveToken,
   randomNonce,
   safeEqual,
+  PROOF_SERVER,
+  PROOF_CLIENT,
   type BridgeRequest,
   type BridgeResponse,
   type CardType,
@@ -180,7 +182,7 @@ function open() {
 
       if (frame.type === "challenge") {
         const token = getBridgeToken();
-        const expected = await proveToken(token, clientNonce);
+        const expected = await proveToken(token, PROOF_SERVER + clientNonce);
         if (!token || !safeEqual(String(frame.proof ?? ""), expected)) {
           // Whatever is on that port does not hold the token. Say nothing more.
           manualDisconnect = true;
@@ -193,7 +195,7 @@ function open() {
           ws.close();
           return;
         }
-        ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, String(frame.serverNonce ?? "")) }));
+        ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, PROOF_CLIENT + String(frame.serverNonce ?? "")) }));
         return;
       }
 
@@ -321,12 +323,17 @@ async function persist(
   cardType: CardType,
   body: Record<string, unknown>,
   imageSrc: string | null,
-  existingId?: string
+  existing?: LibraryCard
 ): Promise<LibraryCard> {
+  const existingId = existing?.id;
+
   if (cardType === "character") {
     const blank = createBlankTavernCard();
     const card: TavernCardV2 = { ...blank, data: { ...blank.data, ...(body as object) } };
-    return saveCard(card, null, imageSrc, "sillytavern", existingId);
+    // Carry the embedded card PNG and target platform across an edit. Passing
+    // null/"sillytavern" unconditionally meant an agent editing one field threw
+    // away the encoded PNG the archive exports, and silently retargeted the card.
+    return saveCard(card, existing?.pngData ?? null, imageSrc, existing?.platform ?? "sillytavern", existingId);
   }
 
   const name = String(body.name ?? "") || `Unnamed ${cardType}`;
@@ -367,7 +374,7 @@ async function updateCard(params: UpdateParams): Promise<MutationResult> {
     existing.cardType as CardType,
     merged as Record<string, unknown>,
     existing.imageSrc,
-    existing.id
+    existing
   );
   host?.onLibraryChanged?.();
   if (params.open) host?.openCard(saved);

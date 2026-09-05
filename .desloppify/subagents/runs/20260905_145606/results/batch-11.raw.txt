@@ -1,0 +1,216 @@
+{
+  "batch": "api_surface_coherence",
+  "batch_index": 11,
+  "assessments": { "api_surface_coherence": 81.0 },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "src/lib/bridge/protocol.ts is the strongest surface in the repo: every RPC's params and results are exported named interfaces (ListParams/CardSummary/GetParams/GetResult/CreateParams/UpdateParams/DeleteParams/OpenParams/MutationResult), close codes are enumerated constants, and the handshake is documented as a sequence diagram. Both sides import it, so app and server cannot drift.",
+        "src/lib/bridge/client.ts handle() dispatches all seven methods identically: one params object in, an object out, errors surfaced as `response.error` strings. mcp/src/bridge.ts callApp<T>(method, params) mirrors it exactly.",
+        "The observable-singleton shape is repeated verbatim in three modules: getEngineState/subscribeEngineState (src/lib/personaLlm/index.ts:164-174), getBridgeState/subscribeBridgeState (src/lib/bridge/client.ts:69-79), getSorterSettings/subscribeSorterSettings (src/lib/personaLlm/settings.ts). All three subscribe functions return an unsubscribe closure. A developer who learns one predicts the others.",
+        "DEFECT: src/lib/library/index.ts exposes two sibling save functions with incompatible positional signatures — saveCard(cardData, pngData, imageSrc, platform, existingId) and saveAnyCard(cardType, name, rawData, imageSrc, tags, existingId). Only imageSrc and existingId occupy comparable positions; tags is derived internally by one and required positionally by the other; saveAnyCard is six positional params. src/lib/bridge/client.ts had to write a private persist() adapter (lines ~300-315) whose only job is reconciling the two.",
+        "DEFECT: src/lib/personaLlm/index.ts SortOptions declares { settings, target, onProgress, signal } but sortPersonaWithAi routes signal only to runEndpoint and onProgress only to runWebLlm. On the default WebLLM backend an AbortSignal is silently ignored; on the endpoint backend onProgress never fires. Nothing in the app passes signal today, so the option is advertised and unexercised.",
+        "DEFECT: three localStorage-backed settings modules use three different contracts — saveSettings(full: AppSettings): void (src/lib/settings.ts), saveSorterSettings(patch: Partial<SorterSettings>): SorterSettings (merges, notifies subscribers, returns the merged value), setBridgeToken(token: string) (src/lib/bridge/client.ts). Read verbs drift too: loadStoredSettings() vs getSorterSettings() vs getBridgeToken() vs getCustomTemplates().",
+        "DEFECT: src/lib/validators/index.ts exports validateTavernCardV2 -> { valid, errors: string[], warnings: string[] } and validateJson -> { valid, error?: string }. Same module, same verb prefix, singular vs plural error field and no shared named result type for the second.",
+        "DEFECT: mcp/src/index.ts defines shared `tags` and `openAfter` field shapes but does not apply them uniformly — create_lorebook omits `tags` entirely (yet CardSummary and saveAnyCard both carry tags for lorebooks), and update_card re-declares `open` inline with a bare description, dropping openAfter's explicit warning that opening a card discards unsaved work in the current editor panel.",
+        "DEFECT: src/lib/platforms/converters.ts convertTo* returns TavernCardV2 for four platforms and Record<string, unknown> for four others, forcing `as unknown as Record<string, unknown>` at four of the eight convertCardTo dispatch arms; convertFrom* exists for only three of eight platforms, the rest handled inline in convertCardFrom's default branch.",
+        "Minor surface blemishes: src/lib/personaParser/index.ts exports both CardField and the alias PersonaField and uses each in different public signatures, and its header comment points at PERSONA_FIELDS / CHARACTER_FIELDS which do not exist (the exports are PERSONA_FIELD_LABELS / PERSONA_FIELD_ORDER). src/lib/carrierImage.ts documents getCarrierPng as 'Never throws for a merely-unsupported format' but any data:image/* the browser cannot decode reaches imageSrcToPngBytes and rejects.",
+        "Component props are consistent across the sibling editors (initialCard / initialImageSrc / initialLibraryId in PersonaEditor, ScenarioEditor, ScriptEditor); LoreBookEditor is the lone outlier using initialBook. CharacterEditor's controlled card/onUpdate shape is a justified difference, since App.tsx owns the character card."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "dimension_judgment": {
+    "api_surface_coherence": {
+      "dimension_character": "The seams that matter most here — the bridge wire protocol, its RPC handlers, and the MCP tool set — are genuinely coherent: named param/result types, one shape per call, an observable-singleton pattern reproduced identically in three unrelated modules, and converter/download/editor-prop families that a developer can predict from one example. The friction sits one layer down, in the small lib/ modules: the two library save functions disagree on parameter order and count badly enough that the bridge writes a private adapter to reconcile them, the sorter's options bag honours half its fields depending on which backend runs, and the localStorage-backed settings modules each chose a different save contract. None of this is structural rot, but a developer moving between src/lib/library, src/lib/settings and src/lib/personaLlm/settings cannot carry the last module's convention with them.",
+      "score_rationale": "This sits above the 80 anchor's 'solid but uneven' description but short of 90's 'trust what you see': the bridge and MCP surfaces are close to exemplary, and most defects are contained to individual lib modules with obvious local fixes. What holds it down is that the irregularities are recurring rather than isolated — save twins, settings verb/return drift, two validator result shapes, an options bag whose fields are silently backend-conditional — so a developer reading one small lib module still has to check the next. The half-honoured SortOptions in particular is a correctness trap, not just a shape inconsistency, which is why the score does not land higher despite the strong protocol layer."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "library_save_twins_divergent_signatures",
+      "summary": "saveCard and saveAnyCard take incompatible positional parameter lists for the same 'persist a card' job",
+      "related_files": ["src/lib/library/index.ts", "src/lib/bridge/client.ts"],
+      "evidence": [
+        "saveCard(cardData: TavernCardV2, pngData, imageSrc, platform, existingId?) vs saveAnyCard(cardType, name, rawData, imageSrc, tags, existingId?) — only imageSrc and existingId occupy comparable positions, and saveAnyCard is six positional params.",
+        "tags is derived from cardData.data.tags inside saveCard but must be supplied positionally to saveAnyCard; platform is a caller argument in one and hardcoded to cardType in the other.",
+        "src/lib/bridge/client.ts defines a private persist(cardType, body, imageSrc, existingId) whose entire body is an if/else picking between the two and shuffling arguments — the adapter exists only because the two signatures disagree."
+      ],
+      "suggestion": "Collapse both into one exported saveLibraryCard(input: { cardType, name?, cardData?, rawData?, pngData?, imageSrc, platform?, tags?, existingId? }): Promise<LibraryCard>, deriving name/tags from cardData when cardType is 'character'. Update the ~6 call sites (bridge/client.ts, CardPreviewPanel, LoreBookEditor, PersonaEditor, ScenarioEditor, ScriptEditor) and delete persist() from bridge/client.ts — this removes a function rather than adding one.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "card_persistence_surface_split_by_card_type"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "sort_options_backend_conditional_fields",
+      "summary": "SortOptions.signal is ignored on the WebLLM backend and onProgress is ignored on the endpoint backend",
+      "related_files": ["src/lib/personaLlm/index.ts"],
+      "evidence": [
+        "SortOptions declares { settings?, target?, onProgress?, signal? } as one public options bag on sortPersonaWithAi and sortPersonaAuto.",
+        "sortPersonaWithAi routes opts.signal only into runEndpoint(input, settings, target, opts.signal) and opts.onProgress only into runWebLlm(input, settings, target, opts.onProgress).",
+        "settings.backend defaults to 'webllm' (src/lib/personaLlm/settings.ts DEFAULTS), so a caller passing an AbortSignal on the default path gets no cancellation and no error — the model download and inference run to completion.",
+        "No caller in src/ passes signal at all today (only SmartImportPanel.tsx calls these functions, via runSort), so the option is advertised and untested."
+      ],
+      "suggestion": "Either honour signal on the WebLLM path (check signal.aborted before getEngine and after the completion resolves, throwing a DOMException 'AbortError'), or split the two backends' capabilities in the type — e.g. document on SortOptions that `signal` applies to the endpoint backend only and `onProgress` to the WebLLM backend only, with a one-line JSDoc on each field. The doc-only fix is the smaller change if cancellation is not actually needed.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "settings_modules_three_save_contracts",
+      "summary": "Three localStorage-backed settings modules each chose a different read verb, write contract, and return type",
+      "related_files": [
+        "src/lib/settings.ts",
+        "src/lib/personaLlm/settings.ts",
+        "src/lib/bridge/client.ts",
+        "src/lib/customTemplates/index.ts"
+      ],
+      "evidence": [
+        "saveSettings(settings: AppSettings): void replaces wholesale and returns nothing (src/lib/settings.ts).",
+        "saveSorterSettings(patch: Partial<SorterSettings>): SorterSettings merges over current, notifies subscribers, and returns the merged value (src/lib/personaLlm/settings.ts).",
+        "setBridgeToken(token: string) is a bare setter with no return and no notification (src/lib/bridge/client.ts:47).",
+        "Read verbs drift across the same concern: loadStoredSettings(), getSorterSettings(), getBridgeToken(), getCustomTemplates()."
+      ],
+      "suggestion": "Pick one contract for persisted settings and apply it to all three: `getX(): X` for reads and `saveX(patch: Partial<X>): X` for writes (the sorter's shape, which is the most useful of the three). Rename loadStoredSettings to getAppSettings and change saveSettings to take a partial and return the merged value; leave setBridgeToken alone if the token stays a single scalar, or fold it into the same shape.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "persisted_settings_conventions_never_unified"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "validator_result_shapes_diverge",
+      "summary": "validateTavernCardV2 and validateJson in the same module return differently shaped results",
+      "related_files": ["src/lib/validators/index.ts", "src/types/index.ts"],
+      "evidence": [
+        "validateTavernCardV2(card): ValidationResult — { valid, errors: string[], warnings: string[] }.",
+        "validateJson(jsonStr): { valid: boolean; error?: string } — inline anonymous type, singular `error`, no warnings.",
+        "Both are exported from src/lib/validators/index.ts with the same verb prefix, so a caller must remember which one uses `errors` and which uses `error`."
+      ],
+      "suggestion": "Have validateJson return ValidationResult too: `return { valid: false, errors: [(e as Error).message], warnings: [] }`. Update its call sites to read `.errors[0]`. This deletes the inline type rather than adding one.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "mcp_shared_field_shapes_not_applied_uniformly",
+      "summary": "create_lorebook omits the shared tags field and update_card re-declares `open` without openAfter's data-loss warning",
+      "related_files": ["mcp/src/index.ts"],
+      "evidence": [
+        "mcp/src/index.ts defines shared zod shapes `tags` and `openAfter` and uses them in create_character, create_persona, create_scenario, create_script.",
+        "create_lorebook's inputSchema has no `tags` entry, so a lorebook created through MCP can never carry tags — even though CardSummary.tags, saveAnyCard's tags parameter, and list_cards all support tags for lorebooks.",
+        "update_card declares `open: z.boolean().optional().describe(\"Bring the card up in the editor afterwards.\")` instead of reusing openAfter, dropping the sentence 'opening a card replaces whatever the user is currently editing, and any unsaved work in that panel is lost' — the one tool most likely to be called mid-edit is the one that no longer warns.",
+        "create_character uses `character_version` while the other four create_* tools use `version`; this one is defensible (Tavern v2 spec) but is undocumented as deliberate."
+      ],
+      "suggestion": "Add `tags,` to create_lorebook's inputSchema and pass it through to create(); replace update_card's inline `open` declaration with the shared `openAfter` constant. Both are one-line edits in mcp/src/index.ts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "converter_family_return_type_split",
+      "summary": "convertTo* returns two different types across the same family, forcing four double-casts in the dispatcher",
+      "related_files": ["src/lib/platforms/converters.ts"],
+      "evidence": [
+        "convertToSillyTavern, convertToChub, convertToRisu return TavernCardV2; convertToJanitorAI, convertToAgnai, convertToVenus, convertToBackyard, convertToGeneric return Record<string, unknown>.",
+        "convertCardTo therefore writes `as unknown as Record<string, unknown>` on the sillytavern, chub and risu arms — a double cast that defeats the type check at the exact point the family is supposed to be uniform.",
+        "The inverse family is asymmetric too: convertFrom* exists only for janitorai, agnai and backyard; the other five are handled by inline code in convertCardFrom's default branch, so a developer adding a platform cannot tell from the export list which half of the pattern to follow."
+      ],
+      "suggestion": "Declare every convertTo* as returning Record<string, unknown> (TavernCardV2 already structurally satisfies it for the three that return clones), removing all four `as unknown as` casts from convertCardTo. Leave convertFrom*'s default-branch handling as is, but add a one-line comment above convertCardFrom's default naming the five platforms it covers so the asymmetry reads as deliberate.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "carrier_png_false_never_throws_contract",
+      "summary": "getCarrierPng's docstring promises it never throws for unsupported formats, but it rejects for any undecodable data:image/*",
+      "related_files": ["src/lib/carrierImage.ts"],
+      "evidence": [
+        "The docstring reads 'PNG bytes for the given cover image ... Never throws for a merely-unsupported format.'",
+        "getCarrierPng falls back to MINIMAL_PNG only for a falsy imageSrc or a src that does not start with 'data:image/'. Anything matching 'data:image/' (e.g. data:image/tiff) is passed to imageSrcToPngBytes, whose img.onerror handler rejects with 'Could not read the image'.",
+        "Callers in CardPreviewPanel.tsx (two sites), LoreBookEditor.tsx and PersonaEditor.tsx all wrap it in try/catch, so the stated contract is what is wrong, not the behaviour at the call sites."
+      ],
+      "suggestion": "Make the code match the doc: wrap the imageSrcToPngBytes branch in try/catch and return MINIMAL_PNG on failure, or reword the docstring to 'Falls back to a 1x1 PNG when there is no image; rejects if a data:image/* URL cannot be decoded.' The reword is the smaller change and preserves the current caller error messages.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "persona_parser_dual_field_type_and_stale_doc",
+      "summary": "personaParser exports CardField and its alias PersonaField and uses both in public signatures; header doc names exports that don't exist",
+      "related_files": ["src/lib/personaParser/index.ts"],
+      "evidence": [
+        "`export type PersonaField = CardField;` is documented as a 'Historical alias', yet both names remain in public signatures: ParsedPersona.fields is Partial<Record<PersonaField, string>> while toCharacterFields returns Partial<Record<CardField, string>>.",
+        "src/components/PersonaEditor.tsx imports PersonaField while the parser's own label/order constants are typed on CardField, so a reader has to confirm the two are the same type.",
+        "The module header comment says 'See PERSONA_FIELDS and CHARACTER_FIELDS' — neither export exists; the actual exports are PERSONA_FIELD_LABELS / PERSONA_FIELD_ORDER and CHARACTER_FIELD_LABELS / CHARACTER_FIELD_ORDER."
+      ],
+      "suggestion": "Switch ParsedPersona.fields to Partial<Record<CardField, string>> and PersonaEditor.tsx's import to CardField, then delete the PersonaField alias. Fix the header comment to name PERSONA_FIELD_ORDER and CHARACTER_FIELD_ORDER. Both are net deletions.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Card persistence was split by card type (character vs everything else) at the storage layer rather than unified behind one record shape, which propagated a divergent signature pair upward and forced an adapter inside the bridge client.",
+      "Each persisted-settings module was written at a different time to its own immediate need; no module was ever nominated as the reference contract, so read verbs and write semantics never converged.",
+      "The sorter grew a second backend (endpoint) after the options bag was designed for the first (WebLLM), and the shared SortOptions type was widened without splitting or documenting which backend honours which field."
+    ],
+    "likely_symptoms": [
+      "converter_family_return_type_split",
+      "persona_parser_dual_field_type_and_stale_doc"
+    ]
+  },
+  "context_updates": {
+    "api_surface_coherence": {
+      "add": [
+        {
+          "header": "Bridge wire protocol is a single shared typed contract",
+          "description": "src/lib/bridge/protocol.ts is imported by both the app and the MCP server and names every RPC's params and results as exported interfaces, plus enumerated close codes. Because neither side can define its own shape, app/server drift is structurally impossible rather than merely discouraged.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Observable singleton pattern reproduced identically three times",
+          "description": "getEngineState/subscribeEngineState, getBridgeState/subscribeBridgeState and getSorterSettings/subscribeSorterSettings share the same signature down to returning an unsubscribe closure. A developer who learns one module's state surface correctly predicts the other two.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "MCP tools share reusable zod field shapes",
+          "description": "mcp/src/index.ts hoists `tags` and `openAfter` into shared constants and wraps every result in one text() helper, so the agent-facing surface reads uniformly. The value of this shows in the two places it was not applied (create_lorebook, update_card), which are the only irregular tools.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Card persistence split by card type at the storage layer",
+          "description": "src/lib/library/index.ts keeps character cards (cardData/pngData/platform) and everything else (rawData/name/tags) on separate save functions rather than one record shape. This is the root of the divergent signatures and of the persist() adapter inside the bridge client.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "Sorter options bag is silently backend-conditional",
+          "description": "SortOptions presents settings/target/onProgress/signal as one uniform surface, but signal is honoured only by the endpoint backend and onProgress only by WebLLM. The type gives no hint, so cancellation appears supported on the default path and is not.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "Editor components share an uncontrolled initial-props shape",
+          "description": "PersonaEditor, ScenarioEditor and ScriptEditor all take initialCard/initialImageSrc/initialLibraryId and own their state; CharacterEditor is deliberately controlled because App.tsx owns the character card. LoreBookEditor's initialBook is the sole naming outlier in the family.",
+          "settled": true,
+          "positive": true
+        }
+      ]
+    }
+  }
+}

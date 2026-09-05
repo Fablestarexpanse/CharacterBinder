@@ -1,0 +1,146 @@
+{
+  "batch": "initialization_coupling",
+  "batch_index": 16,
+  "assessments": {
+    "initialization_coupling": 88.5
+  },
+  "dimension_notes": {
+    "initialization_coupling": {
+      "evidence": [
+        "No environment reads anywhere at any scope: `grep -rn 'process\\.env|import\\.meta\\.env' src mcp/src` returns nothing. The one build-time value, __APP_VERSION__, is injected by vite.config.ts `define` from package.json, so there is no runtime env surface to get wrong in tests.",
+        "All 11 localStorage accesses (src/lib/settings.ts, src/lib/personaLlm/settings.ts, src/lib/customTemplates/index.ts, src/lib/bridge/client.ts) sit inside exported functions, never at module scope. Consumers use lazy React initializers (`useState(loadStoredSettings)`, `useState(getBridgeToken)`, `useState(() => getSorterSettings())`), so importing any of those modules in a non-DOM context does nothing.",
+        "src/lib/library/index.ts opens IndexedDB behind `let _db` + `async function getDb()` — the connection is established on first use, not at import. The v1→v2 upgrade is gated on `oldVersion` with a read-time normalisation fallback (`legacy cardType normalised to \"character\"`), so schema init is versioned rather than order-dependent.",
+        "The three module-level singletons — bridge connection state (src/lib/bridge/client.ts:61), sorter engine state (src/lib/personaLlm/index.ts:156), sorter settings listeners (src/lib/personaLlm/settings.ts:37) — all expose a getState/subscribe pair and are consumed through `useSyncExternalStore` in src/hooks/useBridgeState.ts and src/hooks/useEngineState.ts. That is the correct React contract for external mutable state and removes ordering questions between the two consumers of each store.",
+        "The heaviest dependency is deliberately kept off the import graph: `@mlc-ai/web-llm` is loaded via `await import(...)` inside isModelCached() and getEngine() (src/lib/personaLlm/index.ts:178, 211), and the WebGPU worker is created lazily inside getEngine (line 212), never at module scope.",
+        "Zero import cycles: a full resolve of every relative `from` and dynamic `import()` across all 63 non-test source files in src/ and mcp/src/ produced no cycle, so there are no lazy/conditional imports papering over circular init.",
+        "The modules shared between the browser app and the Node MCP server (src/lib/validators/index.ts, src/lib/platforms/index.ts, src/lib/platforms/converters.ts, src/lib/personaParser/index.ts, src/lib/bridge/protocol.ts, src/types/index.ts) contain no reference to `window`, `document`, `localStorage`, or `navigator` at any scope. protocol.ts states the invariant explicitly (\"This file is imported by both sides. Keep it dependency-free.\"). mcp/src/index.ts can therefore import them directly with no shim.",
+        "The only executed module-scope statement in src/ outside entry points is the LABEL_ALIASES → LABEL_LOOKUP loop at src/lib/personaParser/index.ts:113-117 — a pure Map derivation from an adjacent literal, with no I/O and no cross-module dependency. src/lib/personaLlm/worker.ts's `new WebWorkerMLCEngineHandler()` + `self.onmessage` is a worker entry point (framework bootstrap).",
+        "mcp/src/index.ts confines all boot work to a labelled `// ── Boot ──` section at the bottom (`startBridge(); await server.connect(...)`) rather than scattering it among the tool registrations.",
+        "Counter-evidence — the bridge client's init contract is conventional, not structural: `registerBridgeHost()` (src/lib/bridge/client.ts:92) writes a module-level `let host: BridgeHost | null` that `initBridge()` (line 123) depends on, and every use site is optional-chained (`host?.openCard(saved)`, lines 358/359/372/386). Correct ordering exists only because App.tsx:220-243 happens to call registerBridgeHost before initBridge inside one effect; calling initBridge first would make an inbound `app.open` RPC silently no-op with no error to either side.",
+        "Counter-evidence — `initBridge()` calls `open()` without consulting the `manualDisconnect` latch that `scheduleReconnect()` (line 128) does consult. A second `initBridge()` after a refused pairing would set status \"connecting\" (line 140) and then hit the `if (manualDisconnect) return;` early exit in `onclose` (line 232), leaving the MCP light stuck on \"connecting\" with no error text. Not reachable today only because App.tsx's effect deps are all `useCallback(..., [])`.",
+        "Counter-evidence — mcp/src/bridge.ts:34 `let token = \"\"` is assigned only inside `startBridge()` (line 69) while the module-level `hmac` closure (line 55) captures it; any future caller of a handshake helper before startBridge would silently HMAC under an empty key. Safe today only because hmac is referenced exclusively from connection handlers that startBridge creates.",
+        "Counter-evidence — the sorter-settings store is subscribed by one consumer and sampled by the other: LlmStatusLight.tsx:22 calls subscribeSorterSettings with a comment explaining a past stale-model-id bug, while SmartImportPanel.tsx:68 seeds `useState(() => getSorterSettings())` and never subscribes. It is correct only because SmartImportPanel is currently the sole writer."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Every remaining defect sits in src/lib/bridge/client.ts, whose init contract is upheld by convention rather than by the code's shape: a nullable module-level `host` that must be populated before initBridge(), all use sites optional-chained so a wrong order fails silently, no cleanup for the registration, and an initBridge() path that bypasses the manualDisconnect latch its sibling reconnect path honours. The sorter-settings store is also subscribed by one consumer and sampled by the other, which holds only as long as there is exactly one writer. None of these misfire today, but they are the kind of implicit ordering contract this dimension exists to catch."
+    }
+  },
+  "dimension_judgment": {
+    "initialization_coupling": {
+      "dimension_character": "Import-time behaviour here is disciplined to an unusual degree: no environment reads anywhere, no storage or network touched at module scope, IndexedDB and the multi-gigabyte WebLLM engine both behind lazy getters with dynamic imports, zero import cycles across 63 files, and shared lib modules that are genuinely isomorphic so the Node MCP server imports them unshimmed. Where module-level mutable state does exist — bridge state, engine state, sorter settings — it is deliberate, documented, and exposed through getState/subscribe pairs consumed via useSyncExternalStore, which is the right contract rather than an ambient global. The one soft spot is concentrated in src/lib/bridge/client.ts, where the host-registration and connect steps form an implicit ordering contract that nothing enforces and whose violation would fail silently through optional chaining.",
+      "score_rationale": "The strengths are systemic and verifiable rather than incidental — a developer can import essentially any module in this tree without triggering side effects or worrying about sequence, which is what the 90 anchor describes. It falls short of that because the bridge client concentrates several implicit-ordering hazards in one place (nullable `host` guarded only by statement order, silent optional-chained no-op on violation, initBridge bypassing the manualDisconnect latch, no effect cleanup) and the sorter-settings store's subscribe-vs-sample asymmetry holds only while there is a single writer. These are latent rather than active, so they read as isolated rough edges, not recurring friction — hence a score near the strong band rather than in the uneven-80s."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "bridge_host_ordering_implicit",
+      "summary": "Bridge host must be registered before initBridge(), enforced only by statement order; wrong order fails silently",
+      "related_files": ["src/lib/bridge/client.ts", "src/App.tsx"],
+      "evidence": [
+        "src/lib/bridge/client.ts:90 declares `let host: BridgeHost | null = null`, populated only by the exported `registerBridgeHost()` at line 92.",
+        "`initBridge()` (line 123) opens the socket and can begin serving RPCs immediately; there is no assertion, warning, or queueing that `host` was set first.",
+        "Every consumer optional-chains: `host?.onLibraryChanged?.()` and `host?.openCard(saved)` at lines 358, 359, 372, 373, 386. An `app.open` RPC arriving before registration therefore resolves successfully to the MCP server while doing nothing in the UI — the agent is told the card was opened when it was not.",
+        "The ordering is correct today only because src/App.tsx:219-243 puts registerBridgeHost and initBridge in that order inside one useEffect. That effect also has no cleanup, so the registration and the socket outlive an App unmount."
+      ],
+      "suggestion": "Fold registration into the entry point so ordering is structural rather than conventional: change the signature to `export function initBridge(h: BridgeHost)` which sets `host = h` before calling `open()`, and delete the separate `registerBridgeHost` export. App.tsx then makes one call instead of two, and it becomes impossible to start the bridge without a host. This removes an exported function and a call site rather than adding anything.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "implicit_bridge_init_contract"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "init_bridge_ignores_manual_disconnect",
+      "summary": "initBridge() calls open() without honouring the manualDisconnect latch, so a re-entry can strand status at \"connecting\"",
+      "related_files": ["src/lib/bridge/client.ts"],
+      "evidence": [
+        "`scheduleReconnect()` (line 128) begins `if (manualDisconnect || reconnectTimer) return;` — the latch is the module's stated way to stop retrying after a deliberate refusal (bad token at line 186, rejected pairing at line 207, close codes at lines 236/241).",
+        "`initBridge()` (line 123) is `if (isBridgeEnabled()) open();` — it consults the persisted ENABLED_KEY but not the in-memory latch, and unlike `connectBridge()` (line 108) it does not reset it either.",
+        "If initBridge runs while manualDisconnect is true, `open()` sets status \"connecting\" at line 140, then `onclose` hits `if (manualDisconnect) return;` at line 232 and never reports anything — the MCP light stays on \"connecting\" indefinitely with no error text.",
+        "Unreachable today only by accident: App.tsx's effect deps are all `useCallback(..., [])` so the effect runs once, but nothing in client.ts documents or defends that assumption."
+      ],
+      "suggestion": "Make initBridge respect the same latch as the reconnect path: `export function initBridge() { if (isBridgeEnabled() && !manualDisconnect) open(); }`. One line, and it makes the two paths into open() agree on when a deliberate refusal means stop.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "implicit_bridge_init_contract"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "sorter_settings_subscribe_asymmetry",
+      "summary": "One consumer subscribes to the sorter-settings store, the other samples it — correct only while there is a single writer",
+      "related_files": ["src/components/SmartImportPanel.tsx", "src/components/LlmStatusLight.tsx", "src/lib/personaLlm/settings.ts"],
+      "evidence": [
+        "src/lib/personaLlm/settings.ts:37-56 maintains a module-level listener set and notifies on every `saveSorterSettings`, with a docstring recording the bug that motivated it (a stale copy in the sidebar light could start a multi-gigabyte download of a deselected model).",
+        "src/components/LlmStatusLight.tsx:22 honours that contract: `useEffect(() => subscribeSorterSettings(setSettings), [])`.",
+        "src/components/SmartImportPanel.tsx:68 does not: it seeds `useState<Settings>(() => getSorterSettings())` and thereafter only updates from its own `setSettings(saveSorterSettings(patch))` at line 114. It holds a private snapshot of shared module state with no subscription.",
+        "This is safe only because SmartImportPanel is currently the sole writer in the codebase — a second writer (a settings screen, or a bridge RPC) would leave it silently stale, which is exactly the failure the listener set was added to prevent."
+      ],
+      "suggestion": "Give SmartImportPanel the same one-line subscription as LlmStatusLight: `useEffect(() => subscribeSorterSettings(setSettings), []);` next to its existing state. `saveSorterSettings` already notifies and returns the merged value, so line 114 can stay as-is; the subscription just closes the hole for any future writer. Alternatively, if the store gains more consumers, replace both local snapshots with a `useSorterSettings()` hook built on useSyncExternalStore, matching how useEngineState and useBridgeState already consume the sibling stores.",
+      "confidence": "low",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "The bridge client was written as an ambient module singleton with two separate exported lifecycle entry points (registerBridgeHost, initBridge) instead of one; splitting them is what created the ordering contract that nothing enforces and the silent optional-chained failure mode when it is violated.",
+      "The app's three observable module stores were introduced at different times and settled on two different consumption idioms — useSyncExternalStore hooks for bridge and engine state, hand-rolled useState+subscribe for sorter settings — which is why the settings store has a consumer that never subscribed."
+    ],
+    "likely_symptoms": [
+      "init_bridge_ignores_manual_disconnect and sorter_settings_subscribe_asymmetry are both latent rather than observable today; they are symptoms of the two root causes above and would only surface after an unrelated change (moving the init call, adding a second settings writer)."
+    ],
+    "possible_false_positives": []
+  },
+  "context_updates": {
+    "initialization_coupling": {
+      "add": [
+        {
+          "header": "No module-scope I/O or environment reads anywhere",
+          "description": "Every localStorage, IndexedDB and network access lives inside an exported function, and neither process.env nor import.meta.env appears in the tree — the one build-time value is injected by vite's define. Importing any module is therefore free of side effects, which is what makes the lib/ modules testable and reusable from Node without a DOM shim.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Module singletons exposed via getState/subscribe pairs",
+          "description": "Bridge state, sorter engine state and sorter settings each live in module scope because two independent UI surfaces must agree on them, and each exposes a getState/subscribe pair rather than a bare mutable export. The bridge and engine stores are consumed through useSyncExternalStore hooks, so React never sees a torn read and no consumer needs to care which mounted first.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Heavy engine and DB init deferred behind lazy getters",
+          "description": "The multi-gigabyte WebLLM runtime is reached only through `await import('@mlc-ai/web-llm')` inside getEngine/isModelCached, its worker is constructed at the same point, and IndexedDB opens behind `getDb()` on first use. Keeping these off the import graph is why a cold page load costs nothing until the user actually asks for the feature.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Shared lib modules deliberately isomorphic for the MCP server",
+          "description": "validators, platforms, personaParser, protocol and types contain no browser globals at any scope, and protocol.ts states the invariant in its header. This is what lets mcp/src/index.ts import the app's own rule implementations directly instead of maintaining a second copy that drifts.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "No import cycles across the source tree",
+          "description": "A full resolve of every relative static and dynamic import across all 63 non-test source files finds zero cycles, so there is no circular initialisation being hidden behind a lazy or conditional import. Dynamic imports in this codebase exist purely for payload deferral, not to break a dependency knot.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Bridge client's init contract is conventional, not structural",
+          "description": "registerBridgeHost() and initBridge() are separate exports whose required order is upheld only by adjacent statements in one App.tsx effect, and every host use site is optional-chained so violating that order no-ops silently instead of erroring. This is the single place in the codebase where import/boot ordering is load-bearing and undefended.",
+          "settled": false,
+          "positive": false
+        },
+        {
+          "header": "IndexedDB schema migration is versioned, not order-dependent",
+          "description": "The library store's upgrade path is gated on `oldVersion` per version step and paired with read-time normalisation of pre-cardType records, so a client on any prior schema converges without the caller having to sequence anything.",
+          "settled": true,
+          "positive": true
+        }
+      ]
+    }
+  }
+}

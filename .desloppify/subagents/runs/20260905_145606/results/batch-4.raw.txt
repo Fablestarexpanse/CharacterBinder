@@ -1,0 +1,199 @@
+{
+  "batch": "error_consistency",
+  "batch_index": 4,
+  "assessments": { "error_consistency": 84.0 },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "No log-and-swallow anywhere in src/: a grep for console.* across all production .ts/.tsx returns exactly one hit, ErrorBoundary.tsx:34, which deliberately logs the component stack for a bug report. Errors are surfaced to the user, not to a console nobody reads.",
+        "Every bodyless catch carries a comment justifying the swallow: LlmStatusLight.tsx:47 ('Error surfaces through engine state'), SmartImportPanel.tsx:126 ('Clipboard blocked — the user can still paste with Ctrl+V'), mcp/src/token.ts:33 ('Windows ACLs don't map cleanly onto POSIX modes'), personaLlm/index.ts:254/259 ('best effort' on GPU teardown).",
+        "The bridge has one designed error boundary per protocol layer: src/lib/bridge/client.ts handlers throw actionable messages ('No card with id X. Call list_cards to see what exists.') and the single ws.onmessage catch at :220 converts them into response.error; mcp/src/bridge.ts rejects every pending call on socket close with 'CharacterBinder disconnected before answering.' rather than letting each sit out its 20s timeout.",
+        "src/lib/pngMetadata/index.ts distinguishes 'no card' from 'card chunk present but undecodable' via the corruptKey field on decodeCharaFromPng's result, and both consumers (ImportPNG.tsx:74, DecodePNG.tsx:60) render different, specific messages for each.",
+        "src/components/Library.tsx has no error handling at all on four I/O paths: load() awaits getAllCards() (:58), confirmDelete() awaits deleteCard() in a loop (:106), handleArchive() awaits exportCardsAsZip() (:123). setDeleting/setArchiving are set before the await and cleared only after it, so a rejection leaves the UI stuck in a busy state with no message — while five sibling editors wrap the identical IndexedDB API in try/catch.",
+        "Five components use `catch { setStatus(\"Failed to save to library.\", false) }` with no binding (CardPreviewPanel.tsx:173, LoreBookEditor.tsx:228, PersonaEditor.tsx:94, ScenarioEditor.tsx:87, ScriptEditor.tsx:84) while the export handler directly above each one reports `(err as Error).message`. getCarrierPng ('Could not read the image') and encodeCharaToPng ('Invalid PNG data') throw distinct messages that the save path discards.",
+        "src/lib/readImageFile.ts is written as a rejecting promise (reject(new Error('FileReader returned unexpected result')), reject(reader.error)) but neither call site handles it: CharacterEditor.tsx:39-42 and ImageDropzone.tsx:19-23 both `await readImageFile(file)` bare inside an async function invoked from a drop/change handler.",
+        "localStorage reads are uniformly guarded and fall back to defaults (settings.ts:17, personaLlm/settings.ts:32, customTemplates/index.ts:16) while every write is bare (settings.ts:23, personaLlm/settings.ts:54, customTemplates/index.ts:22, bridge/client.ts:48/107/113). Only one of those writes (saveCustomTemplate via CardPreviewPanel.tsx:185) has a catching caller.",
+        "Two idioms for narrowing `unknown` in catch: `(err as Error).message` in components and validators/index.ts:107, versus `err instanceof Error ? err.message : String(err)` in SmartImportPanel.tsx:106, bridge/client.ts:221, personaLlm/index.ts:239, mcp/src/bridge.ts:91.",
+        "personaLlm/index.ts:383 wraps the whole fetch in `catch { throw new Error(`Couldn't reach ${base}. Is the server running?`) }` — no `cause`, and an AbortError from the declared SortOptions.signal would be reported as an unreachable server (signal is declared at :279 but never passed by any caller).",
+        "src/lib/personaParser/index.ts uses `return null` a dozen times, but as a strategy-probe convention ('this format does not match, try the next one'), not as an error channel — parsePersonaText itself is total and always falls back to parseProse. Likewise validators/index.ts returns {valid, errors, warnings} consistently."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "dimension_judgment": {
+    "error_consistency": {
+      "dimension_character": "Error handling here is designed rather than accumulated: the bridge, the PNG decoder and the LLM sorter each have an explicit failure vocabulary, every swallowed error carries a written justification, and nothing anywhere logs-and-continues. The friction is concentrated in the React layer, where the same IndexedDB and file-read calls are guarded in five editors and completely unguarded in Library.tsx and the two image drop paths, and where the save-to-library catch throws away messages the export path right above it reports verbatim. A developer would trust the library and protocol layers immediately but would have to check each component individually to know whether a failure reaches the user at all.",
+      "score_rationale": "The systemic strengths are real and unusual — actionable user-facing messages, a single conversion point per protocol boundary, corrupt-vs-absent distinguished in the decoder, and zero silent console swallows — which puts this above the 80 'solid but uneven' anchor. What holds it below 90 is that the inconsistency is not isolated: one whole screen (Library.tsx) omits handling for the exact API its siblings guard, a designed rejection channel (readImageFile) has no consumer at either call site, and the read-guarded/write-bare localStorage split plus two competing catch-narrowing idioms mean the pattern a developer learns in one file does not reliably hold in the next."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "library_unguarded_io",
+      "summary": "Library.tsx runs four IndexedDB/zip I/O paths with no error handling and sticky busy flags",
+      "related_files": ["src/components/Library.tsx"],
+      "evidence": [
+        "load() awaits getAllCards() at :58 with no try/catch; a failed IndexedDB open renders an empty library indistinguishable from a genuinely empty one.",
+        "confirmDelete() sets setDeleting(ids[0]) then awaits deleteCard() in a loop (:105-112); a rejection leaves the row spinner on forever and skips the remaining ids silently.",
+        "handleArchive() sets setArchiving(true) then awaits exportCardsAsZip() (:116-124); a zip or download failure leaves the button disabled with no message.",
+        "The same saveAnyCard/IndexedDB surface is wrapped in try/catch in PersonaEditor.tsx:88, ScenarioEditor.tsx:81, ScriptEditor.tsx:78, LoreBookEditor.tsx:221 and CardPreviewPanel.tsx:154 — Library.tsx is the outlier."
+      ],
+      "suggestion": "Wrap each of the three async bodies in try/catch/finally, reset setDeleting/setArchiving in the finally, and surface the failure with the useStatusMessage hook the editors already use (e.g. `catch (err) { setMsg(`Couldn't build the archive: ${err instanceof Error ? err.message : String(err)}`, false) }`).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "ui_io_boundary_handling"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "save_catch_discards_message",
+      "summary": "Save-to-library catches drop the error message the sibling export path reports verbatim",
+      "related_files": [
+        "src/components/CardPreviewPanel.tsx",
+        "src/components/PersonaEditor.tsx",
+        "src/components/ScenarioEditor.tsx",
+        "src/components/ScriptEditor.tsx",
+        "src/components/LoreBookEditor.tsx"
+      ],
+      "evidence": [
+        "PersonaEditor.tsx:81 reports `PNG export failed: ${(err as Error).message}` while :94, ten lines below, is a bindless `catch { setMsg(\"Failed to save to library.\", false) }` — the same pattern repeats in all five files.",
+        "Both paths call getCarrierPng and encodeCharaToPng, which throw distinguishable messages ('Could not read the image', 'Could not convert the image to PNG', 'Invalid PNG data'); on the save path all three collapse into one generic string, so a bad cover image and an IndexedDB quota failure look identical to the user."
+      ],
+      "suggestion": "Bind the error in the save catches and append the reason, matching the export handler in the same file: `catch (err) { setMsg(`Failed to save to library: ${err instanceof Error ? err.message : String(err)}`, false); }`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_io_boundary_handling"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "read_image_rejection_unconsumed",
+      "summary": "readImageFile's designed rejection has no handler at either call site",
+      "related_files": [
+        "src/lib/readImageFile.ts",
+        "src/components/CharacterEditor.tsx",
+        "src/components/ImageDropzone.tsx"
+      ],
+      "evidence": [
+        "readImageFile.ts rejects with new Error('FileReader returned unexpected result') and with reader.error — an explicit, documented error channel.",
+        "CharacterEditor.tsx:39-42 `async function handleImageFile(file) { const src = await readImageFile(file); onUpdateImage(src); }` is called from handleImageDrop (:44) and the file input with no .catch.",
+        "ImageDropzone.tsx:19-23 has the identical unguarded shape, and it is the shared dropzone for every non-character editor, so an unreadable image is a silent no-op app-wide."
+      ],
+      "suggestion": "Wrap the await in ImageDropzone.handleFile and CharacterEditor.handleImageFile in try/catch and report through the editor's existing status message (e.g. 'Couldn't read that image file.'); ImageDropzone can take an optional onError prop, or simply surface the message itself since it already renders its own UI.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "ui_io_boundary_handling"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "localstorage_write_unguarded",
+      "summary": "Every localStorage read is guarded with a default; every write is bare",
+      "related_files": [
+        "src/lib/settings.ts",
+        "src/lib/personaLlm/settings.ts",
+        "src/lib/customTemplates/index.ts",
+        "src/lib/bridge/client.ts"
+      ],
+      "evidence": [
+        "loadStoredSettings (settings.ts:12-20), getSorterSettings (personaLlm/settings.ts:29-35) and customTemplates load() (:14-19) all try/catch and fall back to defaults.",
+        "saveSettings (settings.ts:23), saveSorterSettings (personaLlm/settings.ts:54), customTemplates persist() (:22) and setBridgeToken/connectBridge/disconnectBridge (bridge/client.ts:48,107,113) call setItem bare.",
+        "App.tsx:337 calls saveSettings inside an onSave handler, so a quota or private-mode throw escapes as an uncaught event-handler error (React error boundaries do not catch those) and leaves in-memory state changed but unpersisted, with nothing on screen."
+      ],
+      "suggestion": "Give the writes the same treatment as the reads — either try/catch each setItem and surface a one-line 'Couldn't save your settings in this browser' status, or add one shared `writeStored(key, value): boolean` helper in src/lib/settings.ts that the four modules call, so the read/write asymmetry disappears without adding a layer.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_catch_narrowing",
+      "summary": "Two competing idioms for narrowing unknown in catch: `as Error` cast vs instanceof check",
+      "related_files": [
+        "src/components/ImportPNG.tsx",
+        "src/components/DecodePNG.tsx",
+        "src/lib/validators/index.ts",
+        "src/lib/bridge/client.ts",
+        "src/components/SmartImportPanel.tsx"
+      ],
+      "evidence": [
+        "`(err as Error).message` at ImportPNG.tsx:167, DecodePNG.tsx:95, CardPreviewPanel.tsx:125, PersonaEditor.tsx:82, ScenarioEditor.tsx:75, ScriptEditor.tsx:72, LoreBookEditor.tsx:215, validators/index.ts:107.",
+        "`err instanceof Error ? err.message : String(err)` at SmartImportPanel.tsx:106, bridge/client.ts:221, personaLlm/index.ts:239, mcp/src/bridge.ts:91.",
+        "The cast form renders the literal string 'undefined' to the user if anything ever throws a non-Error — e.g. a string rejection from a third-party library such as web-llm or idb."
+      ],
+      "suggestion": "Standardise on the instanceof form (it is already the majority in lib/ and mcp/), or add a two-line `errorMessage(err: unknown): string` helper in src/lib/ and use it at all twelve sites — a mechanical replacement that removes the split without adding structure.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "endpoint_catch_erases_cause",
+      "summary": "runEndpoint's blanket fetch catch reports every failure as 'server not running', including aborts",
+      "related_files": ["src/lib/personaLlm/index.ts"],
+      "evidence": [
+        "Line 383: `} catch { throw new Error(`Couldn't reach ${base}. Is the server running?`); }` wraps the entire fetch, discarding the original error with no `cause`.",
+        "The fetch is passed `signal` (:367) from SortOptions.signal (:279), so a cancellation would surface to the user as an unreachable-server message; no caller currently passes signal, so the misleading branch is unreachable today but the option is part of the public SortOptions type.",
+        "Every other throw in this file is precise about what went wrong (redirect refused, HTTP status, no endpoint URL, no WebGPU) — this is the one that flattens distinct causes into a single guess."
+      ],
+      "suggestion": "Bind the error and rethrow aborts unchanged, and attach the cause otherwise: `catch (err) { if (err instanceof DOMException && err.name === 'AbortError') throw err; throw new Error(`Couldn't reach ${base}. Is the server running?`, { cause: err }); }`. If cancellation is not actually wanted, delete the unused `signal` option from SortOptions instead.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Error handling was designed carefully at the protocol and parsing layers (bridge, pngMetadata, personaLlm, personaParser) and added ad hoc per component in the React layer, so UI coverage tracks which screens happened to be revised rather than any rule.",
+      "The five card editors were written by copying one editor's save/export pair, which propagated both the good export-with-message pattern and the bindless save catch that discards it."
+    ],
+    "likely_symptoms": ["mixed_catch_narrowing", "save_catch_discards_message"]
+  },
+  "context_updates": {
+    "error_consistency": {
+      "add": [
+        {
+          "header": "No silent console swallows anywhere in src",
+          "description": "A grep for console.* across all production source returns one hit — ErrorBoundary's deliberate componentDidCatch log. Failures reach the user through status messages or thrown errors instead of disappearing into a console, which is why error behaviour here is traceable from the UI alone.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Every empty catch carries a written justification",
+          "description": "Bodyless catches in LlmStatusLight, SmartImportPanel, personaLlm teardown and mcp/token all explain in a comment why swallowing is the correct behaviour there. A reader can tell an intentional best-effort path from an oversight without tracing callers.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "One error-conversion point per protocol boundary",
+          "description": "Bridge RPC handlers throw actionable messages and a single catch in ws.onmessage turns them into response.error; the MCP server rejects all pending calls on disconnect rather than letting them time out. Errors cross the socket in exactly one shape, so neither half needs defensive handling per method.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Decoder distinguishes absent from corrupt card data",
+          "description": "decodeCharaFromPng returns a corruptKey alongside a null json so callers can tell 'this PNG has no card' from 'this PNG has a damaged card chunk'. Both ImportPNG and DecodePNG render different guidance for each, because the two cases call for opposite user responses.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "return null in personaParser is a strategy probe, not failure",
+          "description": "The dozen `return null` sites in personaParser mean 'this format does not match, try the next strategy'; parsePersonaText itself is total and always falls back to prose parsing. This is why the module reads as null-heavy without having a null-returning error convention.",
+          "settled": true
+        },
+        {
+          "header": "React layer guards I/O per component, not by rule",
+          "description": "Five card editors wrap the same IndexedDB and PNG calls in try/catch while Library.tsx and the two image drop paths leave identical calls bare. Coverage tracks which screens were revised rather than any shared boundary, so a developer cannot assume a component reports its failures.",
+          "settled": true
+        },
+        {
+          "header": "localStorage reads guarded, writes bare",
+          "description": "Every stored-settings read try/catches into defaults; every write calls setItem directly. The asymmetry means a browser that refuses writes (private mode, quota) leaves in-memory state and persisted state diverging with nothing shown.",
+          "settled": true
+        }
+      ]
+    }
+  }
+}

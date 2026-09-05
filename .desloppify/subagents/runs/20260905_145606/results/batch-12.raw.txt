@@ -1,0 +1,124 @@
+{
+  "batch": "authorization_consistency",
+  "batch_index": 12,
+  "assessments": { "authorization_consistency": 86.5 },
+  "dimension_notes": {
+    "authorization_consistency": {
+      "evidence": [
+        "The codebase has exactly one authorization boundary — the local MCP bridge — and it is implemented once, symmetrically, in mcp/src/bridge.ts and src/lib/bridge/client.ts against a shared frame vocabulary in src/lib/bridge/protocol.ts. Mutual challenge-response: server proves first (HMAC of clientNonce) so a port squatter cannot harvest the token, then the app proves (HMAC of serverNonce). No side ever transmits the secret.",
+        "Defense in depth is applied consistently at the same seam: WebSocketServer binds 127.0.0.1 only, verifyClient rejects non-allowlisted browser Origins and the check is repeated on 'connection' (mcp/src/bridge.ts ALLOWED_ORIGINS), maxPayload cap, 10s handshake timeout, one session at a time with the incumbent winning, and 'if (ws !== appSocket) return' so a stale socket cannot answer RPCs.",
+        "Constant-time comparison exists on both sides and is not duplicated ad hoc: timingSafeEqual in mcp/src/bridge.ts proofsMatch, safeEqual in src/lib/bridge/protocol.ts for the browser half.",
+        "Token lifecycle is deliberate: mcp/src/token.ts mints 32 random bytes, persists at ~/.characterbinder/bridge-token with mode 0600 plus an explicit chmod re-assert, and comments that Windows ACLs do not map cleanly — an acknowledged, not hidden, gap.",
+        "No dual-path or legacy auth residue: BRIDGE_PROTOCOL_VERSION is 2 and both halves hard-fail on mismatch; there is no v1 tokenless fallback anywhere, and README.md explicitly retracts the earlier 'loopback is enough' claim rather than leaving stale guidance in place.",
+        "A second trust boundary — the sorter's OpenAI-compatible endpoint — is gated consistently: src/lib/personaLlm/settings.ts isRemoteUrl plus a remoteAcknowledged flag, and src/lib/personaLlm/index.ts runEndpoint uses redirect:'manual' and refuses 3xx so a lexically-local URL cannot bounce persona text off-machine.",
+        "Gap: once a peer is authenticated it is fully privileged. src/lib/bridge/client.ts handle() serves cards.delete and cards.update with no user confirmation and no record, while every UI destructive path confirms first (Library.tsx confirmDelete + ConfirmModal, Templates.tsx, App.tsx clear-card). The MCP tool description in mcp/src/index.ts ('There is no undo — confirm with the user first') is advice to the model, not an enforced control.",
+        "Gap: input validation across sibling RPC handlers is uneven. createCard checks cardType against ALLOWED_CARD_TYPES and runs safeImageSrc (rejecting remote image URLs, with a clear beacon rationale), but updateCard shallow-merges params.patch with no key or type checking, and every handler casts req.params with 'as' rather than validating. A patch such as { tags: \"x\" } is persisted and then read by Library.tsx:72 (c.tags.some) and :362 (card.tags.length), so an unvalidated field from the bridge peer reaches UI code that assumes an array.",
+        "The single auth mechanism has no test: the four test files (cardShape, personaParser, converters, pngMetadata) cover pure card logic only; no handshake, origin-rejection, or displacement test exists."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Post-authentication authority is all-or-nothing: destructive bridge RPCs bypass the confirmation invariant the UI enforces and leave no audit record beyond an in-memory served count, and sibling RPC handlers disagree on whether peer input is validated (create checks cardType/imageSrc, update accepts any patch)."
+    }
+  },
+  "dimension_judgment": {
+    "authorization_consistency": {
+      "dimension_character": "This is a local-first app with a single real authorization boundary — the MCP bridge — and that boundary is unusually well built: mutual challenge-response over a shared token with server-proves-first ordering, constant-time comparison on both halves, origin allowlisting, loopback bind, single-session enforcement, handshake timeouts, and a README that explicitly retracts its own earlier weaker claim. There is no half-migrated or dual auth path anywhere; protocol v2 is enforced on both sides with no tokenless fallback. What is uneven is what happens after the handshake: the paired peer inherits full read/write/delete over the library with no confirmation, no scoping, and no audit trail, and the sibling RPC handlers disagree on whether to validate the peer's input at all.",
+      "score_rationale": "Authentication design is close to exemplary for the threat model it names, and its consistency — one implementation, one protocol version, both sides symmetric, documented honestly — is exactly what the 90+ band describes. It is pulled down to the upper-80s by two concrete post-auth gaps a reviewer would notice: bridge deletes and overwrites bypass the confirmation the UI treats as an invariant with no record kept, and createCard validates cardType/imageSrc while its sibling updateCard merges arbitrary unvalidated keys that UI code later assumes are well-typed. Both are limited and fixable within one module rather than systemic drift, so this sits near the boundary between 'strong' and 'mostly consistent with limited exceptions'."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "bridge_peer_fully_privileged_no_audit",
+      "summary": "Authenticated bridge peer can delete/overwrite any card with no confirmation and no audit record, unlike every UI path",
+      "related_files": [
+        "src/lib/bridge/client.ts",
+        "mcp/src/index.ts",
+        "src/components/Library.tsx"
+      ],
+      "evidence": [
+        "src/lib/bridge/client.ts handle() dispatches cards.delete and cards.update straight to deleteCard/persist; the only trace left is setState({ served, lastMethod }) held in memory for the status light.",
+        "Every UI destructive path gates on ConfirmModal first — Library.tsx confirmDelete ('Deletes are irreversible and there is no undo, so both paths confirm first'), Templates.tsx, App.tsx clear-card — so the same invariant is enforced for the human and skipped for the agent.",
+        "The only mitigation on the agent path is prose in the tool description in mcp/src/index.ts ('There is no undo — confirm with the user first'), which the model may ignore."
+      ],
+      "suggestion": "Give the bridge the same confirmation the UI enforces for the same operations: route cards.delete (and cards.update when it overwrites an existing card) through the existing ConfirmModal via a host hook, so the promise resolves only after the user approves, and append a bounded in-app log of served methods with card id and timestamp instead of only a counter. Reuse ConfirmModal and the registerBridgeHost callback that already exists rather than adding a new permission layer.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "post_auth_authority_ungranular"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "uneven_rpc_param_validation",
+      "summary": "Sibling bridge handlers disagree on validating peer input: create checks cardType/imageSrc, update merges any patch unchecked",
+      "related_files": [
+        "src/lib/bridge/client.ts",
+        "src/components/Library.tsx"
+      ],
+      "evidence": [
+        "createCard validates params.cardType against ALLOWED_CARD_TYPES and runs safeImageSrc, which rejects non-data: image URLs with an explicit beacon rationale.",
+        "updateCard does no validation at all: `const merged = { ...(bodyOf(existing) ?? {}), ...(params.patch ?? {}) }` writes every key and type the peer sends; handle() casts all params with `as` (`req.params as UpdateParams`) so nothing else checks them either.",
+        "A patch like { tags: \"solo\" } persists a string where an array is assumed, and Library.tsx:72 `c.tags.some(...)` and :362 `card.tags.length` read it directly on the next render."
+      ],
+      "suggestion": "Validate patch at the same place create is validated: in updateCard, drop or coerce keys whose type disagrees with the existing card body (at minimum enforce tags as string[] and reject non-string scalars for text fields), and re-run safeImageSrc if a patch is ever allowed to carry imageSrc. Keep it as inline checks in client.ts next to safeImageSrc rather than introducing a schema layer.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "post_auth_authority_ungranular"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Authorization effort went entirely into proving who the peer is; nothing was spent on bounding what an authenticated peer may then do, so the app's own destructive-action invariants stop at the UI layer."
+    ],
+    "likely_symptoms": [
+      "uneven_rpc_param_validation"
+    ]
+  },
+  "context_updates": {
+    "authorization_consistency": {
+      "add": [
+        {
+          "header": "Single auth boundary, implemented symmetrically once",
+          "description": "The MCP bridge is the codebase's only authorization boundary, and both halves derive their frames and constants from src/lib/bridge/protocol.ts, so there is no second dialect of auth to keep in sync. A reviewer can audit the whole posture by reading three files.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Server proves the token first, deliberately",
+          "description": "The handshake has the server HMAC the client's nonce before the app sends any proof, because loopback is a shared trust boundary and a port squatter would otherwise be handed the secret. The ordering is documented in both protocol.ts and bridge.ts rather than left as an accident of implementation.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "No legacy or tokenless bridge path survives",
+          "description": "BRIDGE_PROTOCOL_VERSION is 2 and both sides hard-close on mismatch; the pre-handshake v1 behaviour left no shim, and README.md explicitly retracts its earlier claim that the loopback bind alone was sufficient. Nothing stale invites a developer to follow the old model.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Remote-endpoint gate covers the second data-exfiltration seam",
+          "description": "The sorter's OpenAI-compatible endpoint is guarded by isRemoteUrl plus a remoteAcknowledged flag and refuses 3xx with redirect:'manual', because the local-vs-remote check is lexical and a redirect would replay persona text off-machine unwarned. The same care shown at the bridge is applied here.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Authentication is binary; no authority scoping after pairing",
+          "description": "Once paired, the peer has full read/write/delete over the library with no per-method gating, confirmation, or audit trail. This is a deliberate simplification for a single-user local tool, but it means the UI's irreversible-action confirmations are not an invariant of the system, only of the UI.",
+          "settled": true
+        },
+        {
+          "header": "Peer input validated inconsistently across RPC handlers",
+          "description": "createCard checks cardType and image source while updateCard merges any patch and every handler casts params with 'as', so whether the bridge is treated as a trust boundary depends on which method is called.",
+          "settled": true
+        },
+        {
+          "header": "Handshake has no automated test",
+          "description": "The four test files cover pure card logic only; the sole authorization mechanism has no coverage of origin rejection, bad-token close, or session displacement, so a regression in it would be silent.",
+          "settled": true
+        }
+      ]
+    }
+  }
+}

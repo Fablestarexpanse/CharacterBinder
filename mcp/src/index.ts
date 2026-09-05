@@ -248,7 +248,7 @@ server.registerTool(
     inputSchema: {
       name: z.string(),
       description: z.string().optional().describe("What the script does."),
-      code: z.string().describe("The script body."),
+      content: z.string().describe("The script body."),
       author: z.string().optional(),
       creator_notes: z.string().optional(),
       version: z.string().optional(),

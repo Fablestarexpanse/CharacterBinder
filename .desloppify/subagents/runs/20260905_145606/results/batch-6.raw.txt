@@ -1,0 +1,187 @@
+{
+  "batch": "abstraction_fitness",
+  "batch_index": 6,
+  "assessments": {
+    "abstraction_fitness": 83.5
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "No re-export barrels anywhere: `grep -rn \"export \\* from\"` over src/ and mcp/src/ returns zero hits, so every import names its real definition site.",
+        "Exactly one generic function in the whole codebase — `callApp<T = unknown>(method, params)` in mcp/src/bridge.ts:230 — and it is instantiated at six distinct concrete types (CardSummary, GetResult, MutationResult, {id}, {ok,app,version}) in mcp/src/index.ts, so it earns its type parameter.",
+        "No class hierarchies, no delegation-heavy classes, no one-implementation interfaces. Platform behaviour is a data table (`PLATFORMS: Record<PlatformId, PlatformDef>` in src/lib/platforms/index.ts) plus plain converter functions behind two switch dispatchers (`convertCardTo`/`convertCardFrom`, src/lib/platforms/converters.ts) rather than a converter-class-per-platform.",
+        "src/lib/bridge/protocol.ts is a single wire-contract module imported by both the browser app and the Node MCP server; mcp/src/index.ts imports the app's own validators, PLATFORMS and personaParser directly rather than reimplementing them, so there is one definition of each rule across two processes.",
+        "Custom hooks each carry real behaviour rather than wrapping: useTimedFlag clears its timer on unmount and cancels a prior timer, useStatusMessage returns a stable useCallback identity, useEngineState/useBridgeState wrap useSyncExternalStore over module-level stores. None are pass-throughs.",
+        "DEFECT — the same string union is declared under three names: `LibraryCardType` (src/types/index.ts:~150), `CardType` (src/lib/bridge/protocol.ts:~100), `CardShape` (src/lib/cardShape.ts:13), plus a fourth local `DetectedType` in src/components/ImportPNG.tsx:10. src/lib/bridge/client.ts needs five `as CardType` casts (lines 281, 312, 360, 367, 374) purely to move between two identical unions.",
+        "DEFECT — `LibraryCard` (src/types/index.ts) models a tagged union by hand: `cardType: LibraryCardType` alongside `cardData?: TavernCardV2` and `rawData?: unknown`. Because it is not a discriminated union, TypeScript cannot narrow it, and 17 unchecked assertions exist at the consumption sites (App.tsx:229-238, Library.tsx:132-138, ImportPNG.tsx:132-159, DecodePNG.tsx:116-119, bridge/client.ts:292). The type layer is present but does no work.",
+        "DEFECT — LoreBookEditor, ScriptEditor, ScenarioEditor and PersonaEditor each re-implement an identical ~70-line editor host: the same six useState slots (card, imageSrc, libraryId, saving, savedVersion, outputFileName), the same filename-sync useEffect, and byte-for-byte equivalent `update`, `clearForNew`, `exportJson`, `exportPng` and `handleSaveToLibrary` bodies differing only in the card type, DEFAULT literal, metadata key and filename suffix.",
+        "DEFECT — App.tsx carries that duplication upward as four identical `{card, imageSrc, id?}` init states with four `*Key` remount counters and eight near-identical callbacks (handleEditLorebook/Script/Scenario/Persona plus handleImportLorebook/Script/Scenario/Persona, lines ~160-205), all structurally the same.",
+        "DEFECT — ImportPNG and DecodePNG both declare the same five-callback prop bag (onLoad, onLoadLorebook, onLoadScript, onLoadScenario, onLoadPersona) and App threads all five into both. `CardShape` already exists as exactly the discriminator that would collapse this to one callback, but it is not used at the callback boundary.",
+        "Minor: CreateCard.tsx takes nine props and forwards six of them unchanged to CharacterEditor and CardPreviewPanel; it does own the tab state and layout, so it is a thin but not empty layer.",
+        "Option objects stay narrow and fully consumed: `SortOptions` (src/lib/personaLlm/index.ts:274) has four fields all read in `sortPersonaWithAi`; CardPreviewPanel reads all three `AppSettings` keys it receives. No wide config bags threaded through layers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 73.0,
+        "indirection_cost": 93.0,
+        "interface_honesty": 79.0,
+        "delegation_density": 95.0,
+        "definition_directness": 91.0,
+        "type_discipline": 78.0
+      }
+    }
+  },
+  "dimension_judgment": {
+    "abstraction_fitness": {
+      "dimension_character": "Over-abstraction is essentially absent here: there are no barrels, no single-implementation interface ecosystems, no delegation chains, and the one generic in the codebase is genuinely polymorphic — platform behaviour is a data table read by two switch dispatchers, and the MCP server reuses the app's own modules rather than a parallel copy. What a developer actually hits is the opposite failure: one card-editor shape is written out four times (four editors, four App state clusters, two five-callback prop bags) and the LibraryCard type models a tagged union by hand, so seventeen `as LoreBook`-style assertions do the narrowing TypeScript would have done for free. The strengths are systemic across lib/ and mcp/, and the weakness is a single well-delimited cluster in the non-character card editing path — but that cluster is where most feature work lands.",
+      "score_rationale": "Pushing the score up: every layer that exists pays for itself, the wire protocol is shared rather than duplicated across the two processes, and the platform matrix is data instead of a class hierarchy — a developer navigating lib/ never fights indirection. Pulling it down: adding a sixth card type today means identical edits in six files, and the hand-rolled LibraryCard union forces unchecked casts at every consumption site, which is a type layer that adds ceremony without adding safety. That is recurring, predictable friction confined to one subsystem, which places this between the 80 anchor's 'solid but uneven' and the 90 anchor's 'isolated rough edges'."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "library_card_not_discriminated_union",
+      "summary": "LibraryCard fakes a tagged union, forcing 17 unchecked casts to recover the type it already knows",
+      "related_files": [
+        "src/types/index.ts",
+        "src/App.tsx",
+        "src/components/Library.tsx",
+        "src/components/ImportPNG.tsx",
+        "src/components/DecodePNG.tsx",
+        "src/lib/bridge/client.ts"
+      ],
+      "evidence": [
+        "src/types/index.ts declares `LibraryCard` with `cardType: LibraryCardType`, `cardData?: TavernCardV2` and `rawData?: unknown`, with comments explaining which slot is populated for which cardType — the invariant is documented in prose rather than in the type.",
+        "Because the shape is not discriminated, `switch (card.cardType)` cannot narrow `rawData`, so consumers assert: App.tsx:229-238 (`card.rawData as LoreBook` / `as ScriptCard` / `as ScenarioCard` / `as PersonaCard`), Library.tsx:132-138 (the same four), ImportPNG.tsx:132/141/150/159 and DecodePNG.tsx:116-119 (`parsed as LoreBook` etc.), and bridge/client.ts:292 (`c.rawData as Record<string, string>`).",
+        "Nothing validates the payload before the cast, so a lorebook record whose rawData is malformed reaches LoreBookEditor typed as a valid LoreBook."
+      ],
+      "suggestion": "Replace the flat interface in src/types/index.ts with a discriminated union over `cardType`: a shared `LibraryCardBase` holding id/name/pngData/imageSrc/platform/tags/createdAt/updatedAt, then `{ cardType: \"character\"; cardData: TavernCardV2 }` and `{ cardType: \"lorebook\"; rawData: LoreBook }` / `\"script\"; rawData: ScriptCard` / `\"scenario\"; rawData: ScenarioCard` / `\"persona\"; rawData: PersonaCard`. The existing `switch (card.cardType)` blocks in App.tsx and Library.tsx then narrow automatically and every `as` on those lines deletes. This removes types rather than adding them.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "card_type_union_not_modelled"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "four_names_for_one_card_type_union",
+      "summary": "The same five-member card-type union is declared four times, costing five casts to convert between identical types",
+      "related_files": [
+        "src/types/index.ts",
+        "src/lib/cardShape.ts",
+        "src/lib/bridge/protocol.ts",
+        "src/lib/bridge/client.ts",
+        "src/components/ImportPNG.tsx"
+      ],
+      "evidence": [
+        "`LibraryCardType`, `CardShape` (src/lib/cardShape.ts:13), `CardType` (src/lib/bridge/protocol.ts) and `DetectedType` (src/components/ImportPNG.tsx:10) all spell out `\"character\" | \"lorebook\" | \"script\" | \"scenario\" | \"persona\"`; only DetectedType differs, by adding `| null`.",
+        "src/lib/bridge/client.ts writes `c.cardType as CardType` at lines 281, 312, 360, 367 and 374 solely to cross between LibraryCardType and CardType — an assertion that can never fail and communicates nothing.",
+        "protocol.ts documents that it must stay dependency-free, so its own `CardType` is defensible; `CardShape` and `DetectedType` have no such justification and sit in the same src/ tree as `LibraryCardType`."
+      ],
+      "suggestion": "Keep `LibraryCardType` in src/types/index.ts as the single app-side name. Have src/lib/cardShape.ts export `type CardShape = LibraryCardType` (or drop the alias and use LibraryCardType directly), replace ImportPNG's `DetectedType` with `LibraryCardType | null`, and in src/lib/bridge/client.ts add one line asserting protocol compatibility (`const _check: CardType = null as unknown as LibraryCardType`) so the five per-call-site `as CardType` casts can be deleted.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "card_type_union_not_modelled"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "simple_card_editor_host_duplicated_four_times",
+      "summary": "Four non-character editors re-implement an identical state/save/export host with no shared abstraction",
+      "related_files": [
+        "src/components/ScriptEditor.tsx",
+        "src/components/ScenarioEditor.tsx",
+        "src/components/PersonaEditor.tsx",
+        "src/components/LoreBookEditor.tsx"
+      ],
+      "evidence": [
+        "ScriptEditor.tsx:32-88, ScenarioEditor.tsx:34-88 and PersonaEditor.tsx:35-90 are line-for-line equivalent apart from the card type, the DEFAULT literal, the metadata key passed to `encodeCharaToPng` and the filename suffix: same six useState slots, same `useEffect` syncing outputFileName to `card.name`, same `update`/`clearForNew`/`exportJson`/`exportPng` bodies, and the same `handleSaveToLibrary` including the identical `versionChanged` save-as-new-version rule.",
+        "LoreBookEditor.tsx carries the same slots (lines 96-105) and the same `clearForNew`/`exportJson`/`exportPng`/`handleSaveToLibrary` at 164-226, with lorebook-specific extras layered on top.",
+        "Because the rule lives in four places, the version-bump behaviour and the 'Unnamed X' fallback have to be kept in sync by hand — a sixth card type means a fifth copy."
+      ],
+      "suggestion": "Extract one hook, e.g. `useCardEditor<T extends { name: string; version: string; tags: string[] }>({ cardType, blank, fileSuffix })` in src/hooks/, returning `{ card, update, imageSrc, setImageSrc, outputFileName, setOutputFileName, saving, status, clearForNew, exportJson, exportPng, saveToLibrary }`. The four editors keep only their JSX and their type-specific fields. This deletes roughly 200 lines net and is the one place in this codebase where a generic genuinely has four concrete instantiations.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "per_card_type_code_fanout"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "five_callback_prop_bag_per_card_type",
+      "summary": "ImportPNG and DecodePNG each take five parallel onLoad* callbacks that App satisfies with eight near-identical handlers",
+      "related_files": [
+        "src/components/ImportPNG.tsx",
+        "src/components/DecodePNG.tsx",
+        "src/App.tsx",
+        "src/lib/cardShape.ts"
+      ],
+      "evidence": [
+        "ImportPNG.tsx:12-18 and DecodePNG.tsx:21-26 declare the identical prop bag `onLoad`, `onLoadLorebook`, `onLoadScript`, `onLoadScenario`, `onLoadPersona`, four of them with the same `(card, imageSrc: string | null) => void` signature.",
+        "App.tsx defines eight callbacks to feed them — handleEditLorebook/Script/Scenario/Persona (lines ~160-190) and handleImportLorebook/Script/Scenario/Persona (lines ~192-205) — differing only in which of the four `*Init` states and `*Key` counters they touch; all four init states have the same `{card, imageSrc, id?}` shape.",
+        "src/lib/cardShape.ts already exports `CardShape` and `detectCardShape`, and ImportPNG computes `effective: CardShape` at line ~90 before immediately fanning back out to five separate callbacks — the discriminator is in hand and then discarded."
+      ],
+      "suggestion": "Collapse the prop bag to one callback carrying the discriminator, `onLoad: (shape: CardShape, payload: unknown, imageSrc: string | null, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void`, and in App replace the four `*Init`/`*Key` pairs with a single `editorInit: { shape: CardShape; card: unknown; imageSrc: string | null; id?: string } | null` plus one `editorKey`. The four handleEdit*/handleImport* pairs become one `openEditor(shape, card, imageSrc, id?)`. Pair this with the discriminated-union fix so `payload` narrows on `shape`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "per_card_type_code_fanout"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "The five card types were added one at a time by copying the previous type's editor, App wiring and import branch, so the per-type work fanned out across six files instead of being lifted into one parameterised path once the third type appeared.",
+      "The type layer describes the card-type invariant in comments and parallel unions rather than in a discriminated union, so every consumer re-establishes by assertion what the model already knows."
+    ],
+    "likely_symptoms": [
+      "four_names_for_one_card_type_union",
+      "five_callback_prop_bag_per_card_type"
+    ],
+    "possible_false_positives": [
+      "single_use::src/components/DecodePNG.tsx, PersonaEditor.tsx, ScenarioEditor.tsx and useUnsavedWarning.ts — 'only imported by App.tsx' is the correct shape for page-level components and an app-lifecycle hook in a single-entry SPA; these are not abstraction-fitness defects.",
+      "structural::src/App.tsx 'Large file: 17 hooks' — the hook count is a symptom of the per-card-type fanout, not independent evidence that App.tsx is over-abstracted."
+    ]
+  },
+  "context_updates": {
+    "abstraction_fitness": {
+      "add": [
+        {
+          "header": "Platform behaviour is a data table, not a class hierarchy",
+          "description": "src/lib/platforms/index.ts holds all eight platforms as a PLATFORMS record of plain data (field support matrix, metadata key, template vars), and converters.ts pairs it with free functions behind two switch dispatchers. A developer adding a platform edits one table entry and two functions rather than subclassing anything, and the UI's compatibility view and the MCP compatibility tool read the same table.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "One wire protocol module shared by app and MCP server",
+          "description": "src/lib/bridge/protocol.ts is imported by both the browser client and the Node server, and mcp/src/index.ts reuses the app's validators, PLATFORMS and personaParser directly. Cross-process contracts and rules exist once, so the two halves cannot drift.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "No barrels and only one generic in the whole codebase",
+          "description": "There are zero `export * from` re-export modules, so every import names a real definition site, and the sole generic function (callApp<T> in mcp/src/bridge.ts) is instantiated at six concrete types. Indirection here is earned rather than habitual.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Custom hooks encapsulate behaviour, not just state",
+          "description": "useTimedFlag and useStatusMessage exist because the hand-rolled copies leaked timers and cleared early; useEngineState and useBridgeState wrap useSyncExternalStore over module stores that two views must agree on. Each documents the bug that motivated it, so none reads as ceremony.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Per-card-type logic is copied across six files",
+          "description": "Each of the five card types has its own editor, its own App state cluster and its own import branch, so adding or changing a type means the same edit in six places. The cost is under-abstraction rather than over-abstraction, and it is the dominant abstraction defect in this codebase.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "LibraryCard is a hand-rolled tagged union",
+          "description": "cardType plus optional cardData/rawData: unknown encodes the discriminated union in comments instead of in the type, so seventeen `as LoreBook`-style assertions across App, Library, ImportPNG, DecodePNG and bridge/client recover by hand what TypeScript could narrow automatically.",
+          "settled": true,
+          "positive": false
+        }
+      ]
+    }
+  }
+}

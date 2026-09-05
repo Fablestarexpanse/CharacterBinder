@@ -26,10 +26,20 @@ export const BRIDGE_PROTOCOL_VERSION = 2;
  * knowledge of it by HMAC-ing the other's nonce.
  *
  *   app    → hello      { clientNonce }
- *   server → challenge  { serverNonce, proof = HMAC(token, clientNonce) }
- *   app    → auth       { proof = HMAC(token, serverNonce) }      // after verifying
+ *   server → challenge  { serverNonce, proof = HMAC(token, "server:" + clientNonce) }
+ *   app    → auth       { proof = HMAC(token, "client:" + serverNonce) }
  *   server → ready      {}                                        // RPCs begin
+ *
+ * The two proofs carry different domain labels on purpose. Without them both
+ * sides compute HMAC(token, nonce) over the same construction, so a value
+ * obtained from one direction is a valid proof in the other and a peer can be
+ * induced to generate the answer it will later be asked to verify.
  */
+
+/** Domain labels — never reuse one for the other direction. */
+export const PROOF_SERVER = "characterbinder-bridge/server:";
+export const PROOF_CLIENT = "characterbinder-bridge/client:";
+
 export interface HelloFrame {
   type: "hello";
   protocol: number;

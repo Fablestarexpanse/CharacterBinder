@@ -1,0 +1,176 @@
+{
+  "batch": "package_organization",
+  "batch_index": 15,
+  "assessments": {"package_organization": 79.0},
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "Layering is strictly acyclic and one-directional: coupling_matrix shows src/ -> src/components/ (14), src/components/ -> src/hooks/ (12) and -> src/lib/* (44 total), src/lib/ -> src/types/ (2). Verified by grep: no file under src/lib, src/hooks or src/types imports from src/components — zero reciprocal directory edges.",
+        "src/lib/ subfolders are domain-named and cohesive, each a single index.ts owning one concern: archive/, bridge/, customTemplates/, library/, personaLlm/, personaParser/, platforms/, pngMetadata/, tokenizer/, validators/. A developer can predict where PNG chunk code or IndexedDB code lives from the folder name alone.",
+        "Tests are co-located with the module they cover in every case (src/lib/cardShape.test.ts, src/lib/personaParser/index.test.ts, src/lib/platforms/converters.test.ts, src/lib/pngMetadata/index.test.ts) — no separate mirrored tests/ tree to keep in sync.",
+        "src/components/ holds 29 flat .tsx files (5592 LOC) with three unrelated roles and no naming or folder signal separating them: 13 routed pages mounted directly by App.tsx (CreateCard, ImportPNG, DecodePNG, Templates, Settings, HelpAbout, Library, LoreBookEditor, ScriptEditor, ScenarioEditor, PersonaEditor, Sidebar, ErrorBoundary), 8 feature-owned children with fan-in 1 (CardPreviewPanel, CharacterEditor, JSONView, RawPreview, PlatformSelector, SorterSettings, BridgeStatusLight, LlmStatusLight), and 6 generic primitives with fan-in 3-5 (TagInput 5, ResizableTextArea 5, ConfirmClearPanel 4, ImageDropzone 4, TextAreaField 3, ConfirmModal 2).",
+        "The 'Panel' suffix is applied to three different roles inside that flat directory — CardPreviewPanel (feature child of CreateCard), SmartImportPanel (432-LOC feature child), ConfirmClearPanel (48-LOC reusable primitive) — so the filename does not tell a developer whether a file is safe to edit locally or shared across editors.",
+        "mcp/ is a separate npm package (own package.json, own node_modules, own deps: ws/zod/@modelcontextprotocol/sdk) that reaches out of its own root into the browser app tree: mcp/src/bridge.ts imports ../../src/lib/bridge/protocol.js; mcp/src/index.ts imports ../../src/lib/validators/index.js, ../../src/lib/platforms/index.js and ../../src/lib/personaParser/index.js. mcp/tsconfig.json sets \"rootDir\": \"..\" to make that compile.",
+        "Those four modules are DOM-free (grep for document./window./localStorage/canvas over platforms/, validators/, personaParser/, bridge/protocol.ts returns nothing) while their siblings under src/lib/ are browser-only (library/ imports idb, archive/ imports jszip, carrierImage.ts uses canvas, customTemplates/ uses localStorage). Nothing in the layout marks the browser/node boundary.",
+        "The drift this already caused is visible: mcp/tsconfig.json's \"include\" lists only ../src/lib/bridge/protocol.ts and ../src/lib/personaParser/index.ts, omitting validators/index.ts and platforms/index.ts, which mcp/src/index.ts imports on lines 24-25.",
+        "src/data/templates/ronalVoss.ts is a two-level directory chain holding one 76-line file whose name identifies a single sample character but whose exports are the whole built-in template catalog: ronanVossTemplate, blankTemplate and templates. App.tsx imports blankTemplate from it and Templates.tsx imports templates from it — neither wants the Ronan Voss card. The path also misspells the export it is named after (ronalVoss vs ronanVossTemplate).",
+        "src/lib/ root holds 7 small utility files (16-59 LOC each, 238 LOC total) beside the 10 domain folders. Fan-in is real for download.ts (6) and carrierImage.ts (5); minimalPng.ts (fan-in 1, only carrierImage.ts) and cardShape.ts (fan-in 1) are low but each is a leaf under 60 LOC with a test or an owner directly beside it."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "dimension_judgment": {
+    "package_organization": {
+      "dimension_character": "The non-UI half of this tree is genuinely well organized: src/lib/ is a set of domain-named single-concern folders, the dependency direction src/ -> components -> hooks -> lib -> types is strictly one-way with no reciprocal edges, and tests sit next to what they test. The friction is concentrated in two places a developer meets constantly — a 29-file flat src/components/ that mixes routed pages, single-parent feature children and shared primitives with no folder or naming signal separating them, and an unmarked browser/node boundary where a separate npm package (mcp/) reaches back through ../../src/lib into four modules that look identical to their browser-only siblings. Quality is therefore uneven rather than broadly weak: the layout tells you where domains live but not what owns a component or which shared code has a second consumer."
+      ,
+      "score_rationale": "The clean acyclic layering, cohesive lib/ domain folders and co-located tests are systemic strengths that keep this above the 70 'can't trust patterns' band. What holds it under 90 is real navigational drag rather than aesthetics: src/components/ is exactly the 'flat directory mixing unrelated concerns' case the 80-anchor describes, and the mcp/ cross-package reach has already produced measurable drift (mcp/tsconfig.json's include list is missing two of the four modules it imports). Scoring at the solid-but-uneven anchor because a developer would navigate lib/ confidently and search components/ every time."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "package_organization",
+      "identifier": "flat_components_dir",
+      "summary": "src/components/ is 29 flat files mixing routed pages, single-parent children and shared primitives",
+      "related_files": [
+        "src/components/CardPreviewPanel.tsx",
+        "src/components/TagInput.tsx",
+        "src/components/SmartImportPanel.tsx",
+        "src/components/ConfirmClearPanel.tsx",
+        "src/App.tsx"
+      ],
+      "evidence": [
+        "29 .tsx files, 5592 LOC, zero subdirectories; directory_profiles reports avg_fan_in 1.7 across them.",
+        "Measured fan-in splits them into three groups with different ownership: 13 files imported only by App.tsx (routed pages), 8 files with exactly one importer (CardPreviewPanel, CharacterEditor, JSONView, RawPreview <- CreateCard; PlatformSelector <- CardPreviewPanel; SorterSettings <- SmartImportPanel; BridgeStatusLight, LlmStatusLight <- Sidebar), and 6 files with fan-in 2-5 that are true shared primitives (TagInput 5, ResizableTextArea 5, ConfirmClearPanel 4, ImageDropzone 4, TextAreaField 3, ConfirmModal 2).",
+        "Nothing in the filename encodes which group a file is in: the 'Panel' suffix covers a 496-LOC feature child (CardPreviewPanel), a 432-LOC feature child (SmartImportPanel) and a 48-LOC shared primitive (ConfirmClearPanel).",
+        "Consequence: a developer editing CardPreviewPanel.tsx cannot tell from the tree that only CreateCard renders it, and editing ConfirmClearPanel.tsx gives no signal that four editors depend on it."
+      ],
+      "suggestion": "Split by measured fan-in into three purpose-named folders, no new abstraction and no barrel files. Stage 1 (shared, lowest risk): create src/components/ui/ and git mv TagInput.tsx ResizableTextArea.tsx TextAreaField.tsx ImageDropzone.tsx ConfirmModal.tsx ConfirmClearPanel.tsx JSONView.tsx RawPreview.tsx into it. Stage 2: create src/components/pages/ and move the 13 App-mounted views (CreateCard, ImportPNG, DecodePNG, Templates, Settings, HelpAbout, Library, LoreBookEditor, ScriptEditor, ScenarioEditor, PersonaEditor, Sidebar, ErrorBoundary). Stage 3: leave the remaining single-parent children beside their parent page or under src/components/editor/ (CardPreviewPanel, CharacterEditor, PlatformSelector, FieldCompatibility, SmartImportPanel, SorterSettings, BridgeStatusLight, LlmStatusLight). After each stage run `npx tsc --noEmit` and `npm run build`; relative import paths are the only thing to fix and tsc lists every one.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unmarked_ownership_boundaries",
+      "concern_verdict": "confirmed"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "unmarked_browser_node_shared_boundary",
+      "summary": "mcp/ package reaches into src/lib via ../../ for four node-safe modules that look like their browser-only siblings",
+      "related_files": [
+        "mcp/src/index.ts",
+        "mcp/src/bridge.ts",
+        "mcp/tsconfig.json",
+        "src/lib/platforms/index.ts",
+        "src/lib/validators/index.ts",
+        "src/lib/personaParser/index.ts",
+        "src/lib/bridge/protocol.ts"
+      ],
+      "evidence": [
+        "mcp/ has its own package.json, node_modules and dependency set, yet mcp/src/bridge.ts line 13 imports ../../src/lib/bridge/protocol.js and mcp/src/index.ts lines 24-27 import ../../src/lib/validators/index.js, ../../src/lib/platforms/index.js and ../../src/lib/personaParser/index.js.",
+        "mcp/tsconfig.json needs \"rootDir\": \"..\" purely to make those escapes compile.",
+        "The four shared modules are DOM-free while their siblings under src/lib/ are not (library/ -> idb, archive/ -> jszip, carrierImage.ts -> canvas, customTemplates/ -> localStorage), so nothing in the directory layout warns that editing src/lib/platforms/index.ts changes the MCP server's behaviour.",
+        "This has already drifted: mcp/tsconfig.json's \"include\" array lists ../src/lib/bridge/protocol.ts and ../src/lib/personaParser/index.ts only — validators/index.ts and platforms/index.ts are imported but not declared."
+      ],
+      "suggestion": "Make the boundary visible with a move, not a build-system change. Create src/shared/ and git mv src/lib/bridge/protocol.ts, src/lib/validators/, src/lib/platforms/ and src/lib/personaParser/ under it, leaving browser-only code in src/lib/. Order: move personaParser and validators first (each has one non-mcp importer group), then platforms, then protocol.ts (update src/lib/bridge/client.ts alongside). Then update mcp/tsconfig.json's include to ../src/shared/**/*.ts — one glob that cannot go stale, replacing the hand-maintained two-entry list. Validate with `npx tsc --noEmit` at the repo root, `npm --prefix mcp run typecheck`, `npm --prefix mcp run build` and `npm test`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unmarked_ownership_boundaries"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "template_catalog_misfiled_under_sample_name",
+      "summary": "src/data/templates/ronalVoss.ts is a two-deep folder for one file whose name hides the template catalog it holds",
+      "related_files": [
+        "src/data/templates/ronalVoss.ts",
+        "src/App.tsx",
+        "src/components/Templates.tsx"
+      ],
+      "evidence": [
+        "src/data/ and src/data/templates/ each contain exactly one entry, terminating in a single 76-line file.",
+        "The file's name identifies one sample character, but it exports the whole built-in catalog: ronanVossTemplate (line 3), blankTemplate (line 42) and templates (line 63).",
+        "Both importers want the catalog, not the sample: App.tsx line 7 imports blankTemplate — the empty card every new project starts from — and Templates.tsx line 4 imports templates. A developer looking for the app's blank-card default would not search a file named after a character.",
+        "The path also misspells the export it is named for: ronalVoss vs ronanVossTemplate."
+      ],
+      "suggestion": "git mv src/data/templates/ronalVoss.ts src/data/builtinTemplates.ts and delete the now-empty src/data/templates/ directory, then fix the two import paths in src/App.tsx (line 7) and src/components/Templates.tsx (line 4). This is a rename plus two edits and removes a directory level rather than adding one. Verify with `npx tsc --noEmit` and `npm run build`.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "src_lib_overload_signal",
+      "summary": "Mechanical flat_dirs overload flag on src/lib does not hold up — the directory is already domain-partitioned",
+      "related_files": [
+        "src/lib/download.ts",
+        "src/lib/carrierImage.ts",
+        "src/lib/minimalPng.ts",
+        "src/lib/platforms/index.ts"
+      ],
+      "evidence": [
+        "The flag counts 8 files + 10 child dirs as a combined 38, but the 10 child dirs ARE the domain grouping the flag asks for: archive/, bridge/, customTemplates/, library/, personaLlm/, personaParser/, platforms/, pngMetadata/, tokenizer/, validators/ — each a single-concern index.ts.",
+        "The 7 root .ts files total 238 LOC (16-59 each) and are leaf utilities with real cross-domain fan-in: download.ts 6 importers, carrierImage.ts 5, tavernCard.ts 3, readImageFile.ts 2 — the rubric's explicit skip case for genuinely-core root files.",
+        "The two low-fan-in stragglers, minimalPng.ts (1 importer: carrierImage.ts) and cardShape.ts (1 importer, with cardShape.test.ts beside it), are each under 60 LOC and sit directly next to their only consumer. Moving them would add a folder to relocate two small files."
+      ],
+      "suggestion": "Dismiss the overload flag on src/lib and leave the directory as is. If any grouping is ever wanted here, the only one with a real theme is carrierImage.ts + minimalPng.ts + readImageFile.ts moving into the existing src/lib/pngMetadata/ folder — but that is a 3-file, 95-LOC move with no measurable navigation gain today, so it is not worth the import churn.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "concern_verdict": "dismissed",
+      "concern_fingerprint": "flat_dirs::src/lib",
+      "reasoning": "The detector counts child directories toward the overload total, but those child directories are exactly the domain partition it recommends. The remaining root files are small high-fan-in leaf utilities that the rubric explicitly says to skip."
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Ownership boundaries exist in the import graph but were never encoded in the directory tree — both the components flat dir and the mcp/ cross-package reach are the same omission at different scales.",
+      "Directories were created for the first file that needed them (src/data/templates/ for one template file) rather than for a category with more than one member."
+    ],
+    "likely_symptoms": [
+      "template_catalog_misfiled_under_sample_name"
+    ],
+    "possible_false_positives": [
+      "flat_dirs::src/lib"
+    ]
+  },
+  "context_updates": {
+    "package_organization": {
+      "add": [
+        {
+          "header": "Strictly acyclic layering with no reciprocal directory edges",
+          "description": "Imports flow one way through src/ -> components -> hooks -> lib -> types, verified by grep: nothing under src/lib, src/hooks or src/types imports a component. A developer can change a lib module without worrying about a cycle pulling UI code back in.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "src/lib partitioned into single-concern domain folders",
+          "description": "Ten folders (archive, bridge, customTemplates, library, personaLlm, personaParser, platforms, pngMetadata, tokenizer, validators) each own one concern behind an index.ts, so the folder name alone predicts what lives inside and where new code of that kind goes.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Tests co-located beside the module under test",
+          "description": "Every test file sits next to its subject (cardShape.test.ts, personaParser/index.test.ts, platforms/converters.test.ts, pngMetadata/index.test.ts) rather than in a mirrored tree, so a move never desynchronizes test and source.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "components/ flat dir hides three distinct ownership tiers",
+          "description": "The 29 files split cleanly by fan-in into App-mounted pages, single-parent feature children, and shared primitives, but the flat layout and inconsistent 'Panel' suffix give no signal of which tier a file is in — so blast radius has to be rediscovered by grep on every edit.",
+          "settled": true
+        },
+        {
+          "header": "mcp/ is a second consumer of four src/lib modules",
+          "description": "The MCP server package imports bridge/protocol, validators, platforms and personaParser through ../../src/lib with rootDir set to '..'. Those four are deliberately DOM-free while their siblings are browser-only, but the tree does not say so, and mcp/tsconfig.json's hand-listed include has already fallen out of sync with the actual imports.",
+          "settled": true
+        },
+        {
+          "header": "src/lib root files are small shared leaves, not stragglers",
+          "description": "The seven .ts files at src/lib root total 238 LOC and are cross-domain utilities (download 6 importers, carrierImage 5, tavernCard 3); their presence beside the domain folders is a deliberate shallow-leaf convention rather than an ungrouped backlog.",
+          "settled": true
+        }
+      ]
+    }
+  }
+}

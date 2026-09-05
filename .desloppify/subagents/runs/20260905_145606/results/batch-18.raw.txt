@@ -1,0 +1,226 @@
+{
+  "batch": "contract_coherence",
+  "batch_index": 18,
+  "assessments": {"contract_coherence": 74.0},
+  "dimension_notes": {
+    "contract_coherence": {
+      "evidence": [
+        "src/lib/personaParser/index.ts: the four strategy functions (parseJson/parseWpp/parseLabelled) each honestly declare `ParsedPersona | null` and every early return matches; parseProse is total and declares `ParsedPersona`, so the entry point's `Promise`-free `ParsedPersona` guarantee actually holds via the `??` chain.",
+        "src/lib/validators/index.ts:32 declares `validateTavernCardV2(card: TavernCardV2)` but the body defends against `!card`, a missing `data` block, and non-string/non-array field values — behaviour that is only reachable from untyped input. Every honest caller escapes the signature: mcp/src/index.ts:328 passes `... as never`, and src/lib/platforms/converters.test.ts:148 does the same.",
+        "mcp/src/index.ts update_card is documented as 'Only the fields you pass are touched; everything else is left alone', but the fulfilment path src/lib/bridge/client.ts persist() calls `saveCard(card, null, imageSrc, \"sillytavern\", existingId)` — pngData is replaced with null and platform is overwritten with 'sillytavern' on every bridge update of a character card. src/lib/archive/index.ts:19 branches on `card.pngData` to decide PNG vs JSON export, and src/components/Library.tsx:292 renders `card.platform` as the badge, so both are user-visible.",
+        "mcp/src/index.ts create_script declares its body field as `code`, but src/types/index.ts ScriptCard defines `content`, and src/components/ScriptEditor.tsx:121 renders `card.content`. An agent-created script card therefore opens with an empty editor, and src/lib/cardShape.ts detectCardShape (which tests `typeof obj.content === \"string\"`) cannot recognise it either.",
+        "src/types/index.ts LibraryCard.rawData is `unknown` with a comment claiming it is 'present when cardType is lorebook | script | scenario' (persona also uses it). Both consumers assert rather than check: src/App.tsx:229-238 does `card.rawData as LoreBook / as ScriptCard / as ScenarioCard / as PersonaCard`, as does src/components/Library.tsx:130-138. MCP-created lorebook entries carry no `id`, which LoreEntry declares as required and LoreBookEditor keys selection and edits on.",
+        "src/lib/bridge/client.ts:291 `bodyOf` declares `Record<string, string> | undefined` and reaches it via `as unknown as`, but the value is `TavernCardV2['data']`, whose `tags`/`alternate_greetings` are arrays and whose `extensions` is an object.",
+        "src/lib/personaLlm/index.ts module docstring states 'Anything that still goes wrong falls back to the keyword parser rather than failing the user's paste', but sortPersonaWithAi throws on unusable JSON and runWebLlm/runEndpoint throw on transport failure; the only caller (src/components/SmartImportPanel.tsx:99-110) catches and shows an error banner, leaving the user to press Quick sort manually.",
+        "src/lib/platforms/converters.ts: five convertTo* functions return `Record<string, unknown>` while convertToSillyTavern/convertToChub/convertToRisu return `TavernCardV2`, forcing `as unknown as Record<string, unknown>` on three arms of convertCardTo (lines 180, 182, 186).",
+        "Positive counterweight: escape hatches are genuinely rare — a repo-wide grep for `as any`, `@ts-ignore`, `@ts-expect-error`, `as never` and `as unknown as` over src/ and mcp/src/ returns only 7 production hits, and 4 of them are the ones cited above.",
+        "Positive counterweight: the public getX surface is honestly pure — getBridgeState, getEngineState, getBridgeToken, getCardTokenBreakdown, getTokenBudgetLevel, getPngDimensions all read without mutating; the two memoizing getters (library/index.ts getDb, personaLlm getEngine) are module-private, with the heavyweight public alias named preloadModel."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "dimension_judgment": {
+    "contract_coherence": {
+      "dimension_character": "Inside any single library module the contracts are unusually trustworthy: nullable strategy functions declare their nulls, JSDoc explains not just what a function does but which past bug its contract now prevents, and getters are genuinely pure. The failures cluster at exactly two seams — the app/MCP bridge boundary and the `unknown` rawData union — where types are asserted rather than honoured, so an MCP-declared tool contract ('only the fields you pass are touched', a script card's `code` field) does not survive the round trip into the app's own types. A developer would trust what they read within src/lib, then be surprised the first time an agent-created card opens blank or a bridge update silently drops the stored PNG.",
+      "score_rationale": "Strong intra-module discipline and a very small escape-hatch census push this above the 70 line: patterns learned in one lib module do hold in the next. What pulls it down to the mid-70s is that the seam defects are not cosmetic — update_card's documented no-touch guarantee is contradicted by pngData/platform loss, create_script's schema names a field the consuming type does not have, and validateTavernCardV2's signature is so far from its real accepted input that every caller including its own tests casts past it. That is 'solid but uneven' with two genuinely surprising APIs rather than the isolated local mismatches an 85+ would imply."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "contract_coherence",
+      "identifier": "update_card_drops_png_and_platform",
+      "summary": "MCP update_card promises 'everything else is left alone' but wipes pngData and resets platform to sillytavern",
+      "related_files": ["mcp/src/index.ts", "src/lib/bridge/client.ts", "src/lib/library/index.ts", "src/lib/archive/index.ts"],
+      "evidence": [
+        "mcp/src/index.ts update_card description: 'Shallow-merge changes into a card already in the library. Only the fields you pass are touched; everything else is left alone.'",
+        "src/lib/bridge/client.ts persist() for cardType 'character' calls saveCard(card, null, imageSrc, \"sillytavern\", existingId) — the pngData argument is hardcoded null and platform is hardcoded 'sillytavern'.",
+        "src/lib/archive/index.ts:19 exports a card as PNG only when card.pngData is set, so a bridge-updated card silently downgrades to JSON in the next archive; src/components/Library.tsx:292 shows card.platform as the card's badge."
+      ],
+      "suggestion": "Have persist() take the existing LibraryCard when one is being updated and carry its pngData and platform through instead of hardcoding null/'sillytavern' — updateCard already loads the record via findCard(params.id), so pass `existing.pngData` and `existing.platform` into saveCard. Alternatively, if dropping the PNG is intended, say so in the update_card description.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "bridge_boundary_contract_drift"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "create_script_field_name_mismatch",
+      "summary": "MCP create_script writes `code`, but ScriptCard and ScriptEditor read `content`, so agent-created scripts open empty",
+      "related_files": ["mcp/src/index.ts", "src/types/index.ts", "src/components/ScriptEditor.tsx", "src/lib/cardShape.ts"],
+      "evidence": [
+        "mcp/src/index.ts create_script inputSchema declares `code: z.string().describe(\"The script body.\")` and spreads it straight into the card body.",
+        "src/types/index.ts ScriptCard declares `content: string`; src/components/ScriptEditor.tsx:121 renders `<CodeEditor value={card.content} …>`, which is undefined for a bridge-created script.",
+        "src/lib/cardShape.ts detectCardShape identifies a script by `typeof obj.content === \"string\"`, so the same payload is also unrecognisable on re-import."
+      ],
+      "suggestion": "Rename the create_script input field from `code` to `content` (keeping the description), or map it in the handler: `create(\"script\", { spec: \"script_card_v1\", ...rest, content: code, version: version ?? \"1.0\" }, open)`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "bridge_boundary_contract_drift"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "validator_signature_narrower_than_behaviour",
+      "summary": "validateTavernCardV2 declares TavernCardV2 but is written for untrusted input, so every caller casts past the signature",
+      "related_files": ["src/lib/validators/index.ts", "mcp/src/index.ts", "src/lib/platforms/converters.test.ts"],
+      "evidence": [
+        "src/lib/validators/index.ts:32 signature is `validateTavernCardV2(card: TavernCardV2)`, yet the body checks `!card || typeof card !== \"object\"`, treats `card.data` as possibly undefined, and reports errors like \"'tags' must be an array, got string\" — none of which the declared type permits.",
+        "mcp/src/index.ts:328 calls it as `validateTavernCardV2({ ... } as never)`; src/lib/platforms/converters.test.ts:148 uses the same `as never` escape."
+      ],
+      "suggestion": "Change the parameter to `card: unknown` and narrow internally (the guards already exist), then delete the `as never` at mcp/src/index.ts:328 and in converters.test.ts. This removes two casts rather than adding anything.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "rawdata_asserted_not_validated",
+      "summary": "LibraryCard.rawData is `unknown` but cast straight to LoreBook/ScriptCard/ScenarioCard/PersonaCard at both editor entry points",
+      "related_files": ["src/types/index.ts", "src/App.tsx", "src/components/Library.tsx", "src/components/LoreBookEditor.tsx", "mcp/src/index.ts"],
+      "evidence": [
+        "src/App.tsx:229-238 and src/components/Library.tsx:130-138 both do `card.rawData as LoreBook` / `as ScriptCard` / `as ScenarioCard` / `as PersonaCard` with no shape check.",
+        "src/types/index.ts LibraryCard.rawData carries the comment 'present when cardType is lorebook | script | scenario' but persona cards also store there, so the documented invariant is already out of date.",
+        "MCP create_lorebook builds entries with no `id`, while src/types/index.ts LoreEntry declares `id: string` required and LoreBookEditor keys selection (`initialBook?.entries[0]?.id`), deleteEntry and updateEntry on it. LoreBookEditor already owns a normaliser, parseSillyTavernLorebook, that mints ids — but it is only reached from file import, not from these two paths."
+      ],
+      "suggestion": "Route both editor entry points through LoreBookEditor's existing parseSillyTavernLorebook (export it) rather than casting, and give the script/scenario/persona cases the same one-line normalisation; update the rawData comment to include persona.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "bridge_boundary_contract_drift"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "bodyof_return_type_lies",
+      "summary": "bridge bodyOf() declares Record<string, string> for a body containing arrays and objects",
+      "related_files": ["src/lib/bridge/client.ts"],
+      "evidence": [
+        "src/lib/bridge/client.ts:291 `if (c.cardType === \"character\") return c.cardData?.data as unknown as Record<string, string>;` — TavernCardV2Data has `tags: string[]`, `alternate_greetings: string[]` and `extensions: Record<string, unknown>`.",
+        "The lie propagates: updateCard spreads the result into `merged` and then casts it back with `as Record<string, unknown>` before handing it to persist()."
+      ],
+      "suggestion": "Declare bodyOf as `Record<string, unknown> | undefined` and read the one string field summarise needs with a local narrowing (`typeof body?.character_version === \"string\" ? … : undefined`). That drops the double cast in updateCard as well.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "personallm_doc_claims_absent_fallback",
+      "summary": "personaLlm module doc promises a keyword-parser fallback on failure; the code throws instead",
+      "related_files": ["src/lib/personaLlm/index.ts", "src/components/SmartImportPanel.tsx"],
+      "evidence": [
+        "src/lib/personaLlm/index.ts header: 'Anything that still goes wrong falls back to the keyword parser rather than failing the user's paste.'",
+        "sortPersonaWithAi throws 'The model didn't return usable JSON…' when coerceJson returns null, and runWebLlm/runEndpoint throw on missing WebGPU, unreachable endpoint, redirect, or non-ok status. The only fallback in the module is the empty-input case (`if (!text) return parsePersonaText(raw)`).",
+        "src/components/SmartImportPanel.tsx runSort catches and surfaces the message; nothing re-runs the parser."
+      ],
+      "suggestion": "Either reword the header to match reality ('failures surface as errors that point the user at Quick sort') or, if the fallback is wanted, wrap the backend call in sortPersonaWithAi so a thrown error returns parsePersonaText(raw) with an explanatory note prepended. The doc edit is the smaller change and matches the error strings, which already say 'Try Quick sort'.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "converter_return_type_inconsistency",
+      "summary": "Three of eight convertTo* functions return TavernCardV2 while the rest return Record<string, unknown>, forcing casts in the dispatcher",
+      "related_files": ["src/lib/platforms/converters.ts"],
+      "evidence": [
+        "convertToSillyTavern, convertToChub and convertToRisu are typed `(card: TavernCardV2) => TavernCardV2`; convertToJanitorAI, convertToAgnai, convertToVenus, convertToBackyard and convertToGeneric are typed `=> Record<string, unknown>`.",
+        "convertCardTo consequently carries `as unknown as Record<string, unknown>` on exactly those three arms (lines 180, 182, 186) while the other five need no cast."
+      ],
+      "suggestion": "Declare all eight as `=> Record<string, unknown>` (a TavernCardV2 already satisfies it structurally once the return type is widened at the declaration), removing the three double casts in convertCardTo. Callers that specifically need the v2 shape can keep using convertToChub/convertToRisu's concrete input.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "localstorage_readers_declare_unvalidated_types",
+      "summary": "Three localStorage readers declare concrete return types over an unvalidated JSON.parse",
+      "related_files": ["src/lib/personaLlm/settings.ts", "src/lib/settings.ts", "src/lib/customTemplates/index.ts"],
+      "evidence": [
+        "src/lib/personaLlm/settings.ts getSorterSettings declares `SorterSettings` and returns `{ ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? \"{}\") }` — a stored `{\"backend\": 42}` is returned as a SorterSettings and reaches the backend switch in sortPersonaWithAi.",
+        "src/lib/settings.ts loadStoredSettings has the same shape over AppSettings.",
+        "src/lib/customTemplates/index.ts load() declares `CustomTemplate[]` but returns whatever JSON.parse yields — a stored object rather than an array is handed back as an array and `[...templates, tpl]` then throws in saveCustomTemplate."
+      ],
+      "suggestion": "In customTemplates load(), guard the one case that actually breaks: `const v = JSON.parse(...); return Array.isArray(v) ? v : [];`. For the two settings readers, either accept the looseness deliberately with a short comment, or coerce the handful of enum-ish keys (backend, and the three booleans) against their defaults.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "unvalidated_persisted_reads"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "safeimagesrc_mixed_failure_contract",
+      "summary": "safeImageSrc returns null for one class of bad input and throws for another",
+      "related_files": ["src/lib/bridge/client.ts"],
+      "evidence": [
+        "src/lib/bridge/client.ts safeImageSrc: `if (typeof src !== \"string\" || !src) return null;` then `if (!/^data:image\\/…/.test(src)) throw new Error(…)`. A caller reading the signature `(src: unknown) => string | null` has no signal that some inputs abort the whole cards.create RPC.",
+        "The name reads as a sanitiser (return the safe value, drop the rest), which is the opposite of the throwing branch's behaviour."
+      ],
+      "suggestion": "Rename to `requireInlineImageSrc` and document the throw in a one-line JSDoc, so the throwing branch is visible from the call site in createCard. Behaviour should stay as is — refusing a remote URL loudly is the point.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "The MCP server and the app share types/ and lib/ by direct relative import, but the tool inputSchemas in mcp/src/index.ts are hand-written Zod shapes that no type checks against ScriptCard/PersonaCard/LoreBook — so schema and consuming type can drift apart silently (create_script's code/content split is the visible instance).",
+      "LibraryCard.rawData is typed `unknown`, which pushes shape enforcement to every consumer; all four consumers chose an unchecked `as` cast, so nothing enforces the invariant the field's own comment states."
+    ],
+    "likely_symptoms": [
+      "bodyof_return_type_lies",
+      "converter_return_type_inconsistency",
+      "safeimagesrc_mixed_failure_contract"
+    ]
+  },
+  "context_updates": {
+    "contract_coherence": {
+      "add": [
+        {
+          "header": "Nullable parser strategies discharged at one entry point",
+          "description": "personaParser's four strategies each declare `ParsedPersona | null` honestly and are chained with `??` behind a single total entry point, so callers never have to reason about which strategy ran or whether null can escape.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "JSDoc records the bug each contract now prevents",
+          "description": "Comments across lib/ explain why a contract is shaped as it is by naming the failure it replaced (silent field loss in parseJson, the signed-int32 chunk-length walk in pngMetadata, the detached-anchor download). This makes the contracts self-enforcing under future edits rather than merely described.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Public getX surface is genuinely side-effect free",
+          "description": "Every exported getX reads without mutating; the two memoizing getters (getDb, getEngine) are module-private and the expensive public alias is named preloadModel, so the getter naming convention can be trusted at call sites.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Very few type escape hatches in production code",
+          "description": "A repo-wide grep for as any / ts-ignore / ts-expect-error / as never / as unknown as over src/ and mcp/src/ returns 7 hits. The small census means each cast is individually reviewable, and most mark a real contract gap rather than routine noise.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "MCP tool schemas drift from the app's card types",
+          "description": "Tool inputSchemas in mcp/src/index.ts are hand-written Zod shapes with no compile-time tie to ScriptCard/PersonaCard/LoreBook, so a renamed or missing field (code vs content, lorebook entry ids) is only discovered when the card is opened in the editor.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "rawData is unknown, enforced by cast at every consumer",
+          "description": "LibraryCard.rawData carries lorebook/script/scenario/persona bodies as `unknown`, and all four consumers assert the concrete type instead of validating. The normaliser that would do this properly exists in LoreBookEditor but is only wired to file import.",
+          "settled": true,
+          "positive": false
+        },
+        {
+          "header": "Bridge persist() rebuilds cards rather than patching them",
+          "description": "The bridge's persist() constructs a fresh LibraryCard from the merged body, which is why fields it does not model (pngData, platform) are reset on every agent update despite update_card documenting a shallow merge.",
+          "settled": true,
+          "positive": false
+        }
+      ]
+    }
+  }
+}

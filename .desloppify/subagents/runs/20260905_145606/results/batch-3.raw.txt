@@ -1,0 +1,167 @@
+{
+  "batch": "convention_outlier",
+  "batch_index": 3,
+  "assessments": {"convention_outlier": 82.5},
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Component convention is near-uniform: 28 of 29 files in src/components/ are `export default function <Name>` with a local `interface <Name>Props` (25 files declare one; 0 use a `type` alias). The two deviations are principled — ErrorBoundary.tsx must be a class (React error boundary contract) and ResizableTextArea.tsx is a forwardRef wrapper exported at the bottom.",
+        "src/lib and src/hooks are uniformly named exports with camelCase functions, PascalCase types and SCREAMING_SNAKE constants; localStorage keys share a `cb_` prefix across five modules (src/lib/settings.ts, src/lib/personaLlm/settings.ts, src/lib/customTemplates/index.ts, src/lib/bridge/client.ts).",
+        "The four non-character editors (LoreBookEditor, ScriptEditor, ScenarioEditor, PersonaEditor) share an almost line-for-line scaffold: same initialCard/initialImageSrc/initialLibraryId props, same useStatusMessage + saving + savedVersion state, same exportPng/handleSaveToLibrary bodies, and App.tsx mounts all four with the same key-bump remount protocol.",
+        "Behavioral outlier with a correctness consequence: src/lib/cardShape.ts exists precisely to classify a payload by shape rather than by metadata keyword, and its own docstring records the bug that motivated it. ImportPNG.tsx uses shapeForKey + detectCardShape; DecodePNG.tsx never imports the module, re-declares `const CHARACTER_KEYS = new Set([\"chara\",\"character\",\"tavern\",\"tavern_card_v2\"])` at line 11 (verbatim copy of the exported Set) and dispatches on `result.key` alone at lines 74-119.",
+        "Behavioral outlier in App.tsx: the bridge `openCard` handler (lines 224-241) passes `card.id` only for characters (`loadFromLibrary(..., card.id)`); the other four types go through handleImportLorebook/Script/Scenario/Persona, which deliberately omit the id, while the id-carrying siblings handleEditLorebook/Script/Scenario/Persona already exist a few lines above.",
+        "Sibling protocol gap: useUnsavedWarning is called exactly once, in App.tsx line 90 for character state, though the four other editors hold their card in plain React state until Save/Export by the same argument the hook's own docstring makes.",
+        "Style island: CodeEditor inside src/components/ScriptEditor.tsx (lines 265-340) is styled entirely with inline style objects and raw hex (#1a1d2e, #7a8aaa, #c8d3f5, #3d4a6b), while the other 28 components use the semantic Tailwind tokens defined in tailwind.config.js, whose comment explicitly instructs using them instead of raw colours.",
+        "Parallel type vocabulary: the same five-member card-kind union is declared four times under four names — LibraryCardType (src/types/index.ts:163), CardShape (src/lib/cardShape.ts:13), CardType (src/lib/bridge/protocol.ts:97) and DetectedType (src/components/ImportPNG.tsx:10) — forcing eight `as CardType` casts in src/lib/bridge/client.ts.",
+        "Mild organizational coin-flip in src/lib: six single-file directories (archive/, customTemplates/, library/, tokenizer/, validators/, personaParser/ — each just index.ts plus an optional test) sit beside seven flat single files of comparable size (download.ts 35 LOC vs archive/index.ts 47 LOC); src/lib/bridge/ has two files and no index.ts while platforms/ and personaLlm/ do.",
+        "Tests are consistently colocated with their subject (cardShape.test.ts, platforms/converters.test.ts, pngMetadata/index.test.ts, personaParser/index.test.ts) — no separate test-tree convention competing with it."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "dimension_judgment": {
+    "convention_outlier": {
+      "dimension_character": "Surface conventions in this codebase are unusually tight: a developer who reads one component, one lib module or one editor can predict the shape of every sibling — default-export function plus a local Props interface, named exports and camelCase in lib/, a shared editor scaffold, colocated tests, `cb_`-prefixed storage keys, and semantic Tailwind tokens. The drift that exists is behavioral rather than cosmetic, and it clusters where the code was extended one card type at a time: DecodePNG never adopted the cardShape classifier its sibling ImportPNG uses (and copies CHARACTER_KEYS instead of importing it), App.tsx preserves library identity for characters but drops it for the other four types on the same bridge path, and useUnsavedWarning guards only character state. Those, plus the inline-hex CodeEditor island and four parallel names for one card-kind union, are the moments where a learned pattern stops holding.",
+      "score_rationale": "The consistency is systemic and the outliers are countable and local, which keeps this well above the 80 anchor's 'recurring friction' — but the outliers are not cosmetic: three of them are protocol divergences with real consequences (mislabelled cards mis-loaded, agent-opened cards duplicated on save, unsaved work lost silently in four editors), which is more than the 90 anchor's 'isolated rough edges'. Scored just above 80 because a developer can trust the visible conventions almost everywhere yet cannot assume that a shared helper adopted by one sibling was adopted by the rest."
+    }
+  },
+  "issues": [
+    {
+      "dimension": "convention_outlier",
+      "identifier": "decodepng_skips_cardshape",
+      "summary": "DecodePNG classifies cards by metadata keyword alone and re-declares CHARACTER_KEYS, while ImportPNG uses lib/cardShape",
+      "related_files": ["src/components/DecodePNG.tsx", "src/lib/cardShape.ts", "src/components/ImportPNG.tsx"],
+      "evidence": [
+        "src/lib/cardShape.ts exports CHARACTER_KEYS, shapeForKey and detectCardShape, and its docstring records the bug it was written for: trusting the PNG keyword rebuilt a mislabelled lorebook as a blank character card and dropped every entry.",
+        "src/components/DecodePNG.tsx:11 declares its own `const CHARACTER_KEYS = new Set([\"chara\", \"character\", \"tavern\", \"tavern_card_v2\"])` — a verbatim copy of the exported Set — and never imports lib/cardShape.",
+        "DecodePNG's processFile (lines 74-80) and handleLoadToEditor (lines 106-119) branch only on the metadata `key`, so a lorebook stored under `chara` is labelled a character card and handed to convertCardFrom, exactly the failure ImportPNG.tsx (lines 88-95) guards against with `const actual = detectCardShape(parsed)` and its mismatch note."
+      ],
+      "suggestion": "In src/components/DecodePNG.tsx, delete the local CHARACTER_KEYS and import { CHARACTER_KEYS, shapeForKey, detectCardShape } from \"../lib/cardShape\"; compute the effective shape the way ImportPNG does (shape wins over keyword on mismatch) and switch both processFile's format label and handleLoadToEditor's dispatch onto that shape instead of result.key.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "per_card_type_protocol_drift"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "bridge_open_drops_library_id",
+      "summary": "Bridge openCard preserves the library id for characters but routes the other four card types through id-less import handlers",
+      "related_files": ["src/App.tsx", "src/lib/bridge/client.ts", "src/lib/library/index.ts"],
+      "evidence": [
+        "src/App.tsx:224-241: the registerBridgeHost openCard switch calls loadFromLibrary(card.cardData, null, image, card.id) for \"character\" but handleImportLorebook/Script/Scenario/Persona(card.rawData, image) for the other four — those handlers set `{ card, imageSrc }` with no id, unlike the sibling handleEditLorebook/Script/Scenario/Persona (lines 166-189) which pass the id through.",
+        "src/lib/bridge/client.ts:359 and 373 pass the freshly saved LibraryCard — id included — to host.openCard, so the id is available for every type.",
+        "With initialLibraryId undefined the editor's handleSaveToLibrary calls saveAnyCard(..., undefined), and src/lib/library/index.ts:71 then mints `crypto.randomUUID()`, so saving an agent-opened lorebook creates a duplicate entry; the button also reads \"Save to Library\" rather than \"Update in Library\"."
+      ],
+      "suggestion": "In App.tsx's openCard switch, call the identity-preserving handlers for the non-character cases — handleEditLorebook(card.rawData as LoreBook, image, card.id) and the Script/Scenario/Persona equivalents — so all five branches follow the same protocol.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "per_card_type_protocol_drift"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "unsaved_warning_character_only",
+      "summary": "useUnsavedWarning guards character editing only; the four sibling editors hold the same unsaved React state without it",
+      "related_files": ["src/App.tsx", "src/hooks/useUnsavedWarning.ts", "src/components/PersonaEditor.tsx", "src/components/LoreBookEditor.tsx"],
+      "evidence": [
+        "useUnsavedWarning has exactly one call site, src/App.tsx:90, gated on character-card fields (project.card.data.name/description/personality/first_mes).",
+        "PersonaEditor, ScenarioEditor, ScriptEditor and LoreBookEditor each keep their card in `useState` until handleSaveToLibrary or an export runs — the same situation the hook's docstring describes ('whatever is in an editor is plain React state until you hit Save to Library or export'), yet none of them import the hook."
+      ],
+      "suggestion": "Call useUnsavedWarning in each of the four editors with a dirty check on their own state (e.g. in PersonaEditor: useUnsavedWarning(!libraryId && !!card.name.trim())), matching the character path's gating.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "per_card_type_protocol_drift"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "codeeditor_inline_hex_island",
+      "summary": "ScriptEditor's CodeEditor is styled with inline hex colours while all other components use the semantic Tailwind tokens",
+      "related_files": ["src/components/ScriptEditor.tsx", "tailwind.config.js"],
+      "evidence": [
+        "src/components/ScriptEditor.tsx lines 265-340 set background/color/border through inline style objects with raw values (#1a1d2e, #7a8aaa, #a78bfa, #c8d3f5, #3d4a6b, rgba(100,110,160,0.2)) across the wrapper, header, gutter and textarea.",
+        "tailwind.config.js defines the app's colour vocabulary (bg.*, text.*, status.*, border.*) with a comment instructing that these be used instead of raw palette values; every other component styles via those classes, with inline `style` reserved for computed values such as progress-bar widths (CardPreviewPanel.tsx:271, 303)."
+      ],
+      "suggestion": "Add the code-surface colours to the existing `colors` block in tailwind.config.js (e.g. a `code: { bg, gutter, text, chrome }` group) and replace CodeEditor's inline style objects with the corresponding className utilities, keeping inline style only for the computed gutter line height.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "parallel_card_type_unions",
+      "summary": "The same five card kinds are declared as four separately named unions, forcing casts between structurally identical types",
+      "related_files": ["src/types/index.ts", "src/lib/cardShape.ts", "src/lib/bridge/protocol.ts", "src/components/ImportPNG.tsx", "src/lib/bridge/client.ts"],
+      "evidence": [
+        "LibraryCardType (src/types/index.ts:163), CardShape (src/lib/cardShape.ts:13), CardType (src/lib/bridge/protocol.ts:97) and DetectedType (src/components/ImportPNG.tsx:10) all spell out \"character\" | \"lorebook\" | \"script\" | \"scenario\" | \"persona\".",
+        "src/lib/bridge/client.ts writes `c.cardType as CardType` eight times (lines 281, 312, 321, 350, 360, 367, 374) purely to cross between two of these identical aliases.",
+        "src/components/DecodePNG.tsx:13 adds a fifth, NonCharType, for the same set minus \"character\"."
+      ],
+      "suggestion": "Keep LibraryCardType in src/types as the single declaration; make CardShape and CardType aliases of it (`export type CardType = LibraryCardType`) — protocol.ts must stay dependency-light, so if that import is unwanted, at minimum drop DetectedType and NonCharType in favour of LibraryCardType / Exclude<LibraryCardType, \"character\">. The casts in bridge/client.ts then disappear.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "lib_single_file_dirs",
+      "summary": "src/lib mixes single-file directories with flat files of the same size, with no visible rule separating the two",
+      "related_files": ["src/lib/archive/index.ts", "src/lib/customTemplates/index.ts", "src/lib/download.ts", "src/lib/tokenizer/index.ts", "src/lib/bridge/client.ts"],
+      "evidence": [
+        "archive/, customTemplates/, library/, tokenizer/, validators/ and personaParser/ each contain only index.ts (plus, for two of them, a colocated test), while download.ts (35 LOC), settings.ts, cardShape.ts, carrierImage.ts, readImageFile.ts, minimalPng.ts and tavernCard.ts sit flat — archive/index.ts is 47 LOC, larger than several of the flat files.",
+        "The multi-file directories are themselves inconsistent: platforms/ and personaLlm/ have an index.ts entry point, bridge/ (client.ts + protocol.ts) has none."
+      ],
+      "suggestion": "Flatten the single-file directories to plain modules (src/lib/archive.ts, customTemplates.ts, library.ts, tokenizer.ts, validators.ts, personaParser.ts) so directories mean 'more than one file'; import paths are unchanged in specifier text apart from the module name, and the tree loses six directories. Do not add an index.ts to bridge/ — leave the explicit client/protocol imports as they are.",
+      "confidence": "low",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Card types were added one at a time (character first, then lorebook/script/scenario/persona), so shared helpers introduced later — cardShape, useUnsavedWarning, library-id threading — were wired into whichever call site prompted them rather than into all five paths."
+    ],
+    "likely_symptoms": ["parallel_card_type_unions", "lib_single_file_dirs"]
+  },
+  "context_updates": {
+    "convention_outlier": {
+      "add": [
+        {
+          "header": "Uniform component export and props convention",
+          "description": "Every file in src/components/ is a default-exported function component with a local `interface <Name>Props`; no `type` aliases for props and no named component exports. The only deviations are contract-driven — ErrorBoundary must be a class, ResizableTextArea is a forwardRef — so a developer can predict any component's shape from any other.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Shared scaffold across the four non-character editors",
+          "description": "LoreBookEditor, ScriptEditor, ScenarioEditor and PersonaEditor take the same initialCard/initialImageSrc/initialLibraryId props, hold the same status/saving/savedVersion state, and are remounted by App via a key bump. The repetition is deliberate uniformity, which makes any single editor that diverges immediately visible.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Semantic Tailwind tokens are the styling vocabulary",
+          "description": "tailwind.config.js defines bg/text/status/border tokens with AA-contrast notes and instructs using them over raw palette classes; components follow this and reserve inline `style` for computed values like progress widths. ScriptEditor's CodeEditor is the one island that hardcodes hex.",
+          "settled": true,
+          "positive": true
+        },
+        {
+          "header": "Per-card-type protocol drift is the recurring outlier shape",
+          "description": "Convention breaks here are behavioral, not cosmetic: helpers added after the character path existed (cardShape, useUnsavedWarning, library-id threading through the bridge) were adopted by some card types and not others. When touching any card-type code path, check all five branches rather than assuming the pattern generalizes.",
+          "settled": true
+        },
+        {
+          "header": "Card-kind union declared under four names",
+          "description": "LibraryCardType, CardShape, CardType and DetectedType are structurally identical five-member unions in four files, which is why bridge/client.ts is littered with `as CardType`. protocol.ts is intentionally dependency-free, which explains one of the copies but not the rest.",
+          "settled": true
+        },
+        {
+          "header": "src/lib splits arbitrarily between flat files and single-file dirs",
+          "description": "Six lib subdirectories contain only index.ts while seven comparably sized modules sit flat, and bridge/ has two files but no index. The split does not track size or file count, so where a new lib module belongs is a coin flip.",
+          "settled": false
+        }
+      ]
+    }
+  }
+}
