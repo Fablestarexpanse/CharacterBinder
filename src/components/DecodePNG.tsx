@@ -43,7 +43,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
   const [showFullCompat, setShowFullCompat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const processFile = useCallback(async (file: File) => {
+  const inspectPngFile = useCallback(async (file: File) => {
     setError(null);
     setResult(null);
     try {
@@ -103,8 +103,8 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
+    if (file) inspectPngFile(file);
+  }, [inspectPngFile]);
 
   const handleLoadToEditor = () => {
     if (!result) return;
@@ -160,7 +160,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
           <FileSearch size={28} className="text-text-muted" />
           <p className="text-sm text-text-secondary">Drop any card PNG here to inspect its metadata</p>
           <input ref={fileInputRef} type="file" accept=".png,image/png" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.currentTarget.value = ""; }} />
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) inspectPngFile(f); e.currentTarget.value = ""; }} />
         </div>
 
         {error && (

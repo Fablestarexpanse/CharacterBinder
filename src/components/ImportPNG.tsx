@@ -42,7 +42,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
   const [detectedKey, setDetectedKey] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const processFile = useCallback(async (file: File) => {
+  const importPngFile = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".png") && !file.type.includes("png")) {
       setStatus("error");
       setMessage("Please select a PNG file.");
@@ -163,8 +163,8 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
+    if (file) importPngFile(file);
+  }, [importPngFile]);
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-8">
@@ -212,7 +212,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
             type="file"
             accept=".png,image/png"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) importPngFile(f); }}
           />
         </div>
 

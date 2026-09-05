@@ -160,7 +160,7 @@ export function isBridgeEnabled(): boolean {
 export function connectBridge() {
   bridgeStore.save({ enabled: true });
   manualDisconnect = false;
-  open();
+  openSocket();
 }
 
 export function disconnectBridge() {
@@ -189,7 +189,7 @@ export function initBridge(h: BridgeHost) {
   // re-entry (React's StrictMode double-invoke, or a remount), which would
   // reopen a socket that is about to be closed again and strand the light on
   // "connecting".
-  if (isBridgeEnabled() && !manualDisconnect) open();
+  if (isBridgeEnabled() && !manualDisconnect) openSocket();
 }
 
 function scheduleReconnect() {
@@ -198,11 +198,11 @@ function scheduleReconnect() {
   // a tight loop against a closed port is just noise.
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
-    open();
+    openSocket();
   }, 4000);
 }
 
-function open() {
+function openSocket() {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
 
   setState({ status: "connecting", error: null });

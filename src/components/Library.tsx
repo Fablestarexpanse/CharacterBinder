@@ -36,13 +36,13 @@ const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; c
 
 interface LibraryProps {
   /** Bumped by the MCP bridge after it mutates the library; forces a reload. */
-  refreshToken?: number;
+  libraryRevision?: number;
   onEditCard:     (card: TavernCardV2,  pngData: Uint8Array | null, imageSrc: string | null, id: string) => void;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }
 
-export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }: LibraryProps) {
+export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCard }: LibraryProps) {
   const [cards, setCards] = useState<LibraryCard[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
@@ -71,7 +71,7 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
     }
   }, [reportFailure]);
 
-  useEffect(() => { load(); }, [load, refreshToken]);
+  useEffect(() => { load(); }, [load, libraryRevision]);
 
   const filtered = cards
     .filter((c) => {

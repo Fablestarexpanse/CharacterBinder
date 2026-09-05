@@ -305,7 +305,7 @@ function App() {
         {activePage === "templates" && <Templates onLoad={loadCard} />}
         {activePage === "library" && (
           <Library
-            refreshToken={libraryRevision}
+            libraryRevision={libraryRevision}
             onEditCard={loadFromLibrary}
             onOpenDataCard={openDataCard}
           />
