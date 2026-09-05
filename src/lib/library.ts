@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from "idb";
+import type { PlatformId } from "../shared/platforms/registry";
 import type {
   DataCardType, RawCardFor, LibraryCard, LibraryCardBase, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
 } from "../types";
@@ -63,7 +64,7 @@ export type SaveCardInput =
       body: TavernCardV2;
       /** The card re-encoded into its PNG, kept so archive export needs no re-encode. */
       pngData?: Uint8Array | null;
-      platform?: string;
+      platform?: PlatformId;
     })
   | (SaveCommon & { cardType: "lorebook"; body: LoreBook })
   | (SaveCommon & { cardType: "script"; body: ScriptCard })
@@ -110,13 +111,12 @@ export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard
       tags: input.tags ?? input.body.data.tags ?? [],
     };
   } else {
-    // Non-character cards carry no encoded PNG, and their "platform" is the
-    // kind itself — nothing converts them per target app.
+    // Non-character cards carry no encoded PNG and no target platform: nothing
+    // converts them per app.
     const common = {
       ...shell,
       name: input.name || input.body.name || `Unnamed ${input.cardType}`,
       pngData: null,
-      platform: input.cardType,
       tags: input.tags ?? [],
     };
     switch (input.cardType) {
@@ -138,8 +138,8 @@ export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard
  */
 function withCardType(record: LibraryCard): LibraryCard {
   if (record.cardType) return record;
-  const legacy = record as LibraryCardBase & { cardData: TavernCardV2 };
-  return { ...legacy, cardType: "character" };
+  const legacy = record as LibraryCardBase & { cardData: TavernCardV2; platform?: PlatformId };
+  return { ...legacy, cardType: "character", platform: legacy.platform ?? "sillytavern" };
 }
 
 /** Return all cards, newest first. */

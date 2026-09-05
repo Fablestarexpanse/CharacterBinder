@@ -21,7 +21,7 @@ const libraryCharacter = (id: string, name: string): LibraryCard => ({
   ...base, id, name, cardType: "character", cardData: createBlankTavernCard(name), platform: "sillytavern", tags: ["harbour"],
 });
 const persona = (id: string, name: string): LibraryCard => ({
-  ...base, id, name, cardType: "persona", rawData: { ...blankPersonaCard(), name }, platform: "persona", tags: [],
+  ...base, id, name, cardType: "persona", rawData: { ...blankPersonaCard(), name }, tags: [],
 });
 
 beforeEach(() => {

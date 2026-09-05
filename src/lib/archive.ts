@@ -43,7 +43,9 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
       id: card.id,
       name: card.name,
       cardType: card.cardType,
-      platform: card.platform,
+      // Only a character card has a target app; omitting it beats writing the
+      // card's own kind into the field a second time.
+      ...(card.cardType === "character" ? { platform: card.platform } : {}),
       tags: card.tags,
       createdAt: new Date(card.createdAt).toISOString(),
       updatedAt: new Date(card.updatedAt).toISOString(),

@@ -79,7 +79,9 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
       const q = search.toLowerCase();
       return (
         c.name.toLowerCase().includes(q) ||
-        c.platform.toLowerCase().includes(q) ||
+        // A character card is also findable by the app it targets; the other
+        // kinds have no target, and match on their kind alone.
+        (c.cardType === "character" && c.platform.toLowerCase().includes(q)) ||
         c.cardType.includes(q) ||
         c.tags.some((t) => t.toLowerCase().includes(q))
       );
@@ -330,7 +332,9 @@ function CardTile({
   const version = getCardVersion(card);
 
   // Badge label: platform for characters, type name for others
-  const badge = type === "character" ? card.platform : meta.label.replace(" Cards", "").replace("books", "book");
+  const badge = card.cardType === "character"
+    ? card.platform
+    : meta.label.replace(" Cards", "").replace("books", "book");
 
   return (
     <div

@@ -13,12 +13,12 @@ vi.mock("./download", () => ({
   downloadBlob: (blob: Blob, filename: string) => void (written = { blob, filename }),
 }));
 
-const base = { imageSrc: null, createdAt: Date.UTC(2026, 0, 2), updatedAt: Date.UTC(2026, 0, 3), platform: "sillytavern" };
+const base = { imageSrc: null, createdAt: Date.UTC(2026, 0, 2), updatedAt: Date.UTC(2026, 0, 3) };
 const character = (id: string, name: string, pngData: Uint8Array | null = null): LibraryCard => ({
-  ...base, id, name, cardType: "character", cardData: createBlankTavernCard(name), pngData, tags: ["harbour"],
+  ...base, id, name, cardType: "character", cardData: createBlankTavernCard(name), platform: "sillytavern", pngData, tags: ["harbour"],
 });
 const persona = (id: string, name: string): LibraryCard => ({
-  ...base, id, name, cardType: "persona", rawData: { ...blankPersonaCard(), name }, pngData: null, platform: "persona", tags: [],
+  ...base, id, name, cardType: "persona", rawData: { ...blankPersonaCard(), name }, pngData: null, tags: [],
 });
 
 async function entries(): Promise<{ names: string[]; manifest: Record<string, unknown>[] }> {

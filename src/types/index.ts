@@ -1,3 +1,4 @@
+import type { PlatformId } from "../shared/platforms/registry";
 export interface CharacterBook {
   name?: string;
   description?: string;
@@ -233,7 +234,6 @@ export interface LibraryCardBase {
   name: string;
   pngData: Uint8Array | null;
   imageSrc: string | null;
-  platform: string;
   tags: string[];
   createdAt: number;
   updatedAt: number;
@@ -247,11 +247,14 @@ export interface LibraryCardBase {
  * not check. Narrowing on `cardType` now does that work.
  */
 export type LibraryCard =
-  | (LibraryCardBase & { cardType: "character"; cardData: TavernCardV2; rawData?: never })
-  | (LibraryCardBase & { cardType: "lorebook"; rawData: LoreBook; cardData?: never })
-  | (LibraryCardBase & { cardType: "script"; rawData: ScriptCard; cardData?: never })
-  | (LibraryCardBase & { cardType: "scenario"; rawData: ScenarioCard; cardData?: never })
-  | (LibraryCardBase & { cardType: "persona"; rawData: PersonaCard; cardData?: never });
+  // `platform` is on this arm alone: it is the app a character card is
+  // converted for. The other four kinds are stored as-is and have no target,
+  // and used to carry their own cardType in this field to fill it.
+  | (LibraryCardBase & { cardType: "character"; cardData: TavernCardV2; platform: PlatformId; rawData?: never })
+  | (LibraryCardBase & { cardType: "lorebook"; rawData: LoreBook; cardData?: never; platform?: never })
+  | (LibraryCardBase & { cardType: "script"; rawData: ScriptCard; cardData?: never; platform?: never })
+  | (LibraryCardBase & { cardType: "scenario"; rawData: ScenarioCard; cardData?: never; platform?: never })
+  | (LibraryCardBase & { cardType: "persona"; rawData: PersonaCard; cardData?: never; platform?: never });
 
 /** The non-character payload for a given card type. */
 export type RawCardFor<T extends Exclude<LibraryCardType, "character">> =

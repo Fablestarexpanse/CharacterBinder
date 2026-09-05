@@ -46,9 +46,10 @@ describe("saveLibraryCard", () => {
     expect(read?.name).toBe("Kael");
     expect(read?.cardType).toBe("persona");
     expect(read?.tags).toEqual(["scientist"]);
-    // A data card carries no encoded PNG, and its platform is its own kind.
+    // A data card carries no encoded PNG and no target platform: it is stored
+    // as-is, and nothing converts it per app.
     expect(read?.pngData).toBeNull();
-    expect(read?.platform).toBe("persona");
+    expect(read?.platform).toBeUndefined();
   });
 
   it("updates in place when given the existing id, keeping createdAt", async () => {
