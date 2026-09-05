@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from "idb";
 import type {
-  LibraryCard, LibraryCardBase, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
+  DataCardType, RawCardFor, LibraryCard, LibraryCardBase, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
 } from "../types";
 
 const DB_NAME = "characterbinder-library";
@@ -75,6 +75,23 @@ export type SaveCardInput =
   | (SaveCommon & { cardType: "script"; body: ScriptCard })
   | (SaveCommon & { cardType: "scenario"; body: ScenarioCard })
   | (SaveCommon & { cardType: "persona"; body: PersonaCard });
+
+/**
+ * Pair a card kind with a body of that kind's type.
+ *
+ * SaveCardInput is a union over cardType, and TypeScript cannot see that a
+ * generic K and a RawCardFor<K> line up — so callers holding both generically
+ * had to cast the whole input, erasing the check that catches a lorebook saved
+ * as a persona. The pairing is proved by this signature and asserted once here
+ * rather than at every call site.
+ */
+export function saveCardInput<K extends DataCardType>(
+  cardType: K,
+  body: RawCardFor<K>,
+  common: Omit<SaveCommon, "body"> = {}
+): SaveCardInput {
+  return { ...common, cardType, body } as SaveCardInput;
+}
 
 /** Store a card, or update the one named by `existingId`. */
 export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard> {

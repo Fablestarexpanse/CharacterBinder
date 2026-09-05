@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DataCardType, RawCardFor } from "../types";
-import { saveLibraryCard } from "../lib/library";
+import { saveCardInput, saveLibraryCard } from "../lib/library";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
@@ -141,13 +141,15 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
       // A changed version means "keep the old one too": save without the id so
       // the library gains a second record rather than overwriting the first.
       const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
-      const saved = await saveLibraryCard({
-        cardType,
-        body: card,
+      const common = {
         imageSrc,
         tags: tagsOf ? tagsOf(card) : (card as { tags?: string[] }).tags ?? [],
         existingId: versionChanged ? undefined : libraryId,
-      } as Parameters<typeof saveLibraryCard>[0]);
+      };
+
+      // saveCardInput proves the kind and the body match; a mismatch here is a
+      // compile error rather than a card stored under the wrong type.
+      const saved = await saveLibraryCard(saveCardInput(cardType, card, common));
       setLibraryId(saved.id);
       setSavedVersion(card.version);
       setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);

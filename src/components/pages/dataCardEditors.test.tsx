@@ -6,7 +6,10 @@ import ScenarioEditor from "./ScenarioEditor";
 import PersonaEditor from "./PersonaEditor";
 
 const saveLibraryCard = vi.fn(async (_input: unknown) => ({ id: "saved-1" }));
-vi.mock("../../lib/library", () => ({ saveLibraryCard: (i: unknown) => saveLibraryCard(i) }));
+vi.mock("../../lib/library", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/library")>("../../lib/library");
+  return { ...actual, saveLibraryCard: (i: unknown) => saveLibraryCard(i) };
+});
 
 const downloadJson = vi.fn();
 vi.mock("../../lib/download", () => ({

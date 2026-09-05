@@ -36,7 +36,7 @@ import {
   type OpenParams,
   type UpdateParams,
 } from "../../shared/bridgeProtocol";
-import { getAllCards, getCard as readCard, saveLibraryCard, deleteCard } from "../library";
+import { getAllCards, getCard as readCard, saveCardInput, saveLibraryCard, deleteCard } from "../library";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 import { coerceCardBody, coerceCharacterData } from "../blankCards";
 import { createPersistedSettings } from "../persistedSettings";
@@ -500,14 +500,10 @@ async function persist(
   const tags = Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === "string") : [];
   const common = { name, imageSrc, tags, existingId };
 
-  // Each kind is spelled out so the body a peer sent is checked against the
-  // shape that kind stores, rather than cast into it.
-  switch (cardType) {
-    case "lorebook": return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
-    case "script":   return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
-    case "scenario": return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
-    case "persona":  return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
-  }
+  // coerceCardBody returns that kind's own shape, and saveCardInput proves the
+  // two line up — so a peer's body is checked against the type it will be
+  // stored as, not cast into it.
+  return saveLibraryCard(saveCardInput(cardType, coerceCardBody(cardType, body), common));
 }
 
 /**

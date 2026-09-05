@@ -5,7 +5,11 @@ import { blankScriptCard } from "../lib/blankCards";
 import type { ScriptCard } from "../types";
 
 const saveLibraryCard = vi.fn(async () => ({ id: "saved-1" }));
-vi.mock("../lib/library", () => ({ saveLibraryCard: (...args: unknown[]) => saveLibraryCard(...(args as [])) }));
+vi.mock("../lib/library", async () => {
+  const actual = await vi.importActual<typeof import("../lib/library")>("../lib/library");
+  // saveCardInput is a pure pairing helper; only the write is stubbed.
+  return { ...actual, saveLibraryCard: (...args: unknown[]) => saveLibraryCard(...(args as [])) };
+});
 
 const downloadJson = vi.fn();
 const downloadPng = vi.fn();

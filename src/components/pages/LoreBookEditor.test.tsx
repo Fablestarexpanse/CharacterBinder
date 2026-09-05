@@ -6,9 +6,11 @@ import LoreBookEditor from "./LoreBookEditor";
 // The editor's only outside dependency in these tests is the library write,
 // which needs IndexedDB. Everything else — entries, selection, the filename —
 // is local state, which is what these cases are about.
-vi.mock("../../lib/library", () => ({
-  saveLibraryCard: vi.fn(async () => ({ id: "saved-id" })),
-}));
+const saveLibraryCard = vi.fn(async () => ({ id: "saved-id" }));
+vi.mock("../../lib/library", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/library")>("../../lib/library");
+  return { ...actual, saveLibraryCard: () => saveLibraryCard() };
+});
 
 const book = (entries: number) => ({
   name: "World",
