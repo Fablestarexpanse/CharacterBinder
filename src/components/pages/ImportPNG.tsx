@@ -17,6 +17,13 @@ interface ImportPNGProps {
   onOpenDataCard: OpenDataCard;
 }
 
+/** ST writes lorebook entries as an array or as an object keyed by index. */
+function countEntries(parsed: { entries?: unknown }): number {
+  if (Array.isArray(parsed.entries)) return parsed.entries.length;
+  if (parsed.entries && typeof parsed.entries === "object") return Object.keys(parsed.entries).length;
+  return 0;
+}
+
 const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
   character: "Character Card",
   lorebook: "Lorebook",
@@ -110,44 +117,16 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
         return;
       }
 
-      // ── Lorebook ────────────────────────────────────────────────────
-      if (effective === "lorebook") {
-        setDetectedType("lorebook");
+      // ── Everything else ─────────────────────────────────────────────
+      if (effective) {
+        setDetectedType(effective);
         setStatus("success");
-        const entryCount = Array.isArray(parsed.entries)
-          ? parsed.entries.length
-          : typeof parsed.entries === "object" && parsed.entries
-          ? Object.keys(parsed.entries).length
-          : 0;
-        setMessage(`Loaded lorebook "${parsed.name || "Unnamed"}" — ${entryCount} entries${mismatchNote}. Opening in editor…`);
-        onOpenDataCard("lorebook", parsed, imageSrc);
-        return;
-      }
-
-      // ── Script card ─────────────────────────────────────────────────
-      if (effective === "script") {
-        setDetectedType("script");
-        setStatus("success");
-        setMessage(`Loaded script "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onOpenDataCard("script", parsed, imageSrc);
-        return;
-      }
-
-      // ── Scenario card ───────────────────────────────────────────────
-      if (effective === "scenario") {
-        setDetectedType("scenario");
-        setStatus("success");
-        setMessage(`Loaded scenario "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onOpenDataCard("scenario", parsed, imageSrc);
-        return;
-      }
-
-      // ── Persona card ─────────────────────────────────────────────────
-      if (effective === "persona") {
-        setDetectedType("persona");
-        setStatus("success");
-        setMessage(`Loaded persona "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onOpenDataCard("persona", parsed, imageSrc);
+        // Entry count is the one detail worth spelling out per kind: a lorebook
+        // that imports with none is the failure this panel exists to surface.
+        const detail = effective === "lorebook" ? ` — ${countEntries(parsed)} entries` : "";
+        const label = TYPE_LABELS[effective].toLowerCase();
+        setMessage(`Loaded ${label} "${parsed.name || "Unnamed"}"${detail}${mismatchNote}. Opening in editor…`);
+        onOpenDataCard(effective, parsed, imageSrc);
         return;
       }
 
