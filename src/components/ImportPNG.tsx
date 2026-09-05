@@ -6,6 +6,7 @@ import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata"
 import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { detectCardShape, shapeForKey } from "../lib/cardShape";
+import { pngBytesToDataUrl } from "../lib/carrierImage";
 
 type DetectedType = LibraryCardType | null;
 
@@ -30,12 +31,6 @@ const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
   scenario: "scenario",
   persona: "persona",
 };
-
-function uint8ToDataUrl(b: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
-  return "data:image/png;base64," + btoa(bin);
-}
 
 export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
   const [dragging, setDragging] = useState(false);
@@ -78,7 +73,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
       }
 
       const parsed = JSON.parse(json);
-      const imageSrc = uint8ToDataUrl(bytes);
+      const imageSrc = pngBytesToDataUrl(bytes);
       setDetectedKey(key);
 
       // The metadata keyword says what the file claims to be; the payload shape

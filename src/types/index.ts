@@ -43,11 +43,17 @@ export interface TavernCardV2Data {
   extensions: Record<string, unknown>;
 }
 
-export interface TavernCardV2 {
+/**
+ * Declared as a type alias, not an interface, so it satisfies
+ * `Record<string, unknown>` — the shape every platform converter returns. An
+ * interface has no implicit index signature, which is what forced the export
+ * dispatcher to cast three of its eight branches through `unknown`.
+ */
+export type TavernCardV2 = {
   spec: "chara_card_v2";
   spec_version: "2.0";
   data: TavernCardV2Data;
-}
+};
 
 export type MetadataKey =
   | "chara"

@@ -3,8 +3,13 @@ import type { PlatformId } from "./index";
 import { createBlankTavernCard } from "../tavernCard";
 
 // ─── Master → Platform ───────────────────────────────────────────────────────
+//
+// Every convertTo* returns Record<string, unknown> — the JSON body written to a
+// file for that platform. Three of them happen to produce a Tavern v2 card, but
+// declaring that as their return type split the family in two and forced the
+// dispatcher to cast through `unknown` on exactly those three.
 
-export function convertToSillyTavern(card: TavernCardV2): TavernCardV2 {
+export function convertToSillyTavern(card: TavernCardV2): Record<string, unknown> {
   return structuredClone(card);
 }
 
@@ -26,7 +31,7 @@ export function convertToJanitorAI(card: TavernCardV2): Record<string, unknown> 
   };
 }
 
-export function convertToChub(card: TavernCardV2): TavernCardV2 {
+export function convertToChub(card: TavernCardV2): Record<string, unknown> {
   const clone = structuredClone(card);
   clone.data.extensions = {
     ...clone.data.extensions,
@@ -103,7 +108,7 @@ export function convertToBackyard(card: TavernCardV2): Record<string, unknown> {
   };
 }
 
-export function convertToRisu(card: TavernCardV2): TavernCardV2 {
+export function convertToRisu(card: TavernCardV2): Record<string, unknown> {
   const clone = structuredClone(card);
   clone.data.extensions = {
     ...clone.data.extensions,
@@ -177,13 +182,13 @@ export function convertCardTo(
   platformId: PlatformId
 ): Record<string, unknown> {
   switch (platformId) {
-    case "sillytavern": return convertToSillyTavern(card) as unknown as Record<string, unknown>;
+    case "sillytavern": return convertToSillyTavern(card);
     case "janitorai":   return convertToJanitorAI(card);
-    case "chub":        return convertToChub(card) as unknown as Record<string, unknown>;
+    case "chub":        return convertToChub(card);
     case "agnai":       return convertToAgnai(card);
     case "venus":       return convertToVenus(card);
     case "backyard":    return convertToBackyard(card);
-    case "risu":        return convertToRisu(card) as unknown as Record<string, unknown>;
+    case "risu":        return convertToRisu(card);
     case "generic":     return convertToGeneric(card);
   }
 }
@@ -193,6 +198,9 @@ export function convertCardFrom(
   platformId: PlatformId
 ): TavernCardV2 {
   switch (platformId) {
+    // Only the three platforms with their own field names need a reader; the
+    // rest — SillyTavern, Chub, Venus, RisuAI and Generic — write Tavern v2 and
+    // share the default branch.
     case "janitorai":  return convertFromJanitorAI(obj);
     case "agnai":      return convertFromAgnai(obj);
     case "backyard":   return convertFromBackyard(obj);

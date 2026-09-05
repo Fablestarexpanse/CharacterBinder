@@ -31,6 +31,21 @@ export function imageSrcToPngBytes(dataUrl: string): Promise<Uint8Array> {
   });
 }
 
+/**
+ * PNG bytes as a data: URL, for showing a decoded card's own artwork.
+ *
+ * Chunked because String.fromCharCode(...bytes) blows the argument limit on a
+ * card-sized image, which is exactly the case this is used for.
+ */
+export function pngBytesToDataUrl(bytes: Uint8Array): string {
+  const CHUNK = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return "data:image/png;base64," + btoa(binary);
+}
+
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -39,8 +54,13 @@ function base64ToBytes(base64: string): Uint8Array {
 }
 
 /**
- * PNG bytes for the given cover image, falling back to a 1×1 transparent PNG
- * when there is no usable image. Never throws for a merely-unsupported format.
+ * PNG bytes for the given cover image.
+ *
+ * Falls back to a 1×1 transparent PNG when there is no image at all, or when
+ * the source is not a data: URL we can read. A data:image/* URL that cannot be
+ * decoded rejects rather than silently exporting a card with no art: the caller
+ * shows the reason, which is the only chance the user has to learn that the
+ * image they picked did not make it into the file.
  */
 export async function getCarrierPng(imageSrc?: string | null): Promise<Uint8Array> {
   if (!imageSrc) return MINIMAL_PNG;

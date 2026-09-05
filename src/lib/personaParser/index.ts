@@ -19,7 +19,7 @@
 /**
  * Every field the parser knows how to fill. Individual editors consume a subset:
  * personas use appearance/background, character cards use scenario/first_mes/
- * mes_example instead. See PERSONA_FIELDS and CHARACTER_FIELDS.
+ * mes_example instead. See PERSONA_FIELD_ORDER and CHARACTER_FIELD_ORDER.
  */
 export type CardField =
   | "name"
@@ -33,13 +33,10 @@ export type CardField =
   | "creator"
   | "creator_notes";
 
-/** Historical alias — the parser started out persona-only. */
-export type PersonaField = CardField;
-
 export type ParseMethod = "json" | "wpp" | "labelled" | "prose" | "empty" | "ai";
 
 export interface ParsedPersona {
-  fields: Partial<Record<PersonaField, string>>;
+  fields: Partial<Record<CardField, string>>;
   tags: string[];
   method: ParseMethod;
   /** Human-readable explanation of what the parser did and how sure it is. */
@@ -243,7 +240,7 @@ function parseJson(text: string): ParsedPersona | null {
   const merged: Record<string, unknown> = { ...outer, ...inner };
   delete merged.data;
 
-  const fields: Partial<Record<PersonaField, string>> = {};
+  const fields: Partial<Record<CardField, string>> = {};
   const tags: string[] = [];
   const leftovers: string[] = [];
   const notes: string[] = ["Read as a JSON card export."];
@@ -322,7 +319,7 @@ const WPP_BLOCK_RE = /([A-Za-z][A-Za-z _-]{0,28}?)\s*[({[]\s*((?:"[^"]*"\s*[+,]?
 const WPP_MIN_COVERAGE = 0.6;
 
 function parseWpp(text: string): ParsedPersona | null {
-  const fields: Partial<Record<PersonaField, string>> = {};
+  const fields: Partial<Record<CardField, string>> = {};
   const tags: string[] = [];
   const leftovers: string[] = [];
   let matched = 0;
@@ -479,7 +476,7 @@ function parseLabelled(text: string): ParsedPersona | null {
   // One lone label isn't enough structure to trust — fall through to prose.
   if (recognised < 2) return null;
 
-  const fields: Partial<Record<PersonaField, string>> = {};
+  const fields: Partial<Record<CardField, string>> = {};
   const tags: string[] = [];
   const leftovers: string[] = [];
 
@@ -525,7 +522,7 @@ function parseLabelled(text: string): ParsedPersona | null {
 // ── Strategy 4: unstructured prose ──────────────────────────────────────────
 
 function parseProse(text: string): ParsedPersona {
-  const fields: Partial<Record<PersonaField, string>> = {};
+  const fields: Partial<Record<CardField, string>> = {};
   const notes: string[] = [];
 
   let body = text;

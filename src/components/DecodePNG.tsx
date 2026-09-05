@@ -8,6 +8,7 @@ import { convertCardFrom } from "../lib/platforms/converters";
 import FieldCompatibility from "./FieldCompatibility";
 import { useTimedFlag } from "../hooks/useTimedFlag";
 import { CHARACTER_KEYS, shapeForKey } from "../lib/cardShape";
+import { pngBytesToDataUrl } from "../lib/carrierImage";
 
 type NonCharType = "lorebook" | "script" | "scenario" | "persona";
 const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {
@@ -48,12 +49,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
       const dims = getPngDimensions(bytes);
       const { json, key, chunks, corruptKey } = decodeCharaFromPng(bytes);
 
-      const uint8ToDataUrl = (b: Uint8Array) => {
-        let bin = "";
-        for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
-        return "data:image/png;base64," + btoa(bin);
-      };
-      const imageSrc = uint8ToDataUrl(bytes);
+      const imageSrc = pngBytesToDataUrl(bytes);
 
       if (!json || !key) {
         setError(

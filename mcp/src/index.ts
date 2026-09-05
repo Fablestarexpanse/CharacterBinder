@@ -195,6 +195,7 @@ server.registerTool(
         )
         .optional()
         .describe("The book's entries."),
+      tags,
       open: openAfter,
     },
   },
@@ -272,7 +273,7 @@ server.registerTool(
       patch: z
         .record(z.unknown())
         .describe("Fields to overwrite, e.g. { personality: '...', tags: ['a','b'] }."),
-      open: z.boolean().optional().describe("Bring the card up in the editor afterwards."),
+      open: openAfter,
     },
   },
   async ({ id, patch, open }) => text(await callApp<MutationResult>("cards.update", { id, patch, open }))

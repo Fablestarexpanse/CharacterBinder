@@ -5,7 +5,7 @@ import ConfirmClearPanel from "./ConfirmClearPanel";
 import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
 import SmartImportPanel from "./SmartImportPanel";
-import type { PersonaField } from "../lib/personaParser";
+import type { CardField } from "../lib/personaParser";
 import { blankPersonaCard } from "../lib/blankCards";
 import { useDataCardEditor } from "../hooks/useDataCardEditor";
 
@@ -29,7 +29,7 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
     initialLibraryId,
   });
 
-  function applySmartImport(fields: Partial<Record<PersonaField, string>>, tags: string[]) {
+  function applySmartImport(fields: Partial<Record<CardField, string>>, tags: string[]) {
     update({ ...fields, tags });
     const count = Object.keys(fields).length;
     setMsg(`Sorted into ${count} field${count === 1 ? "" : "s"}.`, true);

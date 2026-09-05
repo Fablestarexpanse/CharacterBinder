@@ -17,7 +17,7 @@
  * back to the keyword parser rather than failing the user's paste.
  */
 
-import type { ParsedPersona, PersonaField, CardField } from "../personaParser";
+import type { ParsedPersona, CardField } from "../personaParser";
 import { parsePersonaText } from "../personaParser";
 import { countTokens } from "../tokenizer";
 import { getSorterSettings, isRemoteUrl, type SorterSettings } from "./settings";
@@ -436,7 +436,7 @@ function toParsedPersona(
   inputLength: number,
   target: SortTarget
 ): ParsedPersona {
-  const fields: Partial<Record<PersonaField, string>> = {};
+  const fields: Partial<Record<CardField, string>> = {};
 
   for (const key of TARGET_FIELDS[target]) {
     const value = obj[key];
