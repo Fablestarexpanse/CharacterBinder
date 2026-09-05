@@ -58,15 +58,12 @@ function App() {
    * so this is the only place that has to know what each kind is made of.
    */
   const openDataCard = useCallback<OpenDataCard>((cardType, payload, imageSrc, libraryId) => {
-    setEditorInit((prev) => {
-      const slot = { imageSrc, id: libraryId };
-      switch (cardType) {
-        case "lorebook": return { ...prev, lorebook: { ...slot, card: coerceCardBody("lorebook", payload) } };
-        case "script":   return { ...prev, script:   { ...slot, card: coerceCardBody("script", payload) } };
-        case "scenario": return { ...prev, scenario: { ...slot, card: coerceCardBody("scenario", payload) } };
-        case "persona":  return { ...prev, persona:  { ...slot, card: coerceCardBody("persona", payload) } };
-      }
-    });
+    // The slot is named after the kind, and coerceCardBody returns that kind's
+    // own shape, so one keyed write says what four identical arms said.
+    setEditorInit((prev) => ({
+      ...prev,
+      [cardType]: { imageSrc, id: libraryId, card: coerceCardBody(cardType, payload) },
+    } as typeof prev));
     setEditorKey((k) => k + 1);
     setActivePage(cardType);
   }, []);

@@ -8,6 +8,7 @@
  */
 
 import { createPersistedSettings } from "./persistedSettings";
+import { createObservable } from "./observable";
 import type { BridgeMethod } from "../shared/bridgeProtocol";
 import type { LibraryCard } from "../types";
 
@@ -91,27 +92,19 @@ export interface BridgeState {
   activity: BridgeActivity[];
 }
 
-export let state: BridgeState = { status: "off", error: null, served: 0, lastMethod: null, activity: [] };
-
-export function recordActivity(entry: BridgeActivity) {
-  setState({ activity: [entry, ...state.activity].slice(0, ACTIVITY_LIMIT) });
-}
-const listeners = new Set<(s: BridgeState) => void>();
-
-export function setState(patch: Partial<BridgeState>) {
-  state = { ...state, ...patch };
-  for (const l of listeners) l(state);
-}
+const bridgeState = createObservable<BridgeState>({
+  status: "off", error: null, served: 0, lastMethod: null, activity: [],
+});
 
 export function getBridgeState(): BridgeState {
-  return state;
+  return bridgeState.get();
 }
 
-export function subscribeBridgeState(fn: (s: BridgeState) => void): () => void {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
+export const setState = bridgeState.set;
+export const subscribeBridgeState = bridgeState.subscribe;
+
+export function recordActivity(entry: BridgeActivity) {
+  setState({ activity: [entry, ...bridgeState.get().activity].slice(0, ACTIVITY_LIMIT) });
 }
 
 // ── Host hooks ──────────────────────────────────────────────────────────────

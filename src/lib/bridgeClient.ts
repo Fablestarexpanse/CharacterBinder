@@ -33,7 +33,7 @@ import {
   setBridgeEnabled,
   setHost,
   setState,
-  state,
+  getBridgeState,
   type BridgeHost,
 } from "./bridgeState";
 
@@ -217,7 +217,7 @@ function openSocket() {
       const response: BridgeResponse = { id: msg.id };
       try {
         response.result = await handleBridgeRequest(msg);
-        setState({ served: state.served + 1, lastMethod: msg.method });
+        setState({ served: getBridgeState().served + 1, lastMethod: msg.method });
       } catch (err) {
         response.error = errorMessage(err);
       }

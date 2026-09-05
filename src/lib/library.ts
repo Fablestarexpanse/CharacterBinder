@@ -119,12 +119,10 @@ export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard
       pngData: null,
       tags: input.tags ?? [],
     };
-    switch (input.cardType) {
-      case "lorebook": card = { ...common, cardType: "lorebook", rawData: input.body }; break;
-      case "script":   card = { ...common, cardType: "script",   rawData: input.body }; break;
-      case "scenario": card = { ...common, cardType: "scenario", rawData: input.body }; break;
-      case "persona":  card = { ...common, cardType: "persona",  rawData: input.body }; break;
-    }
+    // One assertion rather than four arms whose bodies are the same text: the
+    // discriminated SaveCardInput has already proved that this body belongs to
+    // this kind, and the four-case switch existed only to say so again.
+    card = { ...common, cardType: input.cardType, rawData: input.body } as LibraryCard;
   }
 
   await db.put(STORE, card);

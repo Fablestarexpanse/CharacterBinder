@@ -246,10 +246,9 @@ export function encodeCharaToPng(
     } else if (chunk.type === "IEND") {
       iendChunk = chunk;
     } else if (chunk.type === "tEXt" || chunk.type === "iTXt") {
-      const nullIdx = chunk.data.indexOf(0);
-      if (nullIdx !== -1) {
-        const keyword = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
-        if (knownKeys.includes(keyword)) continue; // remove old chara chunks
+      const payload = textChunkPayload(chunk);
+      if (payload) {
+        if (knownKeys.includes(payload.keyword)) continue; // remove old chara chunks
         if (preserveUnknown) keepChunks.push(chunk);
       }
     } else {

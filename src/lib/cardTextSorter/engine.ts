@@ -5,6 +5,7 @@
 
 import { CONTEXT_TOKENS } from "./modelIo";
 import { errorMessage } from "../../shared/errorMessage";
+import { createObservable } from "../observable";
 
 export interface LoadProgress {
   /** 0..1, or null while the model is still being fetched with no ratio yet. */
@@ -41,24 +42,17 @@ export interface EngineState {
   error: string | null;
 }
 
-let state: EngineState = { status: "off", modelId: null, progress: 0, message: "", error: null };
-const listeners = new Set<(s: EngineState) => void>();
+const engineState = createObservable<EngineState>({
+  status: "off", modelId: null, progress: 0, message: "", error: null,
+});
 
-function setState(patch: Partial<EngineState>) {
-  state = { ...state, ...patch };
-  for (const listener of listeners) listener(state);
-}
+const setState = engineState.set;
 
 export function getEngineState(): EngineState {
-  return state;
+  return engineState.get();
 }
 
-export function subscribeEngineState(fn: (s: EngineState) => void): () => void {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
-}
+export const subscribeEngineState = engineState.subscribe;
 
 /** True when the model's weights are already in the browser cache — i.e. turning it on costs no download. */
 export async function isModelCached(modelId: string): Promise<boolean> {
