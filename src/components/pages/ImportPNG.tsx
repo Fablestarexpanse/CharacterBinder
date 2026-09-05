@@ -2,11 +2,9 @@ import { useState, useCallback, useRef } from "react";
 import type { TavernCardV2, MetadataInfo, LibraryCardType, OpenDataCard } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
-import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
+import { readCardPng } from "../../lib/readCardPng";
 import { convertCardFrom } from "../../shared/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
-import { effectiveShape } from "../../lib/cardShape";
-import { pngBytesToDataUrl } from "../../lib/carrierImage";
 import { errorMessage } from "../../shared/errorMessage";
 
 type DetectedType = LibraryCardType | null;
@@ -57,40 +55,29 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
     }
 
     try {
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const result = readCardPng(bytes);
 
-      if (!isPng(bytes)) {
+      if (result.kind === "not-png") {
         setStatus("error");
         setMessage("File is not a valid PNG.");
         return;
       }
-
-      const dims = getPngDimensions(bytes);
-      const { json, key, chunks, corruptKey } = decodeCharaFromPng(bytes);
-
-      if (!json || !key) {
+      if (result.kind !== "card") {
         setStatus("error");
         // "No card" and "damaged card" call for opposite responses, so say which.
         setMessage(
-          corruptKey
-            ? `This PNG carries a '${corruptKey}' card chunk, but its contents are damaged and couldn't be read. The file was probably truncated or re-saved by an image editor. Try Decode PNG to inspect the raw chunks.`
+          result.kind === "damaged"
+            ? `This PNG carries a '${result.corruptKey}' card chunk, but its contents are damaged and couldn't be read. The file was probably truncated or re-saved by an image editor. Try Decode PNG to inspect the raw chunks.`
             : "No card metadata found in this PNG. Try Decode PNG to inspect raw chunks."
         );
         return;
       }
 
-      const parsed = JSON.parse(json);
-      const imageSrc = pngBytesToDataUrl(bytes);
+      const { key, json, parsed, imageSrc, chunks, dimensions, shape: effective, mismatch } = result;
       setDetectedKey(key);
-
-      // The metadata keyword says what the file claims to be; the payload shape
-      // says what it is. When they disagree, trust the shape — otherwise a
-      // lorebook stored under `chara` was rebuilt as a blank character card and
-      // every entry was silently dropped behind a success message.
-      const { shape: effective, actual, mismatch } = effectiveShape(key, parsed);
       const mismatchNote = mismatch
-        ? ` (the file is labelled '${key}' but its contents are a ${actual} card, so it was opened as one)`
+        ? ` (the file is labelled '${key}' but its contents are a ${effective} card, so it was opened as one)`
         : "";
 
       // ── Character card ──────────────────────────────────────────────
@@ -103,8 +90,8 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
           format: platform.name,
           encoding: "Base64 + PNG tEXt chunk",
           dataSize: json.length,
-          imageWidth: dims?.width ?? 0,
-          imageHeight: dims?.height ?? 0,
+          imageWidth: dimensions?.width ?? 0,
+          imageHeight: dimensions?.height ?? 0,
           chunks,
           rawKey: key,
         };

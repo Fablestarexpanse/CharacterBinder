@@ -2,13 +2,11 @@ import { useState, useCallback, useRef } from "react";
 import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType, DataCardType } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
-import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
+import { readCardPng } from "../../lib/readCardPng";
 import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { convertCardFrom } from "../../shared/platforms/converters";
 import FieldCompatibility from "../editor/FieldCompatibility";
 import { useTimedFlag } from "../../hooks/useTimedFlag";
-import { effectiveShape } from "../../lib/cardShape";
-import { pngBytesToDataUrl } from "../../lib/carrierImage";
 import { errorMessage } from "../../shared/errorMessage";
 
 const NON_CHAR_META: Record<DataCardType, { label: string; icon: React.ReactNode; color: string }> = {
@@ -46,31 +44,18 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     setError(null);
     setResult(null);
     try {
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      if (!isPng(bytes)) { setError("Not a valid PNG file."); return; }
-
-      const dims = getPngDimensions(bytes);
-      const { json, key, chunks, corruptKey } = decodeCharaFromPng(bytes);
-
-      const imageSrc = pngBytesToDataUrl(bytes);
-
-      if (!json || !key) {
+      const decoded = readCardPng(new Uint8Array(await file.arrayBuffer()));
+      if (decoded.kind === "not-png") { setError("Not a valid PNG file."); return; }
+      if (decoded.kind !== "card") {
         setError(
-          corruptKey
-            ? `Found a '${corruptKey}' chunk, but its payload is damaged and couldn't be decoded. The chunk list below shows what is actually in the file.`
+          decoded.kind === "damaged"
+            ? `Found a '${decoded.corruptKey}' chunk, but its payload is damaged and couldn't be decoded. The chunk list below shows what is actually in the file.`
             : "No card metadata found in this PNG."
         );
         return;
       }
 
-      const parsed = JSON.parse(json);
-
-      // The keyword says what the file claims to be; the payload shape says
-      // what it is. Import PNG has trusted the shape since a lorebook stored
-      // under `chara` was rebuilt as a blank character card; this panel loaded
-      // by keyword alone, so the same file opened as an empty card here.
-      const { shape, mismatch } = effectiveShape(key, parsed);
+      const { key, json, parsed, imageSrc, chunks, dimensions, shape, mismatch } = decoded;
 
       let sourcePlatform: PlatformId | null = null;
       let formatLabel = "Unknown";
@@ -86,8 +71,8 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
         format: formatLabel,
         encoding: "Base64 + PNG tEXt chunk",
         dataSize: json.length,
-        imageWidth: dims?.width ?? 0,
-        imageHeight: dims?.height ?? 0,
+        imageWidth: dimensions?.width ?? 0,
+        imageHeight: dimensions?.height ?? 0,
         chunks,
         rawKey: key,
       };

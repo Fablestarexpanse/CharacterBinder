@@ -78,7 +78,16 @@ export const CLOSE_ALREADY_CONNECTED = 4002;
 export const CLOSE_BAD_ORIGIN = 4003;
 export const CLOSE_PROTOCOL = 4004;
 
-/** HMAC-SHA256 of `message` under `token`, lowercase hex. Same on both sides. */
+/**
+ * HMAC-SHA256 of `message` under `token`, lowercase hex — the app's half.
+ *
+ * The server computes the same value with node:crypto, in mcp/src/bridge.ts:
+ * `hmac()` here, `proofsMatch()` for safeEqual, `randomNonce()` for the nonce.
+ * It keeps its own copies deliberately: timingSafeEqual is a real constant-time
+ * comparison, and the synchronous API keeps the handshake path free of awaits.
+ * The two sets have to change together, and bridgeProtocol.test.ts pins this
+ * function against a value produced by the server side.
+ */
 export async function proveToken(token: string, message: string): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(

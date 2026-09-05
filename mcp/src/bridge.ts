@@ -68,6 +68,10 @@ const MAX_PAYLOAD = 4 * 1024 * 1024;
 /** Where the app is legitimately served from; the list lives with the protocol. */
 const ALLOWED_ORIGINS = new Set(ALLOWED_APP_ORIGINS);
 
+// The server's half of the handshake primitives. The app computes the same
+// values with WebCrypto in src/shared/bridgeProtocol.ts (proveToken, safeEqual,
+// randomNonce); these are the node:crypto counterparts, kept separate for
+// timingSafeEqual and for a synchronous handshake path. Change them together.
 const hmac = (message: string) => createHmac("sha256", token).update(message).digest("hex");
 
 function proofsMatch(a: string, b: string): boolean {
