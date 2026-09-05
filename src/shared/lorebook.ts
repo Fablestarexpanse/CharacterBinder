@@ -41,6 +41,31 @@ const strList = (v: unknown): string[] =>
  * Accepts interchange exports, older library records, and hand-written JSON,
  * so every path into the editor goes through one normalisation.
  */
+/**
+ * A fresh entry with every field at its default.
+ *
+ * The editor's "add entry" button and the parser's per-entry fallbacks are the
+ * same list of defaults, and they were written out twice; the MCP server made
+ * three. The parser overrides what the source actually provides.
+ */
+export function blankLoreEntry(): LoreEntry {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    comment: "",
+    keys: [],
+    secondary_keys: [],
+    content: "",
+    enabled: true,
+    insertion_order: 100,
+    case_sensitive: false,
+    priority: 10,
+    selective: false,
+    constant: false,
+    position: "before_char",
+  };
+}
+
 export function parseLorebook(raw: unknown): LoreBook {
   // Read through an index signature rather than `any`: every field below is
   // still checked before use, and nothing can be dereferenced by mistake.
@@ -58,20 +83,21 @@ export function parseLorebook(raw: unknown): LoreBook {
 
   const entries: LoreEntry[] = rawEntries.map((raw) => {
     const e: Record<string, unknown> = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+    const blank = blankLoreEntry();
     return {
-      id: crypto.randomUUID(),
-      name: str(e.name) ?? str(e.comment) ?? "",
-      comment: str(e.comment) ?? str(e.name) ?? "",
+      ...blank,
+      name: str(e.name) ?? str(e.comment) ?? blank.name,
+      comment: str(e.comment) ?? str(e.name) ?? blank.comment,
       keys: strList(e.keys),
       secondary_keys: strList(e.secondary_keys),
-      content: str(e.content) ?? "",
-      enabled: bool(e.enabled) ?? true,
-      insertion_order: num(e.insertion_order) ?? 100,
-      case_sensitive: bool(e.case_sensitive) ?? false,
-      priority: num(e.priority) ?? 10,
-      selective: bool(e.selective) ?? false,
-      constant: bool(e.constant) ?? false,
-      position: e.position === "after_char" ? "after_char" : "before_char",
+      content: str(e.content) ?? blank.content,
+      enabled: bool(e.enabled) ?? blank.enabled,
+      insertion_order: num(e.insertion_order) ?? blank.insertion_order,
+      case_sensitive: bool(e.case_sensitive) ?? blank.case_sensitive,
+      priority: num(e.priority) ?? blank.priority,
+      selective: bool(e.selective) ?? blank.selective,
+      constant: bool(e.constant) ?? blank.constant,
+      position: e.position === "after_char" ? "after_char" : blank.position,
     };
   });
 

@@ -6,7 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { CARD_TYPES, type LibraryCard, type LibraryCardType, type TavernCardV2, type OpenDataCard } from "../../types";
-import { getAllCards, deleteCard } from "../../lib/library";
+import { getAllCards, deleteCard, cardVersion } from "../../lib/library";
 import { exportCardsAsZip } from "../../lib/archive";
 import ConfirmModal from "../ui/ConfirmModal";
 import { useStatusMessage } from "../../hooks/useStatusMessage";
@@ -14,17 +14,6 @@ import { errorMessage } from "../../shared/errorMessage";
 
 type SortKey = "updatedAt" | "createdAt" | "name";
 
-function getCardVersion(card: LibraryCard): string | null {
-  if (card.cardType === "character") {
-    // A damaged record can be missing its body entirely — the edit path already
-    // guards for it, and a card list must not throw over a missing version.
-    const v = card.cardData?.data?.character_version?.trim();
-    return v || null;
-  }
-  const raw: { version?: string } = card.rawData;
-  const v = raw.version?.trim();
-  return v || null;
-}
 type SortDir = "asc" | "desc";
 
 const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; color: string }> = {
@@ -336,7 +325,7 @@ function CardTile({
   const type = card.cardType;
   const meta = SECTION_META[type];
   const PlaceholderIcon = meta.icon;
-  const version = getCardVersion(card);
+  const version = cardVersion(card);
 
   // Badge label: platform for characters, type name for others
   const badge = card.cardType === "character"

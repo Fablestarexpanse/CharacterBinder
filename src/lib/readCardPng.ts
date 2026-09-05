@@ -21,7 +21,7 @@ export type CardPngResult =
   | {
       kind: "card";
       /** What the payload is, which need not be what the keyword claims. */
-      shape: LibraryCardType | null;
+      cardType: LibraryCardType | null;
       /** True when keyword and payload disagree; the payload wins. */
       mismatch: boolean;
       key: MetadataKey;
@@ -46,10 +46,10 @@ export function readCardPng(bytes: Uint8Array): CardPngResult {
   }
 
   const parsed = JSON.parse(json) as Record<string, unknown>;
-  const { shape, mismatch } = effectiveShape(key, parsed);
+  const { cardType, mismatch } = effectiveShape(key, parsed);
   return {
     kind: "card",
-    shape,
+    cardType,
     mismatch,
     key,
     json,

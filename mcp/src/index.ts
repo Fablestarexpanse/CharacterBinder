@@ -30,7 +30,6 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 import { validateTavernCardV2 } from "../../src/shared/validators.js";
 import { PLATFORMS, PLATFORM_IDS } from "../../src/shared/platforms/registry.js";
 import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
-import { blankPersonaCard, blankScenarioCard, blankScriptCard } from "../../src/shared/blankCards.js";
 import { createBlankTavernCard } from "../../src/shared/tavernCard.js";
 import { CARD_TYPES, type LibraryCardType } from "../../src/types/index.js";
 
@@ -112,7 +111,7 @@ server.registerTool(
 
 // ── Creating ────────────────────────────────────────────────────────────────
 
-async function create(cardType: LibraryCardType, data: Record<string, unknown>, open?: boolean) {
+async function createCardViaBridge(cardType: LibraryCardType, data: Record<string, unknown>, open?: boolean) {
   const res = await callApp("cards.create", { cardType, data, open: open ?? false });
   // Worded from what the app reported, not from what was asked for: `open: true`
   // can fail to show anything, and saying otherwise sends the user looking at a
@@ -153,7 +152,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ open, ...data }) => create("character", data, open)
+  async ({ open, ...data }) => createCardViaBridge("character", data, open)
 );
 
 server.registerTool(
@@ -175,7 +174,9 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ open, ...data }) => create("persona", { ...blankPersonaCard(), ...data }, open)
+  // No defaults filled here: the app coerces every create against the same
+  // blank card, and doing it twice only lets the two drift.
+  async ({ open, ...data }) => createCardViaBridge("persona", data, open)
 );
 
 server.registerTool(
@@ -210,21 +211,13 @@ server.registerTool(
     },
   },
   async ({ open, entries, ...rest }) =>
-    create(
+    createCardViaBridge(
       "lorebook",
       {
         ...rest,
-        entries: (entries ?? []).map((e, i) => ({
-          secondary_keys: [],
-          enabled: true,
-          constant: false,
-          selective: false,
-          case_sensitive: false,
-          insertion_order: 100,
-          priority: 10,
-          name: `Entry ${i + 1}`,
-          ...e,
-        })),
+        // Only the label the agent did not give: every other per-entry default
+        // is applied by the app's own lorebook parser.
+        entries: (entries ?? []).map((e, i) => ({ name: `Entry ${i + 1}`, ...e })),
       },
       open
     )
@@ -248,7 +241,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ open, ...data }) => create("scenario", { ...blankScenarioCard(), ...data }, open)
+  async ({ open, ...data }) => createCardViaBridge("scenario", data, open)
 );
 
 server.registerTool(
@@ -267,7 +260,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ open, ...data }) => create("script", { ...blankScriptCard(), ...data }, open)
+  async ({ open, ...data }) => createCardViaBridge("script", data, open)
 );
 
 // ── Editing ─────────────────────────────────────────────────────────────────

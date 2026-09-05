@@ -1,4 +1,5 @@
 import type { LibraryCard } from "../types";
+import { cardPayload } from "./library";
 import { downloadBlob } from "./download";
 
 /**
@@ -33,9 +34,7 @@ export async function exportCardsAsZip(cards: LibraryCard[]): Promise<void> {
     if (card.pngData) {
       zip.file(`cards/${safeName}.png`, card.pngData);
     } else {
-      // Use rawData for non-character cards; cardData for character cards
-      const data = card.cardData ?? card.rawData;
-      const json = JSON.stringify(data, null, 2);
+      const json = JSON.stringify(cardPayload(card), null, 2);
       zip.file(`cards/${safeName}.json`, json);
     }
 

@@ -7,7 +7,7 @@
  * panel decides nothing about what gets written.
  */
 import { useState, useMemo, useId } from "react";
-import type { CardProject, ValidationResult } from "../../types";
+import type { CardProject, TavernCardV2, ValidationResult } from "../../types";
 import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
 import type { CharacterCardActions } from "../../hooks/useCharacterCardActions";
 import {
@@ -66,7 +66,7 @@ export default function CardPreviewPanel({
   // on every render, i.e. on every keystroke anywhere in the editor.
   const exactTokens = useTokenizer();
   const tokenBreakdown = useMemo(() => getCardTokenBreakdown(project.card), [project.card, exactTokens]);
-  const dataSize = useMemo(() => formatDataSize(project.card), [project.card]);
+  const dataSize = useMemo(() => cardJsonSizeLabel(project.card), [project.card]);
 
   const budgetLevel = getTokenBudgetLevel(tokenBreakdown.total);
   const barPct = tokenBudgetPercent(tokenBreakdown.total);
@@ -391,7 +391,7 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function formatDataSize(card: unknown): string {
+function cardJsonSizeLabel(card: TavernCardV2): string {
   const json = JSON.stringify(card);
   const kb = (new Blob([json]).size / 1024).toFixed(2);
   return `${kb} KB`;

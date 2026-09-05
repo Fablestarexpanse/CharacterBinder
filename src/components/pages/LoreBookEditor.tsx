@@ -8,28 +8,13 @@ import {
 import type { LoreBook, LoreEntry } from "../../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../../lib/tokenizer";
 import { useTokenizer } from "../../hooks/useTokenizer";
-import { parseLorebook, toExportedLorebook } from "../../shared/lorebook";
+import { parseLorebook, toExportedLorebook, blankLoreEntry } from "../../shared/lorebook";
 import { blankLoreBook } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 import DataCardExportAside from "../editor/DataCardExportAside";
 import TagInput from "../ui/TagInput";
 import { errorMessage } from "../../shared/errorMessage";
 
-const DEFAULT_ENTRY = (): LoreEntry => ({
-  id: crypto.randomUUID(),
-  name: "",
-  keys: [],
-  secondary_keys: [],
-  content: "",
-  enabled: true,
-  insertion_order: 100,
-  case_sensitive: false,
-  priority: 10,
-  selective: false,
-  constant: false,
-  position: "before_char",
-  comment: "",
-});
 
 
 interface LoreBookEditorProps {
@@ -60,7 +45,7 @@ export default function LoreBookEditor({ initialCard, initialImageSrc, initialLi
   const jsonInputRef = useRef<HTMLInputElement>(null);
 
   function addEntry() {
-    const entry = DEFAULT_ENTRY();
+    const entry = blankLoreEntry();
     setBook({ ...book, entries: [...book.entries, entry] });
     setSelectedId(entry.id);
   }

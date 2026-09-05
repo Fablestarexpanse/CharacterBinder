@@ -159,3 +159,38 @@ export async function deleteCard(id: string): Promise<void> {
   await db.delete(STORE, id);
 }
 
+
+/**
+ * The payload a card is stored as: the whole Tavern v2 card for a character,
+ * the plain body for the other four. This is what an export writes out.
+ */
+export function cardPayload(card: LibraryCard): object {
+  return card.cardType === "character" ? card.cardData : card.rawData;
+}
+
+/**
+ * Records are read back from IndexedDB, where a truncated write or an older
+ * build can leave a character card with no body at all. Every accessor below
+ * has to survive that: a damaged card still has to list and still has to say
+ * what is wrong with it.
+ */
+
+/**
+ * The editable fields inside that payload — a character card keeps them one
+ * level down, under `data`. Copied, so a caller merging a patch into it cannot
+ * write through to the stored record.
+ */
+export function cardBody(card: LibraryCard): Record<string, unknown> {
+  return card.cardType === "character" ? { ...card.cardData?.data } : { ...card.rawData };
+}
+
+/**
+ * A card's own version string, whatever the kind calls it, or null when it has
+ * none. Character cards say `character_version`; the rest say `version`.
+ */
+export function cardVersion(card: LibraryCard): string | null {
+  const body = cardBody(card);
+  const raw = body.character_version ?? body.version;
+  const v = typeof raw === "string" ? raw.trim() : "";
+  return v || null;
+}

@@ -28,7 +28,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     json: string;
     key: string;
     /** What the payload actually is, which need not match the keyword. */
-    shape: LibraryCardType | null;
+    cardType: LibraryCardType | null;
     /** Set when the keyword and the payload disagree; shown to the user. */
     mismatch: boolean;
     sourcePlatform: PlatformId | null;
@@ -54,16 +54,16 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
         return;
       }
 
-      const { key, json, parsed, imageSrc, chunks, dimensions, shape, mismatch } = decoded;
+      const { key, json, parsed, imageSrc, chunks, dimensions, cardType, mismatch } = decoded;
 
       let sourcePlatform: PlatformId | null = null;
       let formatLabel = "Unknown";
 
-      if (shape === "character") {
+      if (cardType === "character") {
         sourcePlatform = detectPlatform(parsed);
         formatLabel = PLATFORMS[sourcePlatform].name;
-      } else if (shape) {
-        formatLabel = NON_CHAR_META[shape].label;
+      } else if (cardType) {
+        formatLabel = NON_CHAR_META[cardType].label;
       }
 
       const meta: MetadataInfo = {
@@ -76,7 +76,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
         rawKey: key,
       };
 
-      setResult({ json, key, shape, mismatch, sourcePlatform, meta, imageSrc });
+      setResult({ json, key, cardType, mismatch, sourcePlatform, meta, imageSrc });
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -86,14 +86,14 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     if (!result) return;
     const parsed = JSON.parse(result.json);
 
-    if (result.shape === "character" && result.sourcePlatform) {
+    if (result.cardType === "character" && result.sourcePlatform) {
       const card = convertCardFrom(parsed, result.sourcePlatform);
       onLoad(card, result.imageSrc, result.meta, result.sourcePlatform);
       return;
     }
 
-    if (result.shape && result.shape !== "character") {
-      onOpenDataCard(result.shape, parsed, result.imageSrc);
+    if (result.cardType && result.cardType !== "character") {
+      onOpenDataCard(result.cardType, parsed, result.imageSrc);
     }
   };
 
@@ -111,7 +111,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
 
   // The narrowed value rather than a flag beside it: the flag had to be
   // re-tested against the same field at every use site to convince the compiler.
-  const charPlatform = result && result.shape === "character" ? result.sourcePlatform : null;
+  const charPlatform = result && result.cardType === "character" ? result.sourcePlatform : null;
   const platform = charPlatform ? PLATFORMS[charPlatform] : null;
 
   return (
@@ -158,13 +158,13 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                     <span className={`text-sm font-semibold ${platform.textColor}`}>{platform.name}</span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>
-                ) : result.shape && result.shape !== "character" ? (
+                ) : result.cardType && result.cardType !== "character" ? (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-accent-purple/30 bg-accent-purple/5">
-                    <span className={NON_CHAR_META[result.shape].color}>
-                      {NON_CHAR_META[result.shape].icon}
+                    <span className={NON_CHAR_META[result.cardType].color}>
+                      {NON_CHAR_META[result.cardType].icon}
                     </span>
                     <span className="text-sm font-semibold text-text-primary">
-                      {NON_CHAR_META[result.shape].label}
+                      {NON_CHAR_META[result.cardType].label}
                     </span>
                     <span className="text-xs text-text-muted ml-auto">detected</span>
                   </div>
@@ -173,7 +173,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                 {result.mismatch && (
                   <p className="text-xs text-status-warn bg-status-warn-soft border border-status-warn-border rounded-lg px-3 py-2">
                     This file is labelled <code className="font-mono">{result.key}</code>, but its contents are a{" "}
-                    {result.shape} card. It will open as a {result.shape}.
+                    {result.cardType} card. It will open as a {result.cardType}.
                   </p>
                 )}
 

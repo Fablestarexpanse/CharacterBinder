@@ -8,10 +8,10 @@ import { blankPersonaCard } from "../../shared/blankCards";
 
 const getAllCards = vi.fn(async (): Promise<LibraryCard[]> => []);
 const deleteCard = vi.fn(async (_id: string) => {});
-vi.mock("../../lib/library", () => ({
-  getAllCards: () => getAllCards(),
-  deleteCard: (id: string) => deleteCard(id),
-}));
+vi.mock("../../lib/library", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/library")>("../../lib/library");
+  return { ...actual, getAllCards: () => getAllCards(), deleteCard: (id: string) => deleteCard(id) };
+});
 
 const exportCardsAsZip = vi.fn(async (_cards: LibraryCard[]) => {});
 vi.mock("../../lib/archive", () => ({ exportCardsAsZip: (cards: LibraryCard[]) => exportCardsAsZip(cards) }));

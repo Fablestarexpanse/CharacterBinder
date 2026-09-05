@@ -8,7 +8,6 @@ import { convertCardFrom } from "../../shared/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { errorMessage } from "../../shared/errorMessage";
 
-type DetectedType = LibraryCardType | null;
 
 interface ImportPNGProps {
   onLoad: LoadCharacterCard;
@@ -23,7 +22,7 @@ function countEntries(parsed: { entries?: unknown }): number {
   return 0;
 }
 
-const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
+const TYPE_LABELS: Record<LibraryCardType, string> = {
   character: "Character Card",
   lorebook: "Lorebook",
   script: "Script Card",
@@ -31,7 +30,7 @@ const TYPE_LABELS: Record<NonNullable<DetectedType>, string> = {
   persona: "Persona",
 };
 
-const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
+const TYPE_KEYS: Record<LibraryCardType, string> = {
   character: "chara",
   lorebook: "lorebook",
   script: "script",
@@ -42,7 +41,7 @@ const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
 export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-  const [detectedType, setDetectedType] = useState<DetectedType>(null);
+  const [detectedType, setDetectedType] = useState<LibraryCardType | null>(null);
   const [detectedPlatform, setDetectedPlatform] = useState<PlatformId | null>(null);
   const [detectedKey, setDetectedKey] = useState<string | null>(null);
 
@@ -73,7 +72,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
         return;
       }
 
-      const { key, json, parsed, imageSrc, chunks, dimensions, shape: effective, mismatch } = result;
+      const { key, json, parsed, imageSrc, chunks, dimensions, cardType: effective, mismatch } = result;
       setDetectedKey(key);
       const mismatchNote = mismatch
         ? ` (the file is labelled '${key}' but its contents are a ${effective} card, so it was opened as one)`

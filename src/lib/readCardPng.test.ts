@@ -31,7 +31,7 @@ describe("readCardPng", () => {
 
     expect(result.kind).toBe("card");
     if (result.kind !== "card") return;
-    expect(result.shape).toBe("character");
+    expect(result.cardType).toBe("character");
     expect(result.mismatch).toBe(false);
     expect((result.parsed as typeof card).data.name).toBe("Rook");
     expect(result.imageSrc.startsWith("data:image/png;base64,")).toBe(true);
@@ -44,7 +44,7 @@ describe("readCardPng", () => {
     expect(result.kind).toBe("card");
     if (result.kind !== "card") return;
     // The payload wins: this is the case that used to import as a blank card.
-    expect(result.shape).toBe("lorebook");
+    expect(result.cardType).toBe("lorebook");
     expect(result.mismatch).toBe(true);
     expect(result.key).toBe("chara");
   });

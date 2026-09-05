@@ -17,7 +17,7 @@ import {
   type OpenParams,
   type UpdateParams,
 } from "../shared/bridgeProtocol";
-import { getAllCards, getCard as readCard, saveCardInput, saveLibraryCard, deleteCard } from "./library";
+import { getAllCards, getCard as readCard, saveCardInput, saveLibraryCard, deleteCard, cardBody, cardVersion } from "./library";
 import { createBlankTavernCard } from "../shared/tavernCard";
 import { coerceCardBody, coerceCharacterData } from "../shared/blankCards";
 import { CARD_TYPES, isCardType, type LibraryCard, type LibraryCardType, type TavernCardV2 } from "../types";
@@ -117,20 +117,10 @@ function summarise(c: LibraryCard): CardSummary {
     tags: c.tags ?? [],
     hasImage: !!c.imageSrc,
     updatedAt: c.updatedAt,
-    version: stringField(bodyOf(c), "character_version") ?? stringField(bodyOf(c), "version"),
+    version: cardVersion(c) ?? undefined,
   };
 }
 
-/** The editable body of a card, whichever slot it lives in. */
-function bodyOf(c: LibraryCard): Record<string, unknown> {
-  return c.cardType === "character" ? { ...c.cardData.data } : { ...c.rawData };
-}
-
-/** A body field, when it holds a string. Card bodies come from disk and agents. */
-function stringField(body: Record<string, unknown>, key: string): string | undefined {
-  const v = body[key];
-  return typeof v === "string" ? v : undefined;
-}
 
 async function listCards(params: ListParams = {}): Promise<BridgeCalls["cards.list"]["result"]> {
   const all = await getAllCards();
@@ -280,7 +270,7 @@ async function updateCard(params: UpdateParams): Promise<BridgeCalls["cards.upda
   await requireApproval("overwrite", existing);
   // Both sides are already objects: bodyOf returns the record's own body, and
   // the protocol schema rejects a call whose patch is missing.
-  const merged = { ...bodyOf(existing), ...params.patch };
+  const merged = { ...cardBody(existing), ...params.patch };
   const saved = await persist(
     existing.cardType,
     merged,
