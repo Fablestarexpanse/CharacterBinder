@@ -29,6 +29,7 @@ import { convertCardTo } from "../../shared/platforms/converters";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";
 import { errorMessage } from "../../shared/errorMessage";
+import { useTokenizer } from "../../hooks/useTokenizer";
 
 /**
  * Chunk key used when the target platform declares none of its own — i.e. the
@@ -78,7 +79,8 @@ export default function CardPreviewPanel({
   // Tokenizing is a full BPE encode over nine fields; without memoizing it runs
   // on every render, i.e. on every keystroke anywhere in the editor.
   const validation = useMemo(() => validateTavernCardV2(project.card), [project.card]);
-  const tokenBreakdown = useMemo(() => getCardTokenBreakdown(project.card), [project.card]);
+  const exactTokens = useTokenizer();
+  const tokenBreakdown = useMemo(() => getCardTokenBreakdown(project.card), [project.card, exactTokens]);
   const dataSize = useMemo(() => formatDataSize(project.card), [project.card]);
 
   const budgetLevel = getTokenBudgetLevel(tokenBreakdown.total);

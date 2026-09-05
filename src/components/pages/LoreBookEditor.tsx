@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { LoreBook, LoreEntry } from "../../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../../lib/tokenizer";
+import { useTokenizer } from "../../hooks/useTokenizer";
 import { parseLorebook, toExportedLorebook } from "../../lib/lorebook";
 import { blankLoreBook } from "../../lib/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
@@ -330,7 +331,8 @@ function EntryEditor({ entry, onChange }: {
   onChange: (patch: Partial<LoreEntry>) => void;
 }) {
   // Re-ran on every keystroke of the very field it measures.
-  const tokens = useMemo(() => countTokens(entry.content), [entry.content]);
+  const exact = useTokenizer();
+  const tokens = useMemo(() => countTokens(entry.content), [entry.content, exact]);
   const entryLevel = getTokenBudgetLevel(tokens);
 
   return (

@@ -1,6 +1,7 @@
 import { useRef, useMemo, useId } from "react";
 import { Copy, ClipboardPaste, Check } from "lucide-react";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../../lib/tokenizer";
+import { useTokenizer } from "../../hooks/useTokenizer";
 import ResizableTextArea from "./ResizableTextArea";
 import { useTimedFlag } from "../../hooks/useTimedFlag";
 
@@ -32,7 +33,10 @@ export default function TextAreaField({
 
   // countTokens is a full BPE encode; unmemoized, every keystroke in any field
   // re-tokenizes every other field on the page.
-  const tokens = useMemo(() => (showTokens ? countTokens(value) : 0), [value, showTokens]);
+  // Recomputes when the tokenizer finishes loading, so an approximate count
+  // does not linger until the next keystroke.
+  const exact = useTokenizer();
+  const tokens = useMemo(() => (showTokens ? countTokens(value) : 0), [value, showTokens, exact]);
 
   function handleCopy() {
     navigator.clipboard.writeText(value);

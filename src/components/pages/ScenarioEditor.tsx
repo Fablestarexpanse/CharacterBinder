@@ -3,6 +3,7 @@ import { Map } from "lucide-react";
 import type { ScenarioCard } from "../../types";
 import ResizableTextArea from "../ui/ResizableTextArea";
 import { countTokens, getTokenBudgetLevel, tokenBudgetPercent, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../../lib/tokenizer";
+import { useTokenizer } from "../../hooks/useTokenizer";
 import ImageDropzone from "../ui/ImageDropzone";
 import CardExportPanel from "../editor/CardExportPanel";
 import TagInput from "../ui/TagInput";
@@ -32,8 +33,9 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
 
   // Tokenizing is a full BPE encode. Unmemoized these ran on every render, so
   // every keystroke in the Name field re-tokenized the whole scenario.
-  const scenarioTokens = useMemo(() => countTokens(card.scenario), [card.scenario]);
-  const firstMesTokens = useMemo(() => countTokens(card.first_mes), [card.first_mes]);
+  const exact = useTokenizer();
+  const scenarioTokens = useMemo(() => countTokens(card.scenario), [card.scenario, exact]);
+  const firstMesTokens = useMemo(() => countTokens(card.first_mes), [card.first_mes, exact]);
   const totalTokens = scenarioTokens + firstMesTokens;
   const level = getTokenBudgetLevel(totalTokens);
 
