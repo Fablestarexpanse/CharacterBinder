@@ -10,6 +10,7 @@ import { getAllCards, deleteCard } from "../lib/library";
 import { exportCardsAsZip } from "../lib/archive";
 import ConfirmModal from "./ConfirmModal";
 import { useStatusMessage } from "../hooks/useStatusMessage";
+import { errorMessage } from "../lib/errorMessage";
 
 type SortKey = "updatedAt" | "createdAt" | "name";
 
@@ -59,7 +60,7 @@ export default function Library({ refreshToken = 0, onEditCard, onOpenDataCard }
   // another tab — and none of these showed anything at all before: the list
   // simply stayed empty and the buttons stayed stuck on "Deleting…".
   const reportFailure = useCallback((what: string, err: unknown) => {
-    setMsg(`${what}: ${err instanceof Error ? err.message : String(err)}`, false);
+    setMsg(`${what}: ${errorMessage(err)}`, false);
   }, [setMsg]);
 
   const load = useCallback(async () => {

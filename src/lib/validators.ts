@@ -1,4 +1,5 @@
 import type { TavernCardV2, ValidationResult } from "../types";
+import { errorMessage } from "./errorMessage";
 
 /** Fields the v2 spec requires to be present on `data`, with their expected shape. */
 const REQUIRED_STRING_FIELDS = [
@@ -112,6 +113,6 @@ export function validateJson(jsonStr: string): ValidationResult {
     JSON.parse(jsonStr);
     return { valid: true, errors: [], warnings: [] };
   } catch (e) {
-    return { valid: false, errors: [(e as Error).message], warnings: [] };
+    return { valid: false, errors: [errorMessage(e)], warnings: [] };
   }
 }

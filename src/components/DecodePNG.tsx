@@ -9,6 +9,7 @@ import FieldCompatibility from "./FieldCompatibility";
 import { useTimedFlag } from "../hooks/useTimedFlag";
 import { CHARACTER_KEYS, shapeForKey } from "../lib/cardShape";
 import { pngBytesToDataUrl } from "../lib/carrierImage";
+import { errorMessage } from "../lib/errorMessage";
 
 type NonCharType = "lorebook" | "script" | "scenario" | "persona";
 const NON_CHAR_META: Record<NonCharType, { label: string; icon: React.ReactNode; color: string }> = {
@@ -85,7 +86,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
 
       setResult({ json, key, sourcePlatform, meta, imageSrc });
     } catch (err) {
-      setError((err as Error).message);
+      setError(errorMessage(err));
     }
   }, []);
 

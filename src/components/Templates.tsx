@@ -5,6 +5,7 @@ import { templates } from "../data/templates/ronalVoss";
 import { getCustomTemplates, deleteCustomTemplate, type CustomTemplate } from "../lib/customTemplates";
 import ConfirmModal from "./ConfirmModal";
 import { FileText, Plus, Trash2 } from "lucide-react";
+import { errorMessage } from "../lib/errorMessage";
 
 interface TemplatesProps {
   onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;
@@ -12,6 +13,9 @@ interface TemplatesProps {
 
 export default function Templates({ onLoad }: TemplatesProps) {
   const [custom, setCustom] = useState<CustomTemplate[]>([]);
+  // A delete that the browser refuses leaves the template on screen; saying so
+  // beats letting the user click again and again.
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setCustom(getCustomTemplates());
@@ -23,13 +27,23 @@ export default function Templates({ onLoad }: TemplatesProps) {
 
   function confirmDelete() {
     if (!pendingDelete) return;
-    deleteCustomTemplate(pendingDelete.id);
+    try {
+      deleteCustomTemplate(pendingDelete.id);
+      setError(null);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
     setPendingDelete(null);
     setCustom(getCustomTemplates());
   }
 
   return (
     <div className="h-full overflow-y-auto p-6">
+      {error && (
+        <p role="status" aria-live="polite" className="mb-4 text-xs text-status-danger bg-status-danger-soft border border-status-danger-border rounded-lg px-3 py-2">
+          {error}
+        </p>
+      )}
       {pendingDelete && (
         <ConfirmModal
           title="Delete this template?"

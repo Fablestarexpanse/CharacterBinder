@@ -25,8 +25,20 @@ function load(): CustomTemplate[] {
   }
 }
 
+/**
+ * Writes throw rather than failing silently. Settings that do not survive a
+ * reload are an annoyance; a template the user saved and then cannot find is
+ * lost work, so the caller has to be able to say it did not happen.
+ */
 function persist(templates: CustomTemplate[]) {
-  localStorage.setItem(KEY, JSON.stringify(templates));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(templates));
+  } catch (err) {
+    throw new Error(
+      "This browser refused to store the template — its storage may be full or blocked for this site.",
+      { cause: err }
+    );
+  }
 }
 
 export function getCustomTemplates(): CustomTemplate[] {

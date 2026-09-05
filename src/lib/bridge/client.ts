@@ -41,6 +41,7 @@ import { createBlankTavernCard } from "../tavernCard";
 import { coerceCardBody, coerceCharacterData } from "../blankCards";
 import { createPersistedSettings } from "../persistedSettings";
 import { CARD_TYPES, isCardType, type LibraryCard, type TavernCardV2 } from "../../types";
+import { errorMessage } from "../errorMessage";
 
 /** Same read/patch contract as the app's other persisted settings. */
 const bridgeStore = createPersistedSettings("cb_bridge", { token: "", enabled: false });
@@ -275,7 +276,7 @@ function open() {
       response.result = await handle(msg);
       setState({ served: state.served + 1, lastMethod: msg.method });
     } catch (err) {
-      response.error = err instanceof Error ? err.message : String(err);
+      response.error = errorMessage(err);
     }
     ws.send(JSON.stringify(response));
   };

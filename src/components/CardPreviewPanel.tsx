@@ -19,6 +19,7 @@ import { PLATFORMS, type PlatformId } from "../lib/platforms";
 import { convertCardTo } from "../lib/platforms/converters";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";
+import { errorMessage } from "../lib/errorMessage";
 
 /**
  * Chunk key used when the target platform declares none of its own — i.e. the
@@ -122,7 +123,7 @@ export default function CardPreviewPanel({
         true
       );
     } catch (err) {
-      setStatus(`Export failed: ${(err as Error).message}`, false);
+      setStatus(`Export failed: ${errorMessage(err)}`, false);
     } finally {
       setExporting(false);
     }
@@ -189,8 +190,8 @@ export default function CardPreviewPanel({
     try {
       saveCustomTemplate(project.card);
       setStatus("Saved as template!", true);
-    } catch {
-      setStatus("Failed to save template.", false);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Failed to save template.", false);
     } finally {
       setSavingTemplate(false);
     }

@@ -7,6 +7,7 @@ import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { detectCardShape, shapeForKey } from "../lib/cardShape";
 import { pngBytesToDataUrl } from "../lib/carrierImage";
+import { errorMessage } from "../lib/errorMessage";
 
 type DetectedType = LibraryCardType | null;
 
@@ -157,7 +158,7 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
       setMessage(`Unrecognised metadata key "${key}". Cannot load this card.`);
     } catch (err) {
       setStatus("error");
-      setMessage(`Error: ${(err as Error).message}`);
+      setMessage(`Error: ${errorMessage(err)}`);
     }
   }, [onLoad, onOpenDataCard]);
 

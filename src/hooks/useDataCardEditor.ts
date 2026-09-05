@@ -6,6 +6,7 @@ import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
 import { useStatusMessage } from "./useStatusMessage";
 import { useUnsavedWarning } from "./useUnsavedWarning";
+import { errorMessage } from "../lib/errorMessage";
 
 /**
  * The shell every non-character editor needs: the card being edited, its cover
@@ -120,7 +121,7 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
       downloadPng(encodeCharaToPng(pngBytes, JSON.stringify(payload()), cardType, false), outputFileName);
       setMsg("PNG exported!", true);
     } catch (err) {
-      setMsg(`PNG export failed: ${(err as Error).message}`, false);
+      setMsg(`PNG export failed: ${errorMessage(err)}`, false);
     }
   }, [imageSrc, payload, cardType, outputFileName, setMsg]);
 
@@ -143,7 +144,7 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
     } catch (err) {
       // The message matters: a save fails on quota, a blocked upgrade, or
       // private-mode storage, and "Failed to save" tells the user none of it.
-      setMsg(`Failed to save to library: ${(err as Error).message}`, false);
+      setMsg(`Failed to save to library: ${errorMessage(err)}`, false);
     }
     setSaving(false);
   }, [card, cardType, imageSrc, libraryId, savedVersion, tagsOf, setMsg]);
