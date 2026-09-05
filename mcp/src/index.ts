@@ -319,11 +319,16 @@ server.registerTool(
     },
   },
   async ({ id, card }) => {
-    let data = card;
+    /** Both modes accept a whole v2 card or a bare data block. */
+    const fields = (value: Record<string, unknown> | undefined) => {
+      const inner = (value as { data?: Record<string, unknown> } | undefined)?.data;
+      return inner && typeof inner === "object" ? inner : value;
+    };
+
+    let data = fields(card);
     if (id) {
       const fetched = await callApp("cards.get", { id });
-      const v2 = fetched.data as { data?: Record<string, unknown> };
-      data = v2?.data ?? (fetched.data as Record<string, unknown>);
+      data = fields(fetched.data as Record<string, unknown>);
     }
     if (!data) throw new Error("Pass either an id or a card object.");
 
