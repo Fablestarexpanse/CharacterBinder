@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType, DataCardType } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { readCardPng } from "../../lib/readCardPng";
+import PngDropzone from "../ui/PngDropzone";
 import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { convertCardFrom } from "../../shared/platforms/converters";
 import FieldCompatibility from "../editor/FieldCompatibility";
@@ -23,7 +24,6 @@ interface DecodePNGProps {
 }
 
 export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
-  const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<{
     json: string;
     key: string;
@@ -38,7 +38,6 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
   const [error, setError] = useState<string | null>(null);
   const [copied, flashCopied] = useTimedFlag();
   const [showFullCompat, setShowFullCompat] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const inspectPngFile = useCallback(async (file: File) => {
     setError(null);
@@ -83,13 +82,6 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) inspectPngFile(file);
-  }, [inspectPngFile]);
-
   const handleLoadToEditor = () => {
     if (!result) return;
     const parsed = JSON.parse(result.json);
@@ -125,27 +117,14 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
           </p>
         </div>
 
-        {/* Drop zone */}
-        <div
-          className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 transition-colors cursor-pointer ${
-            dragging ? "border-accent-purple bg-accent-purple/10" : "border-border hover:border-accent-purple/50"
-          }`}
-          role="button"
-          tabIndex={0}
-          aria-label="Choose a card PNG to inspect, or drop one here"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); }
-          }}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <FileSearch size={28} className="text-text-muted" />
-          <p className="text-sm text-text-secondary">Drop any card PNG here to inspect its metadata</p>
-          <input ref={fileInputRef} type="file" accept=".png,image/png" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) inspectPngFile(f); e.currentTarget.value = ""; }} />
-        </div>
+        <PngDropzone onFile={inspectPngFile} label="Choose a card PNG to inspect">
+          {() => (
+            <>
+              <FileSearch size={28} className="text-text-muted" />
+              <p className="text-sm text-text-secondary">Drop any card PNG here to inspect its metadata</p>
+            </>
+          )}
+        </PngDropzone>
 
         {error && (
           <div role="alert" className="bg-status-danger-soft border border-status-danger-border text-status-danger text-sm rounded-xl p-3">{error}</div>

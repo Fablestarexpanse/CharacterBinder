@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import type { TavernCardV2, MetadataInfo, LibraryCardType, OpenDataCard } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { readCardPng } from "../../lib/readCardPng";
+import PngDropzone from "../ui/PngDropzone";
 import { convertCardFrom } from "../../shared/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { errorMessage } from "../../shared/errorMessage";
@@ -39,13 +40,11 @@ const TYPE_KEYS: Record<NonNullable<DetectedType>, string> = {
 };
 
 export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
-  const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [detectedType, setDetectedType] = useState<DetectedType>(null);
   const [detectedPlatform, setDetectedPlatform] = useState<PlatformId | null>(null);
   const [detectedKey, setDetectedKey] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const importPngFile = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".png") && !file.type.includes("png")) {
@@ -125,13 +124,6 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
     }
   }, [onLoad, onOpenDataCard]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) importPngFile(file);
-  }, [importPngFile]);
-
   return (
     <div className="h-full flex flex-col items-center justify-center p-8">
       <div className="max-w-lg w-full space-y-6">
@@ -143,44 +135,26 @@ export default function ImportPNG({ onLoad, onOpenDataCard }: ImportPNGProps) {
           </p>
         </div>
 
-        {/* Drop zone */}
-        <div
-          className={`relative border-2 border-dashed rounded-2xl p-12 flex flex-col items-center gap-4 transition-colors cursor-pointer ${
-            dragging
-              ? "border-accent-purple bg-accent-purple/10"
-              : "border-border hover:border-accent-purple/50 hover:bg-bg-hover"
-          }`}
-          role="button"
-          tabIndex={0}
-          aria-label="Choose a card PNG to import, or drop one here"
-          onKeyDown={(e) => {
-            // The visible target is a div and the real input is display:none, so
-            // without this there was no keyboard path to import a card at all.
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); }
-          }}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+        <PngDropzone
+          onFile={importPngFile}
+          label="Choose a card PNG to import"
+          className="rounded-2xl p-12 gap-4"
         >
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${dragging ? "bg-accent-purple/30" : "bg-bg-tertiary"}`}>
-            <Upload size={32} className={dragging ? "text-accent-purple-light" : "text-text-muted"} />
-          </div>
-          <div className="text-center">
-            <p className="text-text-primary font-medium">
-              {dragging ? "Drop PNG here..." : "Drag & drop a card PNG"}
-            </p>
-            <p className="text-sm text-text-muted mt-1">or click to browse files</p>
-          </div>
-          <p className="text-xs text-text-muted">Card type &amp; platform auto-detected on import</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".png,image/png"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) importPngFile(f); }}
-          />
-        </div>
+          {(dragging) => (
+            <>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${dragging ? "bg-accent-purple/30" : "bg-bg-tertiary"}`}>
+                <Upload size={32} className={dragging ? "text-accent-purple-light" : "text-text-muted"} />
+              </div>
+              <div className="text-center">
+                <p className="text-text-primary font-medium">
+                  {dragging ? "Drop PNG here..." : "Drag & drop a card PNG"}
+                </p>
+                <p className="text-sm text-text-muted mt-1">or click to browse files</p>
+              </div>
+              <p className="text-xs text-text-muted">Card type &amp; platform auto-detected on import</p>
+            </>
+          )}
+        </PngDropzone>
 
         {/* Status */}
         {status !== "idle" && (
