@@ -109,8 +109,10 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
     }
   };
 
-  const isCharCard = result && result.sourcePlatform !== null && result.shape === "character";
-  const platform = isCharCard && result.sourcePlatform ? PLATFORMS[result.sourcePlatform] : null;
+  // The narrowed value rather than a flag beside it: the flag had to be
+  // re-tested against the same field at every use site to convince the compiler.
+  const charPlatform = result && result.shape === "character" ? result.sourcePlatform : null;
+  const platform = charPlatform ? PLATFORMS[charPlatform] : null;
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -185,7 +187,7 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                 </table>
 
                 {/* Field compatibility only for character cards */}
-                {isCharCard && result.sourcePlatform && (
+                {charPlatform && (
                   <div>
                     <button
                       onClick={() => setShowFullCompat(!showFullCompat)}
@@ -195,8 +197,8 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
                       {showFullCompat ? "Hide" : "Show"} field compatibility
                     </button>
                     {showFullCompat
-                      ? <FieldCompatibility platformId={result.sourcePlatform} />
-                      : <FieldCompatibility platformId={result.sourcePlatform} compact />
+                      ? <FieldCompatibility platformId={charPlatform} />
+                      : <FieldCompatibility platformId={charPlatform} compact />
                     }
                   </div>
                 )}

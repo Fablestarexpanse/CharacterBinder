@@ -58,7 +58,7 @@ export default function CardPreviewPanel({
   const outputFileId = useId();
   const [compatOpen, setCompatOpen] = useState(false);
   const [tokenOpen, setTokenOpen] = useState(false);
-  const { exporting, saving, savingTemplate, status: exportStatus, setStatus } = actions;
+  const { exporting, saving, status: exportStatus, setStatus } = actions;
 
   const platform = PLATFORMS[targetPlatform];
 
@@ -347,11 +347,10 @@ export default function CardPreviewPanel({
 
         <button
           onClick={actions.saveAsTemplate}
-          disabled={savingTemplate}
           className="w-full btn-secondary justify-center py-2 text-sm"
         >
           <LayoutTemplate size={14} />
-          {savingTemplate ? "Saving…" : "Save as Template"}
+          Save as Template
         </button>
 
         {/* Tools row */}

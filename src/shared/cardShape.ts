@@ -77,5 +77,8 @@ export function effectiveShape(key: string, parsed: unknown): {
   const claimed = shapeForKey(key);
   const actual = detectCardShape(parsed);
   const mismatch = actual !== null && claimed !== null && actual !== claimed;
-  return { shape: mismatch ? actual : claimed, claimed, actual, mismatch };
+  // Shape wins wherever the two disagree, and also where the keyword says
+  // nothing: a payload that is plainly a lorebook under an unrecognised key
+  // used to come back as "no idea" and be refused.
+  return { shape: actual ?? claimed, claimed, actual, mismatch };
 }

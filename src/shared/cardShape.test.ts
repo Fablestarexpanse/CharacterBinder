@@ -84,3 +84,15 @@ describe("effectiveShape", () => {
     expect(effectiveShape("comment", { hello: 1 }).shape).toBeNull();
   });
 });
+
+describe("effectiveShape under an unrecognised keyword", () => {
+  it("keeps the shape it detected rather than reporting nothing", () => {
+    // A file written by some other tool under its own keyword still has a body
+    // this can read; refusing it because the label is unfamiliar helps nobody.
+    const result = effectiveShape("some_other_tool", { entries: [] });
+    expect(result.shape).toBe("lorebook");
+    expect(result.claimed).toBeNull();
+    // Nothing to disagree with, so nothing to warn the user about.
+    expect(result.mismatch).toBe(false);
+  });
+});

@@ -256,7 +256,9 @@ async function requireApproval(action: "delete" | "overwrite", card: LibraryCard
 async function updateCard(params: UpdateParams): Promise<BridgeCalls["cards.update"]["result"]> {
   const existing = await findCard(params.id);
   await requireApproval("overwrite", existing);
-  const merged = { ...(bodyOf(existing) ?? {}), ...(params.patch ?? {}) };
+  // Both sides are already objects: bodyOf returns the record's own body, and
+  // the protocol schema rejects a call whose patch is missing.
+  const merged = { ...bodyOf(existing), ...params.patch };
   const saved = await persist(
     existing.cardType,
     merged,

@@ -55,6 +55,21 @@ describe("Library", () => {
     expect(screen.queryByText("Kael")).not.toBeInTheDocument();
   });
 
+  it("selects what is on screen when a filter is active, not what happens to be counted", async () => {
+    const user = userEvent.setup();
+    render(<Library {...props} />);
+    await screen.findByText("Rook");
+
+    // Select one card, then filter down to one *other* card. Both counts are 1,
+    // and comparing them cleared the selection instead of selecting Kael.
+    await user.click(screen.getAllByRole("checkbox", { name: /select rook/i })[0]);
+    const search = screen.getByRole("textbox", { name: /search the library/i });
+    await user.type(search, "kael");
+
+    await user.click(screen.getByRole("button", { name: /select all/i }));
+    expect(screen.getByRole("button", { name: /deselect all/i })).toBeInTheDocument();
+  });
+
   it("opens a character through onEditCard and a data card through onOpenDataCard", async () => {
     const user = userEvent.setup();
     const onEditCard = vi.fn();

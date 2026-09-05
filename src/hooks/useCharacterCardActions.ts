@@ -27,7 +27,6 @@ export interface CharacterCardActions {
   saveAsTemplate: () => void;
   exporting: boolean;
   saving: boolean;
-  savingTemplate: boolean;
   status: ReturnType<typeof useStatusMessage>["status"];
   setStatus: ReturnType<typeof useStatusMessage>["setMsg"];
 }
@@ -47,7 +46,6 @@ export function useCharacterCardActions({
 }: Options): CharacterCardActions {
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingTemplate, setSavingTemplate] = useState(false);
   const [savedVersion, setSavedVersion] = useState(project.card.data.character_version ?? "1.0");
   const { status, setMsg: setStatus } = useStatusMessage();
   const platform = PLATFORMS[targetPlatform];
@@ -124,17 +122,16 @@ export function useCharacterCardActions({
     }
   }, [project, targetPlatform, savedVersion, settings, onSavedToLibrary, setStatus]);
 
+  // Synchronous: writing a template is one localStorage put, so there is no
+  // in-flight state to show. Failure arrives through the status line.
   const saveAsTemplate = useCallback(() => {
-    setSavingTemplate(true);
     try {
       saveCustomTemplate(project.card);
       setStatus("Saved as template!", true);
     } catch (err) {
       setStatus(`Failed to save template: ${errorMessage(err)}`, false);
-    } finally {
-      setSavingTemplate(false);
     }
   }, [project.card, setStatus]);
 
-  return { exportPng, exportJson, save, saveAsTemplate, exporting, saving, savingTemplate, status, setStatus };
+  return { exportPng, exportJson, save, saveAsTemplate, exporting, saving, status, setStatus };
 }

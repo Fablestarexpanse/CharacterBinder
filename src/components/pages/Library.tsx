@@ -16,11 +16,13 @@ type SortKey = "updatedAt" | "createdAt" | "name";
 
 function getCardVersion(card: LibraryCard): string | null {
   if (card.cardType === "character") {
-    const v = card.cardData?.data.character_version?.trim();
+    // A damaged record can be missing its body entirely — the edit path already
+    // guards for it, and a card list must not throw over a missing version.
+    const v = card.cardData?.data?.character_version?.trim();
     return v || null;
   }
   const raw: { version?: string } = card.rawData;
-  const v = raw?.version?.trim();
+  const v = raw.version?.trim();
   return v || null;
 }
 type SortDir = "asc" | "desc";
@@ -106,8 +108,13 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
     setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   }
 
+  // Membership, not count: with a search active, "3 selected" and "3 shown"
+  // can be different threes, and comparing sizes cleared the selection instead
+  // of selecting what the user was looking at.
+  const allShownSelected = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+
   function toggleSelectAll() {
-    if (selected.size === filtered.length) setSelected(new Set());
+    if (allShownSelected) setSelected(new Set());
     else setSelected(new Set(filtered.map((c) => c.id)));
   }
 
@@ -266,10 +273,10 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
           {/* Select-all row */}
           <div className="flex items-center gap-2 -mb-4">
             <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition-colors">
-              {selected.size === filtered.length && filtered.length > 0
+              {allShownSelected
                 ? <CheckSquare size={14} className="text-accent-purple" />
                 : <Square size={14} />}
-              {selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
+              {allShownSelected ? "Deselect all" : "Select all"}
             </button>
             <span className="text-xs text-text-muted ml-auto">{filtered.length} item{filtered.length !== 1 ? "s" : ""}</span>
           </div>
