@@ -43,15 +43,9 @@ async function originalCreatedAt(db: IDBPDatabase, existingId: string | undefine
 }
 
 /**
- * What a caller must supply to store a card, per kind.
- *
- * There were two save functions with incompatible positional parameter lists —
- * `saveCard(cardData, pngData, imageSrc, platform, existingId)` for characters
- * and `saveAnyCard(cardType, name, rawData, imageSrc, tags, existingId)` for
- * everything else — so the same job read differently depending on which kind of
- * card you had, and a misordered argument was a silent bug rather than a type
- * error. One entry point, keyed by `cardType`, and the fields each kind
- * actually needs are the ones it accepts.
+ * What a caller must supply to store a card. One entry point for every kind,
+ * keyed by `cardType`, so each kind accepts exactly the fields it needs and a
+ * misplaced argument is a type error rather than a card saved wrong.
  */
 interface SaveCommon {
   /** Cover art as a data: URL. Not the encoded card PNG. */
@@ -155,10 +149,7 @@ export async function getAllCards(): Promise<LibraryCard[]> {
   return all.map(withCardType).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-/**
- * One card by id. Callers previously scanned getAllCards() to find one, which
- * reads and deserialises the entire library to answer a point lookup.
- */
+/** One card by id, without reading the whole library to find it. */
 export async function getCard(id: string): Promise<LibraryCard | null> {
   const db = await getDb();
   const card = await db.get(STORE, id);

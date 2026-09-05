@@ -216,12 +216,8 @@ export interface OpenParams {
 }
 
 /**
- * What each method takes and returns.
- *
- * The server used to call `callApp<SomeResult>(method, params)` and name the
- * result type itself at every site, so a method and a mismatched result type
- * compiled happily and failed at the point of use. This table is the one place
- * the pairing is stated.
+ * What each method takes and returns — the one place the pairing is stated, so
+ * a call cannot name a result type its method does not produce.
  */
 export interface BridgeCalls {
   ping: { params?: undefined; result: { ok: boolean; app: string; version: string } };

@@ -11,13 +11,8 @@ import { errorMessage } from "../shared/errorMessage";
 /**
  * The shell every non-character editor needs: the card being edited, its cover
  * image, its library identity, the filename derived from its name, and the
- * save/export/clear actions.
- *
- * The four editors each carried their own copy of this — six useStates, the
- * same filename effect, and three handlers differing only in the card kind and
- * the word in the status message. A fix to one (an export that reports its
- * error, a save that keeps the original createdAt) had to be made four times,
- * and in practice was not.
+ * save/export/clear actions. The four editors keep only what is specific to
+ * their kind.
  */
 
 export interface DataCardEditor<T extends DataCardType> {

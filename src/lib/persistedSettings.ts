@@ -1,17 +1,7 @@
 /**
- * One contract for settings kept in localStorage.
- *
- * There were three, one per module: `loadStoredSettings()` returning the whole
- * object and `saveSettings(whole)` replacing it; `getSorterSettings()` with
- * `saveSorterSettings(patch)` returning the merged result and notifying
- * subscribers; and bare `getBridgeToken`/`setBridgeToken` string accessors.
- * Three read verbs and three write contracts for the same job meant every
- * caller had to remember which one it was talking to, and only one of the three
- * notified anything when a value changed.
- *
- * A store here always merges over its defaults on read (so a key added in a
- * later version picks up its default rather than arriving undefined), takes a
- * patch on write, and notifies subscribers.
+ * One contract for every setting kept in localStorage: reads merge over the
+ * defaults, so a key added in a later version arrives with its default rather
+ * than undefined; writes take a patch and notify subscribers.
  */
 
 export interface PersistedSettings<T extends object> {

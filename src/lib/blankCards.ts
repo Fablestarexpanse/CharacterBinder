@@ -92,12 +92,8 @@ export function coerceCardBody<T extends Exclude<LibraryCardType, "character">>(
 
 /**
  * Build the `data` block of a character card from an arbitrary object, keeping
- * only the v2 fields and only where the value has the right type.
- *
- * The bridge used to spread a peer's object straight over a blank card's data,
- * so an agent could put a number in `personality` or invent a field, and the
- * editor and every converter downstream would then be handling a card whose
- * type says one thing and whose contents say another.
+ * only the v2 fields and only where the value has the right type — so a card
+ * read back always matches the type the library says it holds.
  */
 export function coerceCharacterData(body: Record<string, unknown>): TavernCardV2["data"] {
   const blank = createBlankTavernCard().data;

@@ -41,10 +41,8 @@ export const ronanVossTemplate: TavernCardV2 = {
 };
 
 /**
- * The empty card the "Blank Character" template starts from. It is the same
- * card createBlankTavernCard() builds — this file used to restate the literal,
- * so the two could drift and a field added to the spec would reach one and not
- * the other.
+ * The empty card the "Blank Character" template starts from — the same card
+ * createBlankTavernCard() builds, so a field added to the spec reaches both.
  */
 export const blankTemplate: TavernCardV2 = createBlankTavernCard();
 
