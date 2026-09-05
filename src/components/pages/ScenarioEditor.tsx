@@ -4,8 +4,7 @@ import type { ScenarioCard } from "../../types";
 import ResizableTextArea from "../ui/ResizableTextArea";
 import { countTokens, getTokenBudgetLevel, tokenBudgetPercent, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../../lib/tokenizer";
 import { useTokenizer } from "../../hooks/useTokenizer";
-import ImageDropzone from "../ui/ImageDropzone";
-import CardExportPanel from "../editor/CardExportPanel";
+import DataCardExportAside from "../editor/DataCardExportAside";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
 import { blankScenarioCard } from "../../shared/blankCards";
@@ -19,17 +18,14 @@ interface ScenarioEditorProps {
 }
 
 export default function ScenarioEditor({ initialCard, initialImageSrc, initialLibraryId }: ScenarioEditorProps) {
-  const {
-    card, update, imageSrc, setImageSrc, libraryId, saving,
-    status, outputFileName, setOutputFileName,
-    save: handleSaveToLibrary, exportJson, exportPng, clear: clearForNew,
-  } = useDataCardEditor({
+  const editor = useDataCardEditor({
     cardType: "scenario",
     blank: blankScenarioCard,
     initialCard,
     initialImageSrc,
     initialLibraryId,
   });
+  const { card, update } = editor;
 
   // Tokenizing is a full BPE encode. Unmemoized these ran on every render, so
   // every keystroke in the Name field re-tokenized the whole scenario.
@@ -79,45 +75,30 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
       </div>
 
       {/* Export panel */}
-      <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
-        <p className="section-title">Export</p>
-
-        <ImageDropzone label="Scene Image" imageSrc={imageSrc} onFile={setImageSrc} />
-
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between"><span className="text-text-muted">Scenario</span><span className="font-medium text-text-primary">{scenarioTokens} tk</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Opening</span><span className="font-medium text-text-primary">{firstMesTokens} tk</span></div>
-          <div className="flex justify-between border-t border-border pt-1 mt-1">
-            <span className="text-text-muted">Total</span>
-            <span className={`font-bold ${TOKEN_BUDGET_COLORS[level]}`}>{totalTokens} tk</span>
+      <DataCardExportAside
+        editor={editor}
+        cardType="scenario"
+        label="Scenario Card"
+        imageLabel="Scene Image"
+        footnotes={
+          <>
+            <p><strong className="text-text-secondary">JSON</strong> — drop into SillyTavern or any compatible tool.</p>
+            <p><strong className="text-text-secondary">PNG</strong> — embeds the scenario using the <code className="bg-bg-tertiary px-1 rounded">scenario</code> chunk.</p>
+          </>
+        }
+      >
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between"><span className="text-text-muted">Scenario</span><span className="font-medium text-text-primary">{scenarioTokens} tk</span></div>
+            <div className="flex justify-between"><span className="text-text-muted">Opening</span><span className="font-medium text-text-primary">{firstMesTokens} tk</span></div>
+            <div className="flex justify-between border-t border-border pt-1 mt-1">
+              <span className="text-text-muted">Total</span>
+              <span className={`font-bold ${TOKEN_BUDGET_COLORS[level]}`}>{totalTokens} tk</span>
+            </div>
+            <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
+              <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${tokenBudgetPercent(totalTokens)}%` }} />
+            </div>
           </div>
-          <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden mt-1">
-            <div className={`h-full rounded-full ${TOKEN_BUDGET_BAR_COLORS[level]}`} style={{ width: `${tokenBudgetPercent(totalTokens)}%` }} />
-          </div>
-        </div>
-
-        <CardExportPanel
-          cardType="scenario"
-          label="Scenario Card"
-          outputFileName={outputFileName}
-          onOutputFileNameChange={setOutputFileName}
-          version={card.version}
-          onVersionChange={(version) => update({ version })}
-          saving={saving}
-          libraryId={libraryId}
-          onSave={handleSaveToLibrary}
-          onExportJson={exportJson}
-          onExportPng={exportPng}
-          onClear={clearForNew}
-          status={status}
-          footnotes={
-            <>
-              <p><strong className="text-text-secondary">JSON</strong> — drop into SillyTavern or any compatible tool.</p>
-              <p><strong className="text-text-secondary">PNG</strong> — embeds the scenario using the <code className="bg-bg-tertiary px-1 rounded">scenario</code> chunk.</p>
-            </>
-          }
-        />
-      </aside>
+      </DataCardExportAside>
     </div>
   );
 }

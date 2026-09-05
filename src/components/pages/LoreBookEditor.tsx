@@ -11,8 +11,7 @@ import { useTokenizer } from "../../hooks/useTokenizer";
 import { parseLorebook, toExportedLorebook } from "../../shared/lorebook";
 import { blankLoreBook } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
-import ImageDropzone from "../ui/ImageDropzone";
-import CardExportPanel from "../editor/CardExportPanel";
+import DataCardExportAside from "../editor/DataCardExportAside";
 import TagInput from "../ui/TagInput";
 import { errorMessage } from "../../shared/errorMessage";
 
@@ -40,12 +39,7 @@ interface LoreBookEditorProps {
 }
 
 export default function LoreBookEditor({ initialCard, initialImageSrc, initialLibraryId }: LoreBookEditorProps) {
-  const {
-    card: book, update: updateBook, setCard: setBook,
-    imageSrc, setImageSrc, libraryId, saving, status, setMsg,
-    outputFileName, setOutputFileName,
-    save: handleSaveToLibrary, exportJson, exportPng, clear,
-  } = useDataCardEditor({
+  const editor = useDataCardEditor({
     cardType: "lorebook",
     blank: blankLoreBook,
     initialCard: initialCard,
@@ -58,6 +52,7 @@ export default function LoreBookEditor({ initialCard, initialImageSrc, initialLi
     // its entries trigger on.
     tagsOf: (b) => b.entries.flatMap((e) => e.keys).slice(0, 10),
   });
+  const { card: book, update: updateBook, setCard: setBook, setMsg, clear } = editor;
 
   const [selectedId, setSelectedId] = useState<string | null>(initialCard?.entries[0]?.id ?? null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -258,69 +253,55 @@ export default function LoreBookEditor({ initialCard, initialImageSrc, initialLi
       )}
 
       {/* ── Export panel (right) ── */}
-      <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
-        <p className="section-title">Export</p>
-
-        <ImageDropzone label="Cover Image" imageSrc={imageSrc} onFile={setImageSrc} />
-
-        <CardExportPanel
-          cardType="lorebook"
-          label="Lorebook"
-          outputFileName={outputFileName}
-          onOutputFileNameChange={setOutputFileName}
-          version={book.version}
-          onVersionChange={(version) => updateBook({ version })}
-          saving={saving}
-          libraryId={libraryId}
-          onSave={handleSaveToLibrary}
-          onExportJson={exportJson}
-          onExportPng={exportPng}
-          onClear={clearForNew}
-          status={status}
-          outputExtras={
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-text-muted">Entries</span>
-              <span className="font-medium text-text-primary">{book.entries.length}</span>
-            </div>
-          }
-          belowOutput={
-            <div className="border-t border-border pt-3">
-              <button
-                onClick={() => setSettingsOpen(!settingsOpen)}
-                aria-expanded={settingsOpen}
-                className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary transition-colors mb-2"
-              >
-                <span className="font-medium">Book Settings</span>
-                {settingsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-              {settingsOpen && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-text-muted">Scan depth</span>
-                    <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.scan_depth} onChange={(e) => updateBook({ scan_depth: Number(e.target.value) })} />
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-text-muted">Token budget</span>
-                    <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.token_budget} onChange={(e) => updateBook({ token_budget: Number(e.target.value) })} />
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-text-muted">Recursive scan</span>
-                    <button onClick={() => updateBook({ recursive_scanning: !book.recursive_scanning })} className="text-accent-purple">
-                      {book.recursive_scanning ? <ToggleRight size={18} /> : <ToggleLeft size={18} className="text-text-muted" />}
-                    </button>
-                  </div>
+      <DataCardExportAside
+        editor={editor}
+        cardType="lorebook"
+        label="Lorebook"
+        imageLabel="Cover Image"
+        onClear={clearForNew}
+      outputExtras={
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-muted">Entries</span>
+            <span className="font-medium text-text-primary">{book.entries.length}</span>
+          </div>
+        }
+        belowOutput={
+          <div className="border-t border-border pt-3">
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              aria-expanded={settingsOpen}
+              className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary transition-colors mb-2"
+            >
+              <span className="font-medium">Book Settings</span>
+              {settingsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {settingsOpen && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">Scan depth</span>
+                  <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.scan_depth} onChange={(e) => updateBook({ scan_depth: Number(e.target.value) })} />
                 </div>
-              )}
-            </div>
-          }
-          footnotes={
-            <>
-              <p><strong className="text-text-secondary">JSON</strong> — SillyTavern-compatible lorebook format.</p>
-              <p><strong className="text-text-secondary">PNG</strong> — embeds lorebook in a <code className="bg-bg-tertiary px-1 rounded">lorebook</code> chunk.</p>
-            </>
-          }
-        />
-      </aside>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">Token budget</span>
+                  <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.token_budget} onChange={(e) => updateBook({ token_budget: Number(e.target.value) })} />
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">Recursive scan</span>
+                  <button onClick={() => updateBook({ recursive_scanning: !book.recursive_scanning })} className="text-accent-purple">
+                    {book.recursive_scanning ? <ToggleRight size={18} /> : <ToggleLeft size={18} className="text-text-muted" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        }
+        footnotes={
+          <>
+            <p><strong className="text-text-secondary">JSON</strong> — SillyTavern-compatible lorebook format.</p>
+            <p><strong className="text-text-secondary">PNG</strong> — embeds lorebook in a <code className="bg-bg-tertiary px-1 rounded">lorebook</code> chunk.</p>
+          </>
+        }
+      />
     </div>
   );
 }

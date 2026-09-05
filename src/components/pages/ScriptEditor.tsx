@@ -2,8 +2,7 @@ import { useState, useRef, useCallback, useMemo } from "react";
 import { FileCode2 } from "lucide-react";
 import ResizableTextArea from "../ui/ResizableTextArea";
 import type { ScriptCard } from "../../types";
-import ImageDropzone from "../ui/ImageDropzone";
-import CardExportPanel from "../editor/CardExportPanel";
+import DataCardExportAside from "../editor/DataCardExportAside";
 import TagInput from "../ui/TagInput";
 import { blankScriptCard } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
@@ -16,17 +15,14 @@ interface ScriptEditorProps {
 }
 
 export default function ScriptEditor({ initialCard, initialImageSrc, initialLibraryId }: ScriptEditorProps) {
-  const {
-    card, update, imageSrc, setImageSrc, libraryId, saving,
-    status, outputFileName, setOutputFileName,
-    save: handleSaveToLibrary, exportJson, exportPng, clear: clearForNew,
-  } = useDataCardEditor({
+  const editor = useDataCardEditor({
     cardType: "script",
     blank: blankScriptCard,
     initialCard,
     initialImageSrc,
     initialLibraryId,
   });
+  const { card, update } = editor;
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -82,34 +78,18 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
         />
       </div>
 
-      {/* ── Export panel ── */}
-      <aside className="w-64 border-l border-border bg-bg-secondary flex flex-col shrink-0 p-4 gap-3">
-        <p className="section-title">Export</p>
-
-        <ImageDropzone label="Cover Image" imageSrc={imageSrc} onFile={setImageSrc} />
-
-        <CardExportPanel
-          cardType="script"
-          label="Script Card"
-          outputFileName={outputFileName}
-          onOutputFileNameChange={setOutputFileName}
-          version={card.version}
-          onVersionChange={(version) => update({ version })}
-          saving={saving}
-          libraryId={libraryId}
-          onSave={handleSaveToLibrary}
-          onExportJson={exportJson}
-          onExportPng={exportPng}
-          onClear={clearForNew}
-          status={status}
-          footnotes={
-            <>
-              <p><strong className="text-text-secondary">JSON</strong> — portable card format.</p>
-              <p><strong className="text-text-secondary">PNG</strong> — embeds the script using the <code className="bg-bg-tertiary px-1 rounded">script</code> chunk.</p>
-            </>
-          }
-        />
-      </aside>
+      <DataCardExportAside
+        editor={editor}
+        cardType="script"
+        label="Script Card"
+        imageLabel="Cover Image"
+        footnotes={
+          <>
+            <p><strong className="text-text-secondary">JSON</strong> — portable card format.</p>
+            <p><strong className="text-text-secondary">PNG</strong> — embeds the script using the <code className="bg-bg-tertiary px-1 rounded">script</code> chunk.</p>
+          </>
+        }
+      />
     </div>
   );
 }
