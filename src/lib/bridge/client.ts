@@ -173,14 +173,12 @@ export function disconnectBridge() {
   setState({ status: "off", error: null });
 }
 
-/** Reconnect on load if the user left it on. */
 /**
  * Register the host and reconnect if the user left the bridge on.
  *
- * The host is taken here rather than through a separate registration call: the
- * two had to happen in that order, nothing enforced it, and getting it wrong
- * meant a connected agent whose cards opened nowhere and whose deletes could
- * not be confirmed — with no error to say why.
+ * The host is taken here rather than registered separately, so the bridge
+ * cannot be started without one — an agent connected to a hostless bridge
+ * opens cards nowhere and cannot have its deletes confirmed.
  */
 export function initBridge(h: BridgeHost) {
   host = h;

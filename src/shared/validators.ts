@@ -21,17 +21,14 @@ const REQUIRED_ARRAY_FIELDS = ["alternate_greetings", "tags"] as const;
 /**
  * Checks a card against the Tavern Card v2 spec.
  *
- * This gates export when auto-validate is on, so it has to be more than a
+ * This gates export when auto-validate is on, so it is more than a
  * required-fields check: a card whose `tags` is a string rather than an array,
- * or which is missing `data` entirely, used to sail through here and then break
- * somewhere less obvious — the compatibility panel, the library write, or a
- * platform converter mid-export.
- */
-/**
- * Takes `unknown`, because everything it exists to catch arrives from outside
- * the type system: a decoded PNG, a pasted JSON blob, a card sent over the MCP
- * bridge. Declaring TavernCardV2 only meant every caller cast past the
- * signature to hand it the untrusted value it was written for.
+ * or which is missing `data` entirely, would otherwise break somewhere less
+ * obvious — the compatibility panel, the library write, or a converter
+ * mid-export.
+ *
+ * It takes `unknown` because everything it exists to catch arrives from outside
+ * the type system: a decoded PNG, a pasted JSON blob, a card off the bridge.
  */
 export function validateTavernCardV2(card: unknown): ValidationResult {
   const errors: string[] = [];
