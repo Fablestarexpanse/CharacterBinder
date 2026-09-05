@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { convertCardTo, convertCardFrom } from "./converters";
-import { PLATFORMS, type PlatformId } from "./index";
+import { PLATFORMS, detectPlatform, type PlatformId } from "./index";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 import { validateTavernCardV2 } from "../validators";
 import type { TavernCardV2 } from "../../types";
@@ -202,5 +202,46 @@ describe("chara_card_v3 import", () => {
     expect(card.data.description).toBe("A lamplighter.");
     expect(card.data.personality).toBe("dry");
     expect(card.data.first_mes).toBe("Evening.");
+  });
+});
+
+describe("detectPlatform", () => {
+  const v2 = (extensions: Record<string, unknown> = {}) => ({
+    spec: "chara_card_v2",
+    spec_version: "2.0",
+    data: { name: "Rook", description: "A dockhand.", extensions },
+  });
+
+  it("reads a v2 card's extensions to tell the v2-shaped platforms apart", () => {
+    expect(detectPlatform(v2({ risuai: { assets: [] } }))).toBe("risu");
+    expect(detectPlatform(v2({ chub: { id: 7 } }))).toBe("chub");
+    expect(detectPlatform(v2())).toBe("sillytavern");
+  });
+
+  it("recognises each platform's own field names", () => {
+    expect(detectPlatform({ kind: "character", persona: "p", sampleChat: "" })).toBe("agnai");
+    expect(detectPlatform({ persona: "p", greeting: "hi" })).toBe("janitorai");
+    expect(detectPlatform({ aiName: "Rook" })).toBe("backyard");
+    expect(detectPlatform({ basePrompt: "..." })).toBe("backyard");
+    expect(detectPlatform({ initialMessage: "hi" })).toBe("backyard");
+    expect(detectPlatform({ name: "Rook", description: "d", first_mes: "hi" })).toBe("venus");
+  });
+
+  it("prefers the more specific clause when a payload matches two", () => {
+    // A JanitorAI export also carries name/description, which is Venus's tell —
+    // this pins the clause order that keeps it a JanitorAI card.
+    expect(
+      detectPlatform({ name: "Rook", description: "d", persona: "p", greeting: "hi", first_mes: "hi" })
+    ).toBe("janitorai");
+    // Agnai's payload also has `persona`, which is JanitorAI's tell.
+    expect(
+      detectPlatform({ kind: "character", persona: "p", sampleChat: "", greeting: "hi" })
+    ).toBe("agnai");
+  });
+
+  it("falls back to generic for anything it cannot place", () => {
+    expect(detectPlatform({ hello: "world" })).toBe("generic");
+    expect(detectPlatform(null)).toBe("generic");
+    expect(detectPlatform("not an object")).toBe("generic");
   });
 });

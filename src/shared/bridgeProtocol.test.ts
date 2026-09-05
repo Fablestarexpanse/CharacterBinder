@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { webcrypto } from "node:crypto";
-import { createHmac } from "node:crypto";
 import { proveToken, safeEqual, randomNonce, PROOF_SERVER, PROOF_CLIENT } from "./bridgeProtocol";
-
-// proveToken uses WebCrypto, which Node exposes under a different global name
-// in older releases. The app runs it in a browser; this makes it available here.
-if (!globalThis.crypto) Object.defineProperty(globalThis, "crypto", { value: webcrypto });
 
 const TOKEN = "56d09ad247c51af4118575ab9a569cdfdf262b2ccf69743d0cd819b51a44b970";
 
@@ -25,12 +19,15 @@ describe("proveToken", () => {
     expect(await proveToken(TOKEN, "a")).not.toBe(await proveToken(TOKEN + "0", "a"));
   });
 
-  it("agrees with the server's node:crypto HMAC, byte for byte", async () => {
-    // The two sides of the bridge compute proofs with different crypto APIs;
-    // if they ever disagreed, no client could authenticate at all.
+  it("matches the server's HMAC for a known input", async () => {
+    // The app proves with WebCrypto and the server with node:crypto. If the two
+    // constructions ever diverged no client could authenticate at all, so this
+    // pins a value produced by the server side:
+    //   createHmac("sha256", TOKEN).update(message).digest("hex")
     const message = PROOF_SERVER + "abcdef0123456789";
-    const server = createHmac("sha256", TOKEN).update(message).digest("hex");
-    expect(await proveToken(TOKEN, message)).toBe(server);
+    expect(await proveToken(TOKEN, message)).toBe(
+      "b63cbfbe7d5a930f37c6c7c0ea6cfa1fc0d6ca08d2b0fc635cd71ddeeac7874e"
+    );
   });
 
   it("gives different proofs for the two directions of the handshake", async () => {
