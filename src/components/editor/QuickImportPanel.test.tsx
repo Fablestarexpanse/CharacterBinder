@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SmartImportPanel from "./SmartImportPanel";
+import QuickImportPanel from "./QuickImportPanel";
 
 // The AI paths need WebGPU or a server; these cases cover the routing and the
 // keyword sort, which is the path that runs with neither.
@@ -21,10 +21,10 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   return screen.getByLabelText(/paste anything/i);
 }
 
-describe("SmartImportPanel", () => {
+describe("QuickImportPanel", () => {
   it("keeps the sort buttons disabled until there is text", async () => {
     const user = userEvent.setup();
-    render(<SmartImportPanel target="character" current={{}} currentTags={[]} onApply={vi.fn()} />);
+    render(<QuickImportPanel target="character" current={{}} currentTags={[]} onApply={vi.fn()} />);
     const box = await openPanel(user);
     expect(screen.getByRole("button", { name: /sort into fields/i })).toBeDisabled();
 
@@ -34,7 +34,7 @@ describe("SmartImportPanel", () => {
 
   it("splits labelled text on its own labels, with no model involved", async () => {
     const user = userEvent.setup();
-    render(<SmartImportPanel target="character" current={{}} currentTags={[]} onApply={vi.fn()} />);
+    render(<QuickImportPanel target="character" current={{}} currentTags={[]} onApply={vi.fn()} />);
 
     await user.type(await openPanel(user), LABELLED);
     await user.click(screen.getByRole("button", { name: /keywords only/i }));
@@ -47,7 +47,7 @@ describe("SmartImportPanel", () => {
   it("applies the fields the user kept, and only those", async () => {
     const user = userEvent.setup();
     const onApply = vi.fn();
-    render(<SmartImportPanel target="character" current={{}} currentTags={[]} onApply={onApply} />);
+    render(<QuickImportPanel target="character" current={{}} currentTags={[]} onApply={onApply} />);
 
     await user.type(await openPanel(user), LABELLED);
     await user.click(screen.getByRole("button", { name: /keywords only/i }));
@@ -62,7 +62,7 @@ describe("SmartImportPanel", () => {
   it("folds persona-only sections into description for a character card", async () => {
     const user = userEvent.setup();
     const onApply = vi.fn();
-    render(<SmartImportPanel target="character" current={{}} currentTags={[]} onApply={onApply} />);
+    render(<QuickImportPanel target="character" current={{}} currentTags={[]} onApply={onApply} />);
 
     await user.type(await openPanel(user), LABELLED);
     await user.click(screen.getByRole("button", { name: /keywords only/i }));
@@ -76,7 +76,7 @@ describe("SmartImportPanel", () => {
 
   it("clears the pasted text and the proposed split", async () => {
     const user = userEvent.setup();
-    render(<SmartImportPanel target="persona" current={{}} currentTags={[]} onApply={vi.fn()} />);
+    render(<QuickImportPanel target="persona" current={{}} currentTags={[]} onApply={vi.fn()} />);
 
     await user.type(await openPanel(user), LABELLED);
     await user.click(screen.getByRole("button", { name: /keywords only/i }));

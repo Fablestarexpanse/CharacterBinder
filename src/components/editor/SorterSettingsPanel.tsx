@@ -3,7 +3,7 @@ import { AlertTriangle, Cpu, Server } from "lucide-react";
 import { SORTER_MODELS, formatSize } from "../../lib/cardTextSorter/models";
 import { isRemoteUrl, type SorterSettings as Settings, type SorterBackend } from "../../lib/cardTextSorter/settings";
 
-interface SorterSettingsProps {
+interface SorterSettingsPanelProps {
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
   webGpuAvailable: boolean;
@@ -12,7 +12,7 @@ interface SorterSettingsProps {
 }
 
 /** Where the AI sorter runs, and which model it uses. */
-export default function SorterSettings({ settings, onChange, webGpuAvailable, loadedModelId, onUnload }: SorterSettingsProps) {
+export default function SorterSettingsPanel({ settings, onChange, webGpuAvailable, loadedModelId, onUnload }: SorterSettingsPanelProps) {
   const remote = settings.backend === "endpoint" && isRemoteUrl(settings.endpointUrl);
   const modelId = useId();
   const urlId = useId();

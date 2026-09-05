@@ -6,12 +6,12 @@
  * when the text already has structure of its own.
  */
 
-import type { ParsedPersona, CardField } from "../../shared/cardTextParser";
-import { parsePersonaText } from "../../shared/cardTextParser";
+import type { ParsedCardText, CardField } from "../../shared/cardTextParser";
+import { parseCardText } from "../../shared/cardTextParser";
 import { budgetInput, coerceJson, MAX_OUTPUT_TOKENS } from "./modelIo";
 import { getSorterSettings, isRemoteUrl, type SorterSettings } from "./settings";
 import { buildSchema, buildSystemPrompt, buildUserPrompt, TARGET_FIELDS, type SortTarget } from "./prompts";
-import { getEngine, isWebGpuAvailable, type LoadProgress } from "./engine";
+import { ensureEngine, isWebGpuAvailable, type LoadProgress } from "./engine";
 
 export type { SortTarget };
 
@@ -34,11 +34,11 @@ function abortError(): Error {
     : Object.assign(new Error("The sort was cancelled."), { name: "AbortError" });
 }
 
-export async function sortPersonaWithAi(raw: string, opts: SortOptions = {}): Promise<ParsedPersona> {
+export async function sortCardTextWithAi(raw: string, opts: SortOptions = {}): Promise<ParsedCardText> {
   const settings = opts.settings ?? getSorterSettings();
   const target = opts.target ?? "persona";
   const text = raw.trim();
-  if (!text) return parsePersonaText(raw);
+  if (!text) return parseCardText(raw);
 
   const { text: input, truncated } = budgetInput(text);
   const notes: string[] = [];
@@ -54,7 +54,7 @@ export async function sortPersonaWithAi(raw: string, opts: SortOptions = {}): Pr
   const parsed = coerceJson(rawJson);
   if (!parsed) throw new Error("The model didn't return usable JSON. Try Quick sort, or a larger model.");
 
-  return toParsedPersona(parsed, notes, settings, input.length, target);
+  return toParsedCardText(parsed, notes, settings, input.length, target);
 }
 
 /**
@@ -66,8 +66,8 @@ export async function sortPersonaWithAi(raw: string, opts: SortOptions = {}): Pr
  * Shapeless prose is the opposite case, and that's where the model earns its
  * keep, because only it can split one sentence across three fields.
  */
-export async function sortPersonaAuto(raw: string, opts: SortOptions = {}): Promise<ParsedPersona> {
-  const heuristic = parsePersonaText(raw);
+export async function sortCardTextAuto(raw: string, opts: SortOptions = {}): Promise<ParsedCardText> {
+  const heuristic = parseCardText(raw);
 
   if (heuristic.method === "labelled" || heuristic.method === "json" || heuristic.method === "wpp") {
     return {
@@ -79,7 +79,7 @@ export async function sortPersonaAuto(raw: string, opts: SortOptions = {}): Prom
     };
   }
 
-  return sortPersonaWithAi(raw, opts);
+  return sortCardTextWithAi(raw, opts);
 }
 
 async function runWebLlm(
@@ -96,7 +96,7 @@ async function runWebLlm(
   }
 
   if (signal?.aborted) throw abortError();
-  const eng = await getEngine(settings.modelId, onProgress);
+  const eng = await ensureEngine(settings.modelId, onProgress);
   if (signal?.aborted) throw abortError();
 
   // Generation runs on the GPU and cannot be dropped mid-token, but WebLLM can
@@ -193,13 +193,13 @@ async function runEndpoint(input: string, settings: SorterSettings, target: Sort
  * ignore response_format and wrap the object in prose or a code fence.
  */
 
-function toParsedPersona(
+function toParsedCardText(
   obj: Record<string, unknown>,
   notes: string[],
   settings: SorterSettings,
   inputLength: number,
   target: SortTarget
-): ParsedPersona {
+): ParsedCardText {
   const fields: Partial<Record<CardField, string>> = {};
 
   for (const key of TARGET_FIELDS[target]) {

@@ -4,24 +4,24 @@ import {
   Sparkles, Settings2, Loader2, Zap,
 } from "lucide-react";
 import {
-  parsePersonaText,
+  parseCardText,
   toCharacterFields,
   PERSONA_FIELD_LABELS,
   CHARACTER_FIELD_LABELS,
   PERSONA_FIELD_ORDER,
   CHARACTER_FIELD_ORDER,
-  type ParsedPersona,
+  type ParsedCardText,
   type CardField,
 } from "../../shared/cardTextParser";
-import { sortPersonaAuto, sortPersonaWithAi, type SortTarget } from "../../lib/cardTextSorter/sorter";
+import { sortCardTextAuto, sortCardTextWithAi, type SortTarget } from "../../lib/cardTextSorter/sorter";
 import { isWebGpuAvailable, unloadModel, type LoadProgress } from "../../lib/cardTextSorter/engine";
 import { useEngineState } from "../../hooks/useEngineState";
 import { saveSorterSettings } from "../../lib/cardTextSorter/settings";
 import { useSorterSettings } from "../../hooks/useSorterSettings";
 import { errorMessage } from "../../shared/errorMessage";
-import SorterSettingsPanel from "./SorterSettings";
+import SorterSettingsPanel from "./SorterSettingsPanel";
 
-interface SmartImportPanelProps {
+interface QuickImportPanelProps {
   /** Which card shape this editor wants back. Defaults to persona. */
   target?: SortTarget;
   /** Current field contents, used to warn before overwriting. */
@@ -33,7 +33,7 @@ interface SmartImportPanelProps {
 
 type ApplyMode = "replace" | "append";
 
-const METHOD_BLURB: Record<ParsedPersona["method"], string> = {
+const METHOD_BLURB: Record<ParsedCardText["method"], string> = {
   json: "JSON card export",
   wpp: "W++ / attribute list",
   labelled: "Labelled sections",
@@ -50,20 +50,20 @@ const METHOD_BLURB: Record<ParsedPersona["method"], string> = {
  * for meaning, which is what handles prose where one sentence covers three
  * fields — at the cost of a one-time model download.
  */
-export default function SmartImportPanel({
+export default function QuickImportPanel({
   target = "persona",
   current,
   currentTags,
   onApply,
   defaultOpen = false,
-}: SmartImportPanelProps) {
+}: QuickImportPanelProps) {
   const FIELD_ORDER = target === "character" ? CHARACTER_FIELD_ORDER : PERSONA_FIELD_ORDER;
   const FIELD_LABELS = target === "character" ? CHARACTER_FIELD_LABELS : PERSONA_FIELD_LABELS;
 
   const pasteId = useId();
   const [open, setOpen] = useState(defaultOpen);
   const [raw, setRaw] = useState("");
-  const [result, setResult] = useState<ParsedPersona | null>(null);
+  const [result, setResult] = useState<ParsedCardText | null>(null);
   const [selected, setSelected] = useState<Set<CardField>>(new Set());
   const [takeTags, setTakeTags] = useState(true);
   const [mode, setMode] = useState<ApplyMode>("replace");
@@ -86,11 +86,11 @@ export default function SmartImportPanel({
   /** Fields that would clobber something the user already typed. */
   const collisions = parsedFields.filter((f) => selected.has(f) && (current[f] ?? "").trim().length > 0);
 
-  function acceptResult(parsed: ParsedPersona) {
+  function acceptResult(parsed: ParsedCardText) {
     // The parser always reports appearance/background when it finds them. A
     // character card has no such fields, so fold them into description rather
     // than silently discarding a section the author wrote.
-    const shaped: ParsedPersona =
+    const shaped: ParsedCardText =
       target === "character" ? { ...parsed, fields: toCharacterFields(parsed) } : parsed;
 
     setResult(shaped);
@@ -100,10 +100,10 @@ export default function SmartImportPanel({
 
   function handleQuickSort() {
     setError(null);
-    acceptResult(parsePersonaText(raw));
+    acceptResult(parseCardText(raw));
   }
 
-  async function runSort(sorter: typeof sortPersonaAuto) {
+  async function runSort(sorter: typeof sortCardTextAuto) {
     setError(null);
     setBusy(true);
     setProgress(null);
@@ -233,7 +233,7 @@ export default function SmartImportPanel({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => runSort(sortPersonaAuto)}
+              onClick={() => runSort(sortCardTextAuto)}
               disabled={!raw.trim() || busy}
               className="btn-primary py-2 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Uses your text's own structure when it has any, and the AI model when it doesn't"
@@ -252,7 +252,7 @@ export default function SmartImportPanel({
             </button>
             <button
               type="button"
-              onClick={() => runSort(sortPersonaWithAi)}
+              onClick={() => runSort(sortCardTextWithAi)}
               disabled={!raw.trim() || busy}
               className="btn-secondary py-2 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Force the AI model even if your text already has section headings"

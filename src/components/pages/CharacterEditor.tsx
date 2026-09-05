@@ -6,7 +6,7 @@ import { errorMessage } from "../../shared/errorMessage";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
 import ResizableTextArea from "../ui/ResizableTextArea";
-import SmartImportPanel from "../editor/SmartImportPanel";
+import QuickImportPanel from "../editor/QuickImportPanel";
 import type { CardField } from "../../shared/cardTextParser";
 
 interface CharacterEditorProps {
@@ -92,7 +92,7 @@ export default function CharacterEditor({
   return (
     <div className="h-full overflow-y-auto px-6 py-4">
       <div className="mb-5">
-        <SmartImportPanel
+        <QuickImportPanel
           target="character"
           current={{
             name: data.name,

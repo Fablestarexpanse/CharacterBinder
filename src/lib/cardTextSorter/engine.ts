@@ -66,7 +66,7 @@ export async function isModelCached(modelId: string): Promise<boolean> {
 
 /** Turn the sorter on ahead of time, so the first real sort isn't a cold start. */
 export async function preloadModel(modelId: string, onProgress?: (p: LoadProgress) => void): Promise<void> {
-  await getEngine(modelId, onProgress);
+  await ensureEngine(modelId, onProgress);
 }
 
 export function isWebGpuAvailable(): boolean {
@@ -77,7 +77,7 @@ export function loadedModelId(): string | null {
   return engineModelId;
 }
 
-export async function getEngine(modelId: string, onProgress?: (p: LoadProgress) => void): Promise<WebLlmEngine> {
+export async function ensureEngine(modelId: string, onProgress?: (p: LoadProgress) => void): Promise<WebLlmEngine> {
   if (engine && engineModelId === modelId) return engine;
   if (engineLoading && engineModelId === modelId) return engineLoading;
 

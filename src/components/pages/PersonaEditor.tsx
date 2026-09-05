@@ -3,7 +3,7 @@ import type { PersonaCard } from "../../types";
 import DataCardExportAside from "../editor/DataCardExportAside";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
-import SmartImportPanel from "../editor/SmartImportPanel";
+import QuickImportPanel from "../editor/QuickImportPanel";
 import type { CardField } from "../../shared/cardTextParser";
 import { blankPersonaCard } from "../../shared/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
@@ -47,7 +47,7 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
           </p>
         </div>
 
-        <SmartImportPanel
+        <QuickImportPanel
           current={{
             name: card.name,
             description: card.description,
