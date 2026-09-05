@@ -16,7 +16,7 @@ function StatusProbe() {
 }
 
 describe("useStatusMessage", () => {
-  it("shows a message and clears it after the delay", () => {
+  it("clears a success after the delay", () => {
     vi.useFakeTimers();
     render(<StatusProbe />);
 
@@ -25,6 +25,19 @@ describe("useStatusMessage", () => {
 
     act(() => void vi.advanceTimersByTime(1000));
     expect(screen.getByTestId("status")).toHaveTextContent("none");
+  });
+
+  it("keeps a failure on screen until it is replaced", () => {
+    vi.useFakeTimers();
+    render(<StatusProbe />);
+
+    fireEvent.click(screen.getByText("fail"));
+    act(() => void vi.advanceTimersByTime(10_000));
+    // The reason a save failed must not vanish before the user reads it.
+    expect(screen.getByTestId("status")).toHaveTextContent("Failed.:false");
+
+    fireEvent.click(screen.getByText("ok"));
+    expect(screen.getByTestId("status")).toHaveTextContent("Saved!:true");
   });
 
   it("replaces a standing message rather than letting the first one clear the second", () => {
