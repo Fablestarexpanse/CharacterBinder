@@ -326,7 +326,7 @@ server.registerTool(
       spec_version: "2.0",
       // The validator expects a full data block; missing keys read as empty.
       data: { name: "", description: "", personality: "", scenario: "", first_mes: "", mes_example: "", creator_notes: "", system_prompt: "", post_history_instructions: "", alternate_greetings: [], tags: [], creator: "", character_version: "", extensions: {}, ...data },
-    } as never);
+    });
 
     return text({ valid: result.valid, errors: result.errors, warnings: result.warnings });
   }

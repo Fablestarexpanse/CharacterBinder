@@ -145,7 +145,7 @@ describe("validator", () => {
 
   it("does not throw on a card with no data block", () => {
     // Regression: this used to throw reading .name of undefined.
-    const r = validateTavernCardV2({ spec: "chara_card_v2", spec_version: "2.0" } as never);
+    const r = validateTavernCardV2({ spec: "chara_card_v2", spec_version: "2.0" });
     expect(r.valid).toBe(false);
     expect(r.errors.join(" ")).toMatch(/data/i);
   });

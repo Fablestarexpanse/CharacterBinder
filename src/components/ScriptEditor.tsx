@@ -205,26 +205,13 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
   }
 
   return (
-    <div
-      className="flex flex-col h-full rounded-lg overflow-hidden"
-      style={{ background: "#1a1d2e", border: "1px solid rgba(100,110,160,0.2)" }}
-    >
+    <div className="flex flex-col h-full rounded-lg overflow-hidden bg-code-bg border border-code-border">
       {/* Header bar */}
-      <div
-        className="flex items-center gap-2 px-4 py-2 shrink-0"
-        style={{
-          borderBottom: "1px solid rgba(100,110,160,0.15)",
-          color: "#7a8aaa",
-          fontSize: "11px",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          fontFamily: "ui-monospace, monospace",
-        }}
-      >
+      <div className="flex items-center gap-2 px-4 py-2 shrink-0 border-b border-code-border-soft text-code-chrome text-[11px] tracking-[0.1em] uppercase font-mono">
         <span>Script Code</span>
-        <span style={{ color: "#a78bfa" }}>◆</span>
+        <span className="text-code-accent">◆</span>
         <span>JavaScript</span>
-        <span style={{ marginLeft: "auto", textTransform: "none", letterSpacing: 0, opacity: 0.7 }}>
+        <span className="ml-auto normal-case tracking-normal opacity-70">
           Tab indents · Esc then Tab to leave
         </span>
       </div>
@@ -235,21 +222,10 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
         {/* Line-number gutter */}
         <div
           ref={gutterRef}
-          className="overflow-hidden shrink-0 select-none"
-          style={{
-            paddingTop: "14px",
-            paddingBottom: "14px",
-            paddingLeft: "12px",
-            paddingRight: "12px",
-            minWidth: "3.5rem",
-            textAlign: "right",
-            background: "#1a1d2e",
-            color: "#3d4a6b",
-            fontFamily: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
-            fontSize: "13px",
-            lineHeight: "1.65",
-            borderRight: "1px solid rgba(100,110,160,0.12)",
-          }}
+          className="overflow-hidden shrink-0 select-none py-[14px] px-3 min-w-[3.5rem] text-right bg-code-bg text-code-gutter font-mono text-[13px] border-r border-code-border-faint"
+          // Must match the textarea's line height exactly or the numbers drift
+          // away from the lines they count.
+          style={{ lineHeight: "1.65" }}
         >
           {gutterLines}
         </div>
@@ -266,20 +242,8 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
           autoCapitalize="none"
           autoCorrect="off"
           placeholder="// Start writing your JavaScript here...&#10;&#10;// Example:&#10;// const greeting = (name) => `Hello, ${name}!`;"
-          style={{
-            flex: 1,
-            background: "transparent",
-            color: "#c8d3f5",
-            caretColor: "#c8d3f5",
-            fontFamily: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
-            fontSize: "13px",
-            lineHeight: "1.65",
-            padding: "14px 16px",
-            outline: "none",
-            resize: "none",
-            border: "none",
-            overflowY: "auto",
-          }}
+          className="flex-1 bg-transparent text-code-text caret-code-text font-mono text-[13px] py-[14px] px-4 outline-none resize-none border-none overflow-y-auto"
+          style={{ lineHeight: "1.65" }}
         />
       </div>
     </div>

@@ -26,17 +26,24 @@ const REQUIRED_ARRAY_FIELDS = ["alternate_greetings", "tags"] as const;
  * somewhere less obvious — the compatibility panel, the library write, or a
  * platform converter mid-export.
  */
-export function validateTavernCardV2(card: TavernCardV2): ValidationResult {
+/**
+ * Takes `unknown`, because everything it exists to catch arrives from outside
+ * the type system: a decoded PNG, a pasted JSON blob, a card sent over the MCP
+ * bridge. Declaring TavernCardV2 only meant every caller cast past the
+ * signature to hand it the untrusted value it was written for.
+ */
+export function validateTavernCardV2(card: unknown): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!card || typeof card !== "object") {
+  if (!card || typeof card !== "object" || Array.isArray(card)) {
     return { valid: false, errors: ["Card is missing or not an object"], warnings };
   }
-  if (card.spec !== "chara_card_v2") errors.push("Invalid spec — expected 'chara_card_v2'");
-  if (card.spec_version !== "2.0") errors.push("Invalid spec_version — expected '2.0'");
+  const shape = card as Partial<TavernCardV2>;
+  if (shape.spec !== "chara_card_v2") errors.push("Invalid spec — expected 'chara_card_v2'");
+  if (shape.spec_version !== "2.0") errors.push("Invalid spec_version — expected '2.0'");
 
-  const data = card.data as TavernCardV2["data"] | undefined;
+  const data = shape.data as TavernCardV2["data"] | undefined;
   if (!data || typeof data !== "object") {
     errors.push("Card has no 'data' block");
     return { valid: false, errors, warnings };

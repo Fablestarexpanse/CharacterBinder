@@ -12,7 +12,14 @@ const KEY = "cb_custom_templates";
 
 function load(): CustomTemplate[] {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    const parsed: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    // Anything but an array here reaches a .map() or .filter() in the caller
+    // and takes the Templates page down with it.
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (t): t is CustomTemplate =>
+        !!t && typeof t === "object" && typeof (t as CustomTemplate).id === "string" && !!(t as CustomTemplate).card
+    );
   } catch {
     return [];
   }

@@ -13,8 +13,14 @@
  *
  * Output is constrained to a JSON schema at the decoding level (xgrammar for
  * WebLLM, response_format for endpoints), so a 1.5B model physically cannot
- * emit malformed or off-schema output. Anything that still goes wrong falls
- * back to the keyword parser rather than failing the user's paste.
+ * emit malformed or off-schema output.
+ *
+ * When something does go wrong — no WebGPU, no endpoint, a refused request, a
+ * reply that still isn't usable JSON — the error is raised rather than quietly
+ * substituting the keyword parser's weaker split. The messages name Quick sort,
+ * which is one click away and never involves a model. sortPersonaAuto is the
+ * exception: it deliberately prefers the keyword parser when the text already
+ * has structure, and that is a routing decision, not a fallback.
  */
 
 import type { ParsedPersona, CardField } from "../personaParser";

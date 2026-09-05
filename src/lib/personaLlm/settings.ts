@@ -25,7 +25,20 @@ const store = createPersistedSettings("cb_sorter_settings", {
   remoteAcknowledged: false,
 } as SorterSettings);
 
-export const getSorterSettings = store.get;
+/**
+ * `backend` decides which code path runs, so a stored value that is neither
+ * "webllm" nor "endpoint" (an older build, a hand-edited key) would fall
+ * through to the WebLLM branch and try to download a model. Read it back to a
+ * known value rather than trusting what is in storage.
+ */
+export function getSorterSettings(): SorterSettings {
+  const stored = store.get();
+  return {
+    ...stored,
+    backend: stored.backend === "endpoint" ? "endpoint" : "webllm",
+    remoteAcknowledged: stored.remoteAcknowledged === true,
+  };
+}
 
 /**
  * Saves notify subscribers because these settings are edited in the Quick

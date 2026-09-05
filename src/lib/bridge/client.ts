@@ -465,8 +465,13 @@ async function persist(
  * Cover art arriving over the bridge must be inline data. A remote URL would be
  * rendered into an <img src> on every Library paint, turning the user's card
  * collection into a beacon for whoever supplied it.
+ *
+ * Returns null when no image was supplied, and *throws* when one was supplied
+ * that is not inline data — a card silently saved without the art an agent
+ * thought it set is the worse outcome, and refusing a remote URL loudly is the
+ * whole point.
  */
-function safeImageSrc(src: unknown): string | null {
+function requireInlineImageSrc(src: unknown): string | null {
   if (typeof src !== "string" || !src) return null;
   if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(src)) {
     throw new Error("imageSrc must be an inline data:image/* URL, not a remote address.");
@@ -481,7 +486,7 @@ async function createCard(params: CreateParams): Promise<MutationResult> {
   if (!CARD_TYPES.includes(params.cardType)) {
     throw new Error(`Unknown cardType "${params.cardType}". Expected one of: ${CARD_TYPES.join(", ")}.`);
   }
-  const saved = await persist(params.cardType, params.data ?? {}, safeImageSrc(params.imageSrc));
+  const saved = await persist(params.cardType, params.data ?? {}, requireInlineImageSrc(params.imageSrc));
   host?.onLibraryChanged?.();
   recordActivity({ at: Date.now(), method: "cards.create", cardId: saved.id, cardName: saved.name });
   if (params.open) host?.openCard(saved);
