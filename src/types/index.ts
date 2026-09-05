@@ -186,6 +186,12 @@ export type DataCardType = Exclude<LibraryCardType, "character">;
 /**
  * Open a non-character card in the editor for its kind.
  *
+ * Character cards do not come through here: they are converted per platform on
+ * the way in, so the import panels hand them to `onLoad` with the metadata and
+ * source platform they were read with, and the library hands them to
+ * `onEditCard` with their cover image and id. Everything else — which needs
+ * neither conversion nor metadata — takes this one callback.
+ *
  * One callback carrying the kind, rather than one prop per kind: ImportPNG,
  * DecodePNG and Library each used to take four structurally identical
  * `onLoad*`/`onEdit*` props that App satisfied with eight near-identical
