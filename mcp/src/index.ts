@@ -34,7 +34,7 @@ import type { CardSummary, GetResult, MutationResult } from "../../src/lib/bridg
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });
 
-const text = (value: unknown) => ({
+const asTextContent = (value: unknown) => ({
   content: [{ type: "text" as const, text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }],
 });
 
@@ -61,13 +61,13 @@ server.registerTool(
     const s = bridgeStatus();
     if (s.connected) {
       const pong = await callApp<{ app: string; version: string }>("ping").catch(() => null);
-      return text({
+      return asTextContent({
         connected: true,
         port: s.port,
         app: pong ? `${pong.app} v${pong.version}` : "connected",
       });
     }
-    return text({
+    return asTextContent({
       connected: false,
       port: s.port,
       listenError: s.error,
@@ -93,8 +93,8 @@ server.registerTool(
   },
   async ({ type }) => {
     const res = await callApp<{ cards: CardSummary[] }>("cards.list", { type });
-    if (!res.cards.length) return text("The library is empty.");
-    return text(res.cards);
+    if (!res.cards.length) return asTextContent("The library is empty.");
+    return asTextContent(res.cards);
   }
 );
 
@@ -105,7 +105,7 @@ server.registerTool(
     description: "The complete contents of a card, by id. Use list_cards to find ids.",
     inputSchema: { id: z.string().describe("Card id from list_cards.") },
   },
-  async ({ id }) => text(await callApp<GetResult>("cards.get", { id }))
+  async ({ id }) => asTextContent(await callApp<GetResult>("cards.get", { id }))
 );
 
 // ── Creating ────────────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ server.registerTool(
 async function create(cardType: string, data: Record<string, unknown>, open?: boolean) {
   const opened = open ?? false;
   const res = await callApp<MutationResult>("cards.create", { cardType, data, open: opened });
-  return text({
+  return asTextContent({
     ...res,
     saved: opened
       ? "Card saved to the library and opened in the app."
@@ -282,7 +282,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ id, patch, open }) => text(await callApp<MutationResult>("cards.update", { id, patch, open }))
+  async ({ id, patch, open }) => asTextContent(await callApp<MutationResult>("cards.update", { id, patch, open }))
 );
 
 server.registerTool(
@@ -292,7 +292,7 @@ server.registerTool(
     description: "Permanently remove a card from the library. There is no undo. The app also asks the user to approve the deletion and returns an error if they decline, but ask first rather than relying on that prompt.",
     inputSchema: { id: z.string().describe("Card id from list_cards.") },
   },
-  async ({ id }) => text(await callApp<{ id: string }>("cards.delete", { id }))
+  async ({ id }) => asTextContent(await callApp<{ id: string }>("cards.delete", { id }))
 );
 
 server.registerTool(
@@ -302,7 +302,7 @@ server.registerTool(
     description: "Bring an existing card up in the matching editor so the user can see it.",
     inputSchema: { id: z.string() },
   },
-  async ({ id }) => text(await callApp<{ id: string }>("app.open", { id }))
+  async ({ id }) => asTextContent(await callApp<{ id: string }>("app.open", { id }))
 );
 
 // ── Pure tools — no app needed ──────────────────────────────────────────────
@@ -334,7 +334,7 @@ server.registerTool(
       data: { name: "", description: "", personality: "", scenario: "", first_mes: "", mes_example: "", creator_notes: "", system_prompt: "", post_history_instructions: "", alternate_greetings: [], tags: [], creator: "", character_version: "", extensions: {}, ...data },
     });
 
-    return text({ valid: result.valid, errors: result.errors, warnings: result.warnings });
+    return asTextContent({ valid: result.valid, errors: result.errors, warnings: result.warnings });
   }
 );
 
@@ -352,7 +352,7 @@ server.registerTool(
   },
   async ({ platform }) => {
     const p = PLATFORMS[platform as PlatformId];
-    return text({
+    return asTextContent({
       platform: p.name,
       readsPngCards: p.pngSupport,
       readsJson: p.jsonSupport,
@@ -382,10 +382,10 @@ server.registerTool(
         .describe("Which field shape to produce. Defaults to persona."),
     },
   },
-  async ({ text: raw, target }) => {
-    const parsed = parsePersonaText(raw);
+  async ({ text, target }) => {
+    const parsed = parsePersonaText(text);
     const fields = target === "character" ? toCharacterFields(parsed) : parsed.fields;
-    return text({
+    return asTextContent({
       detectedFormat: parsed.method,
       fields,
       tags: parsed.tags,
