@@ -181,3 +181,26 @@ describe("validator", () => {
     expect(r.warnings.join(" ")).toMatch(/no trigger keys/);
   });
 });
+
+describe("chara_card_v3 import", () => {
+  it("reads a v3 card's data block instead of importing it blank", () => {
+    const v3 = {
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: {
+        name: "Wren",
+        description: "A lamplighter.",
+        personality: "dry",
+        first_mes: "Evening.",
+        // v3-only, and not something this app carries.
+        group_only_greetings: ["hi all"],
+      },
+    };
+    const card = convertCardFrom(v3, "sillytavern");
+    expect(card.spec).toBe("chara_card_v2");
+    expect(card.data.name).toBe("Wren");
+    expect(card.data.description).toBe("A lamplighter.");
+    expect(card.data.personality).toBe("dry");
+    expect(card.data.first_mes).toBe("Evening.");
+  });
+});

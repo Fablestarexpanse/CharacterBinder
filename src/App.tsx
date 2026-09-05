@@ -5,7 +5,7 @@ import type {
 } from "./types";
 import type { PlatformId } from "./lib/platforms";
 import { getAppSettings, saveAppSettings } from "./lib/settings";
-import { registerBridgeHost, initBridge } from "./lib/bridge/client";
+import { initBridge } from "./lib/bridge/client";
 import { useUnsavedWarning } from "./hooks/useUnsavedWarning";
 import { blankTemplate } from "./data/templates/ronalVoss";
 import Sidebar from "./components/Sidebar";
@@ -186,7 +186,7 @@ function App() {
   // Let the MCP bridge open whatever an agent just created or edited, in the
   // editor that matches its type. Registered once; the handlers are stable.
   useEffect(() => {
-    registerBridgeHost({
+    initBridge({
       onLibraryChanged: () => setLibraryRevision((n) => n + 1),
       confirmDestructive: ({ action, card }) =>
         new Promise<boolean>((resolve) => {
@@ -207,7 +207,6 @@ function App() {
         else openDataCard(card.cardType, card.rawData, image, card.id);
       },
     });
-    initBridge();
   }, [loadFromLibrary, openDataCard]);
 
   return (

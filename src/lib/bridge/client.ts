@@ -147,10 +147,6 @@ export interface BridgeHost {
 
 let host: BridgeHost | null = null;
 
-export function registerBridgeHost(h: BridgeHost) {
-  host = h;
-}
-
 // ── Connection ──────────────────────────────────────────────────────────────
 
 let socket: WebSocket | null = null;
@@ -178,8 +174,22 @@ export function disconnectBridge() {
 }
 
 /** Reconnect on load if the user left it on. */
-export function initBridge() {
-  if (isBridgeEnabled()) open();
+/**
+ * Register the host and reconnect if the user left the bridge on.
+ *
+ * The host is taken here rather than through a separate registration call: the
+ * two had to happen in that order, nothing enforced it, and getting it wrong
+ * meant a connected agent whose cards opened nowhere and whose deletes could
+ * not be confirmed — with no error to say why.
+ */
+export function initBridge(h: BridgeHost) {
+  host = h;
+  // The same latch the reconnect path respects: a deliberate refusal — a bad
+  // token, another tab holding the connection — must not be undone by a
+  // re-entry (React's StrictMode double-invoke, or a remount), which would
+  // reopen a socket that is about to be closed again and strand the light on
+  // "connecting".
+  if (isBridgeEnabled() && !manualDisconnect) open();
 }
 
 function scheduleReconnect() {

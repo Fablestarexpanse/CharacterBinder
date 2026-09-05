@@ -205,8 +205,13 @@ export function convertCardFrom(
     case "agnai":      return convertFromAgnai(obj);
     case "backyard":   return convertFromBackyard(obj);
     default: {
-      // SillyTavern, Chub, Venus, RisuAI, Generic — all basically Tavern v2 shape
-      if (obj.spec === "chara_card_v2") {
+      // SillyTavern, Chub, Venus, RisuAI, Generic — all basically Tavern v2 shape.
+      // v3 is read here too: its `data` block is a superset of v2's, so the
+      // spread below keeps every field this app knows and drops the v3-only
+      // ones. cardShape has always detected v3, and without this gate those
+      // cards fell through to the loose field mapping below and imported blank,
+      // since a v3 card carries nothing at its top level but `spec` and `data`.
+      if (obj.spec === "chara_card_v2" || obj.spec === "chara_card_v3") {
         // Normalise rather than trusting the shape. A third-party card that
         // declares v2 with a partial `data` block used to come back with
         // undefined string fields, and the first converter to call .replace()
