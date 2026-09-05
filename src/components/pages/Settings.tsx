@@ -85,7 +85,13 @@ export default function Settings({ settings, onSave }: SettingsProps) {
                 autoComplete="off"
                 spellCheck={false}
               />
-              <button onClick={handleSaveToken} className="btn-secondary px-3 shrink-0">
+              <button
+                onClick={handleSaveToken}
+                className="btn-secondary px-3 shrink-0"
+                // Named, because once saved the label becomes a tick with no
+                // text at all — leaving the button nameless to a screen reader.
+                aria-label="Save pairing token"
+              >
                 {tokenSaved ? <Check size={14} className="text-status-ok" /> : "Save"}
               </button>
             </div>
