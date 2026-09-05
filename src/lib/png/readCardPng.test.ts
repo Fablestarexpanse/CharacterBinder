@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readCardPng } from "./readCardPng";
 import { encodeCharaToPng } from "./pngMetadata";
 import { MINIMAL_PNG } from "./minimalPng";
-import { createBlankTavernCard } from "../shared/tavernCard";
+import { createBlankTavernCard } from "../../shared/tavernCard";
 
 const png = (key: Parameters<typeof encodeCharaToPng>[2], payload: unknown) =>
   encodeCharaToPng(MINIMAL_PNG, JSON.stringify(payload), key, false);

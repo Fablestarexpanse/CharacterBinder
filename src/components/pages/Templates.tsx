@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { LoadCharacterCard } from "../../types";
-import { templates } from "../../data/builtinTemplates";
+import { templates } from "../../lib/builtinTemplates";
 import { getCustomTemplates, deleteCustomTemplate, type CustomTemplate } from "../../lib/customTemplates";
 import ConfirmModal from "../ui/ConfirmModal";
 import { FileText, Plus, Trash2 } from "lucide-react";

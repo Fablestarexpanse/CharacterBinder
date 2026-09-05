@@ -1,7 +1,7 @@
-import type { LibraryCardType, MetadataKey, PngChunkInfo } from "../types";
+import type { LibraryCardType, MetadataKey, PngChunkInfo } from "../../types";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "./pngMetadata";
 import { pngBytesToDataUrl } from "./carrierImage";
-import { effectiveShape } from "../shared/cardShape";
+import { effectiveShape } from "../../shared/cardShape";
 
 /**
  * Read a card out of PNG bytes: decode, classify, and say what was found.

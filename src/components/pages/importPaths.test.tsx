@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ImportPNG from "./ImportPNG";
 import DecodePNG from "./DecodePNG";
-import { encodeCharaToPng } from "../../lib/pngMetadata";
-import { MINIMAL_PNG } from "../../lib/minimalPng";
+import { encodeCharaToPng } from "../../lib/png/pngMetadata";
+import { MINIMAL_PNG } from "../../lib/png/minimalPng";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 
 /**

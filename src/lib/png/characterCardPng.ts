@@ -1,7 +1,7 @@
-import type { AppSettings, TavernCardV2 } from "../types";
-import type { PlatformId } from "../shared/platforms/registry";
-import { PLATFORMS } from "../shared/platforms/registry";
-import { convertCardTo } from "../shared/platforms/converters";
+import type { AppSettings, TavernCardV2 } from "../../types";
+import type { PlatformId } from "../../shared/platforms/registry";
+import { PLATFORMS } from "../../shared/platforms/registry";
+import { convertCardTo } from "../../shared/platforms/converters";
 import { encodeCharaToPng } from "./pngMetadata";
 import { getCarrierPng } from "./carrierImage";
 

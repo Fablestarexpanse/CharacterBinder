@@ -1,7 +1,7 @@
 import { useState, useRef, useId } from "react";
 import type { TavernCardV2 } from "../../types";
 import { Plus, Minus, ChevronDown, ChevronUp, Image } from "lucide-react";
-import { readImageFile } from "../../lib/readImageFile";
+import { readImageFile } from "../../lib/png/readImageFile";
 import { errorMessage } from "../../shared/errorMessage";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";

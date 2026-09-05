@@ -18,7 +18,7 @@ import {
   TOKEN_BUDGET_COLORS,
   TOKEN_BUDGET_BAR_COLORS,
 } from "../../lib/tokenizer";
-import { metadataKeyFor } from "../../lib/characterCardPng";
+import { metadataKeyFor } from "../../lib/png/characterCardPng";
 import { PLATFORMS, type PlatformId } from "../../shared/platforms/registry";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";

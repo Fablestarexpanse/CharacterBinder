@@ -29,7 +29,7 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 // there is a type error here.
 import { validateTavernCardV2 } from "../../src/shared/validators.js";
 import { PLATFORMS, PLATFORM_IDS } from "../../src/shared/platforms/registry.js";
-import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
+import { parseCardText, toCharacterFields } from "../../src/shared/cardTextParser.js";
 import { createBlankTavernCard } from "../../src/shared/tavernCard.js";
 import { CARD_TYPES, type LibraryCardType } from "../../src/types/index.js";
 
@@ -380,7 +380,7 @@ server.registerTool(
     },
   },
   async ({ text, target }) => {
-    const parsed = parsePersonaText(text);
+    const parsed = parseCardText(text);
     const fields = target === "character" ? toCharacterFields(parsed) : parsed.fields;
     return asTextContent({
       detectedFormat: parsed.method,

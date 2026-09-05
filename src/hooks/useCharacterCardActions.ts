@@ -5,7 +5,7 @@ import { PLATFORMS } from "../shared/platforms/registry";
 import { convertCardTo } from "../shared/platforms/converters";
 import { saveLibraryCard } from "../lib/library";
 import { saveCustomTemplate } from "../lib/customTemplates";
-import { encodeCharacterCardPng } from "../lib/characterCardPng";
+import { encodeCharacterCardPng } from "../lib/png/characterCardPng";
 import { downloadJson, downloadPng } from "../lib/download";
 import { resolveSaveTarget } from "../lib/librarySave";
 import { useStatusMessage } from "./useStatusMessage";

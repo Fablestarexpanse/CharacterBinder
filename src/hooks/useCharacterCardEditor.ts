@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { TavernCardV2, MetadataInfo, CardProject } from "../types";
 import type { PlatformId } from "../shared/platforms/registry";
-import { blankTemplate } from "../data/builtinTemplates";
+import { blankTemplate } from "../lib/builtinTemplates";
 import { useUnsavedWarning } from "./useUnsavedWarning";
 
 /**

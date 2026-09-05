@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import type { MetadataInfo, OpenDataCard, LibraryCardType, DataCardType, LoadCharacterCard } from "../../types";
 import type { PlatformId } from "../../shared/platforms/registry";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
-import { readCardPng } from "../../lib/readCardPng";
+import { readCardPng } from "../../lib/png/readCardPng";
 import PngDropzone from "../ui/PngDropzone";
 import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { convertCardFrom } from "../../shared/platforms/converters";

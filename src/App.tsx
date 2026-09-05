@@ -6,7 +6,7 @@ import { saveAppSettings } from "./lib/settings";
 import { useAppSettings } from "./hooks/useAppSettings";
 import { useCharacterCardEditor } from "./hooks/useCharacterCardEditor";
 import { initBridge } from "./lib/bridgeClient";
-import Sidebar from "./components/ui/Sidebar";
+import Sidebar from "./components/shell/Sidebar";
 import CreateCard from "./components/pages/CreateCard";
 import ImportPNG from "./components/pages/ImportPNG";
 import DecodePNG from "./components/pages/DecodePNG";

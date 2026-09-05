@@ -15,8 +15,8 @@ vi.mock("../../lib/download", () => ({
   downloadJson: (d: unknown, n: string) => downloadJson(d, n),
   downloadPng: (b: unknown, n: string) => downloadPng(b, n),
 }));
-vi.mock("../../lib/carrierImage", () => ({ getCarrierPng: async () => new Uint8Array([1]) }));
-vi.mock("../../lib/pngMetadata", () => ({ encodeCharaToPng: () => new Uint8Array([2]) }));
+vi.mock("../../lib/png/carrierImage", () => ({ getCarrierPng: async () => new Uint8Array([1]) }));
+vi.mock("../../lib/png/pngMetadata", () => ({ encodeCharaToPng: () => new Uint8Array([2]) }));
 
 const project = (name: string, description = "A dockhand of few words."): CardProject => {
   const card = createBlankTavernCard(name);

@@ -1,6 +1,6 @@
-import type { MetadataKey, PngChunkInfo } from "../types";
-import { CARD_TYPES } from "../types";
-import { CHARACTER_KEYS } from "../shared/cardShape";
+import type { MetadataKey, PngChunkInfo } from "../../types";
+import { CARD_TYPES } from "../../types";
+import { CHARACTER_KEYS } from "../../shared/cardShape";
 
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 

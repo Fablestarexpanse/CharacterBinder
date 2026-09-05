@@ -504,8 +504,9 @@ CharacterBinder/
 ├── src/
 │   ├── components/
 │   │   ├── pages/           # The views App mounts (five card editors, library, import, settings)
-│   │   ├── editor/          # Panels owned by one page (card preview, export panel, smart import, lights)
-│   │   └── ui/              # Shared primitives (inputs, modals, dropzone, sidebar, error boundary)
+│   │   ├── editor/          # Panels owned by one page (card preview, export panel, quick import)
+│   │   ├── shell/           # App chrome: sidebar and its status lights
+│   │   └── ui/              # Shared primitives (inputs, modals, dropzone, error boundary)
 │   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
 │   ├── shared/              # The card domain and the wire protocol — the surface mcp/ compiles against
 │   │   ├── bridgeProtocol.ts # Wire protocol, shared by both sides of the bridge
@@ -522,20 +523,23 @@ CharacterBinder/
 │   │   ├── bridgeState.ts   # MCP bridge: pairing token, connection state, activity log
 │   │   ├── bridgeHandlers.ts # MCP bridge: the RPC surface and the approval gate
 │   │   ├── bridgeClient.ts  # MCP bridge: socket lifecycle and handshake
-│   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
-│   │   ├── readCardPng.ts   # PNG bytes → a card, or why not
-│   │   ├── characterCardPng.ts # Card + cover art → PNG bytes
+│   │   ├── png/             # Everything that reads or writes a card PNG
+│   │   │   ├── pngMetadata.ts # tEXt/iTXt chunk encoder/decoder
+│   │   │   ├── readCardPng.ts # PNG bytes → a card, or why not
+│   │   │   ├── characterCardPng.ts # Card + cover art → PNG bytes
+│   │   │   ├── carrierImage.ts # Cover art → PNG bytes for embedding
+│   │   │   ├── minimalPng.ts  # 1×1 fallback carrier image
+│   │   │   └── readImageFile.ts # Image file → data URL helper
 │   │   ├── library.ts       # IndexedDB card storage (idb)
+│   │   ├── librarySave.ts   # The version-bump rule both save paths follow
 │   │   ├── archive.ts       # ZIP export (jszip)
 │   │   ├── tokenizer.ts     # Token counting (cl100k)
 │   │   ├── customTemplates.ts # User-saved templates (localStorage)
 │   │   ├── persistedSettings.ts # localStorage-backed settings store
-│   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
+│   │   ├── builtinTemplates.ts # Built-in character templates
 │   │   ├── download.ts      # Blob download helper (all export paths)
-│   │   ├── settings.ts      # App settings + localStorage persistence
-│   │   ├── minimalPng.ts    # 1×1 fallback carrier image
-│   │   └── readImageFile.ts # Image file → data URL helper
-│   ├── data/                # Built-in character templates
+│   │   ├── observable.ts    # Module-level value + subscribers, for the UI to watch
+│   │   └── settings.ts      # App settings + localStorage persistence
 │   ├── types/               # Card type declarations, also importable by mcp/
 │   ├── index.css            # Tailwind layers + shared component classes
 │   ├── vite-env.d.ts        # Vite + injected-constant type declarations

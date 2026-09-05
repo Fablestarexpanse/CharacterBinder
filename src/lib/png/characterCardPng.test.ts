@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { encodeCharacterCardPng, metadataKeyFor } from "./characterCardPng";
 import { decodeCharaFromPng, isPng } from "./pngMetadata";
-import { createBlankTavernCard } from "../shared/tavernCard";
+import { createBlankTavernCard } from "../../shared/tavernCard";
 
 /**
  * Export and library-save both build the card PNG through this, so what it

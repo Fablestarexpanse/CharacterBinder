@@ -18,8 +18,8 @@ vi.mock("../lib/download", () => ({
   downloadPng: (...a: unknown[]) => downloadPng(...(a as [])),
 }));
 
-vi.mock("../lib/carrierImage", () => ({ getCarrierPng: async () => new Uint8Array([1, 2, 3]) }));
-vi.mock("../lib/pngMetadata", () => ({ encodeCharaToPng: () => new Uint8Array([4, 5, 6]) }));
+vi.mock("../lib/png/carrierImage", () => ({ getCarrierPng: async () => new Uint8Array([1, 2, 3]) }));
+vi.mock("../lib/png/pngMetadata", () => ({ encodeCharaToPng: () => new Uint8Array([4, 5, 6]) }));
 
 function Probe({ initialCard, initialLibraryId }: { initialCard?: ScriptCard; initialLibraryId?: string }) {
   const editor = useDataCardEditor({
