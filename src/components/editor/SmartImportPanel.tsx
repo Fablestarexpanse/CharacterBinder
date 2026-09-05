@@ -13,7 +13,8 @@ import {
   type ParsedPersona,
   type CardField,
 } from "../../shared/cardTextParser";
-import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../../lib/cardTextSorter/engine";
+import { sortPersonaAuto, sortPersonaWithAi, type SortTarget } from "../../lib/cardTextSorter/sorter";
+import { isWebGpuAvailable, unloadModel, type LoadProgress } from "../../lib/cardTextSorter/engine";
 import { useEngineState } from "../../hooks/useEngineState";
 import { saveSorterSettings } from "../../lib/cardTextSorter/settings";
 import { useSorterSettings } from "../../hooks/useSorterSettings";
