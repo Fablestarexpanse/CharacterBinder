@@ -28,7 +28,7 @@ describe("ResizableTextArea", () => {
 describe("TextAreaField", () => {
   it("labels its field and reports edits", async () => {
     const onChange = vi.fn();
-    render(<TextAreaField label="Scenario" value="" onChange={onChange} placeholder="Where it happens…" />);
+    render(<TextAreaField label="Scenario" value="" onChange={onChange} placeholder="Where it happens…" rows={3} />);
 
     const field = screen.getByLabelText("Scenario");
     await userEvent.type(field, "x");
@@ -42,6 +42,7 @@ describe("TextAreaField", () => {
         value="The quick brown fox jumps over the lazy dog."
         onChange={vi.fn()}
         placeholder="Where it happens…"
+        rows={3}
       />
     );
     expect(screen.getByText(/\d+ tk/)).toBeInTheDocument();
