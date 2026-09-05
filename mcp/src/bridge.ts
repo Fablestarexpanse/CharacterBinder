@@ -10,6 +10,7 @@ import {
   CLOSE_PROTOCOL,
   PROOF_SERVER,
   PROOF_CLIENT,
+  type BridgeCalls,
   type BridgeMethod,
   type BridgeResponse,
 } from "../../src/shared/bridgeProtocol.js";
@@ -259,8 +260,12 @@ const NOT_CONNECTED =
   "CharacterBinder isn't connected. Open the app (npm start, then http://localhost:3737), paste the pairing token into Settings → MCP bridge, and click the MCP light in the sidebar footer.";
 
 /** Ask the app to do something and wait for its answer. */
-export function callApp<T = unknown>(method: BridgeMethod, params?: unknown): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+export function callApp<M extends BridgeMethod>(
+  method: M,
+  params?: BridgeCalls[M]["params"]
+): Promise<BridgeCalls[M]["result"]> {
+  type Result = BridgeCalls[M]["result"];
+  return new Promise<Result>((resolve, reject) => {
     if (!isAppConnected()) {
       reject(new Error(NOT_CONNECTED));
       return;

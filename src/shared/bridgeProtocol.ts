@@ -197,6 +197,24 @@ export interface OpenParams {
   id: string;
 }
 
+/**
+ * What each method takes and returns.
+ *
+ * The server used to call `callApp<SomeResult>(method, params)` and name the
+ * result type itself at every site, so a method and a mismatched result type
+ * compiled happily and failed at the point of use. This table is the one place
+ * the pairing is stated.
+ */
+export interface BridgeCalls {
+  ping: { params?: undefined; result: { ok: boolean; app: string; version: string } };
+  "cards.list": { params: ListParams; result: { cards: CardSummary[] } };
+  "cards.get": { params: GetParams; result: GetResult };
+  "cards.create": { params: CreateParams; result: MutationResult };
+  "cards.update": { params: UpdateParams; result: MutationResult };
+  "cards.delete": { params: DeleteParams; result: { id: string } };
+  "app.open": { params: OpenParams; result: { id: string } };
+}
+
 export interface MutationResult {
   id: string;
   name: string;

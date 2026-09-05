@@ -30,7 +30,7 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 import { validateTavernCardV2 } from "../../src/shared/validators.js";
 import { PLATFORMS, type PlatformId } from "../../src/shared/platforms/index.js";
 import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
-import type { CardSummary, GetResult, MutationResult } from "../../src/shared/bridgeProtocol.js";
+import type { CardType } from "../../src/shared/bridgeProtocol.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });
 
@@ -60,7 +60,7 @@ server.registerTool(
   async () => {
     const s = bridgeStatus();
     if (s.connected) {
-      const pong = await callApp<{ app: string; version: string }>("ping").catch(() => null);
+      const pong = await callApp("ping").catch(() => null);
       return asTextContent({
         connected: true,
         port: s.port,
@@ -92,7 +92,7 @@ server.registerTool(
     },
   },
   async ({ type }) => {
-    const res = await callApp<{ cards: CardSummary[] }>("cards.list", { type });
+    const res = await callApp("cards.list", { type });
     if (!res.cards.length) return asTextContent("The library is empty.");
     return asTextContent(res.cards);
   }
@@ -105,14 +105,14 @@ server.registerTool(
     description: "The complete contents of a card, by id. Use list_cards to find ids.",
     inputSchema: { id: z.string().describe("Card id from list_cards.") },
   },
-  async ({ id }) => asTextContent(await callApp<GetResult>("cards.get", { id }))
+  async ({ id }) => asTextContent(await callApp("cards.get", { id }))
 );
 
 // ── Creating ────────────────────────────────────────────────────────────────
 
-async function create(cardType: string, data: Record<string, unknown>, open?: boolean) {
+async function create(cardType: CardType, data: Record<string, unknown>, open?: boolean) {
   const opened = open ?? false;
-  const res = await callApp<MutationResult>("cards.create", { cardType, data, open: opened });
+  const res = await callApp("cards.create", { cardType, data, open: opened });
   return asTextContent({
     ...res,
     saved: opened
@@ -282,7 +282,7 @@ server.registerTool(
       open: openAfter,
     },
   },
-  async ({ id, patch, open }) => asTextContent(await callApp<MutationResult>("cards.update", { id, patch, open }))
+  async ({ id, patch, open }) => asTextContent(await callApp("cards.update", { id, patch, open }))
 );
 
 server.registerTool(
@@ -292,7 +292,7 @@ server.registerTool(
     description: "Permanently remove a card from the library. There is no undo. The app also asks the user to approve the deletion and returns an error if they decline, but ask first rather than relying on that prompt.",
     inputSchema: { id: z.string().describe("Card id from list_cards.") },
   },
-  async ({ id }) => asTextContent(await callApp<{ id: string }>("cards.delete", { id }))
+  async ({ id }) => asTextContent(await callApp("cards.delete", { id }))
 );
 
 server.registerTool(
@@ -302,7 +302,7 @@ server.registerTool(
     description: "Bring an existing card up in the matching editor so the user can see it.",
     inputSchema: { id: z.string() },
   },
-  async ({ id }) => asTextContent(await callApp<{ id: string }>("app.open", { id }))
+  async ({ id }) => asTextContent(await callApp("app.open", { id }))
 );
 
 // ── Pure tools — no app needed ──────────────────────────────────────────────
@@ -321,7 +321,7 @@ server.registerTool(
   async ({ id, card }) => {
     let data = card;
     if (id) {
-      const fetched = await callApp<GetResult>("cards.get", { id });
+      const fetched = await callApp("cards.get", { id });
       const v2 = fetched.data as { data?: Record<string, unknown> };
       data = v2?.data ?? (fetched.data as Record<string, unknown>);
     }
