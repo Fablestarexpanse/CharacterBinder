@@ -18,6 +18,7 @@ import {
   CLOSE_BAD_TOKEN,
   CLOSE_PROTOCOL,
   isBridgeRequest,
+  isHandshakeFrame,
   proveToken,
   randomNonce,
   safeEqual,
@@ -102,14 +103,15 @@ async function advanceHandshake(
   msg: unknown,
   ctx: { clientNonce: string; serverProved: () => boolean; prove: () => void }
 ): Promise<boolean> {
-  const frame = msg as { type?: string; serverNonce?: string; proof?: string; reason?: string };
-
   const refuse = (error: string, code?: number, reason?: string) => {
     manualDisconnect = true;
     setState({ status: "error", error });
     if (code) ws.close(code, reason);
     else ws.close();
   };
+
+  if (!isHandshakeFrame(msg)) return false;
+  const frame = msg;
 
   if (frame.type === "challenge") {
     const token = getBridgeToken();
@@ -122,14 +124,14 @@ async function advanceHandshake(
     }
 
     const expected = await proveToken(token, PROOF_SERVER + ctx.clientNonce);
-    if (!safeEqual(String(frame.proof ?? ""), expected)) {
+    if (!safeEqual(frame.proof, expected)) {
       // Whatever is on that port does not hold the token. Say nothing more.
       refuse("The server on that port failed to prove it holds your pairing token. Not sending anything to it.");
       return false;
     }
 
     ctx.prove();
-    ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, PROOF_CLIENT + String(frame.serverNonce ?? "")) }));
+    ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, PROOF_CLIENT + frame.serverNonce) }));
     return false;
   }
 
@@ -150,7 +152,7 @@ async function advanceHandshake(
 
   if (frame.type === "auth_failed") {
     manualDisconnect = true;
-    setState({ status: "error", error: `Pairing rejected: ${frame.reason ?? "bad token"}. Check the token in Settings.` });
+    setState({ status: "error", error: `Pairing rejected: ${frame.reason}. Check the token in Settings.` });
   }
   return false;
 }

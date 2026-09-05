@@ -130,27 +130,44 @@ export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard
 }
 
 /**
+ * What actually comes back out of IndexedDB.
+ *
+ * The store holds whatever past versions of the app wrote, so a read cannot
+ * claim to be a LibraryCard before it has been through withCardType — annotating
+ * it as one made the compiler agree that `record.cardType` was always there,
+ * which is exactly the thing being checked.
+ */
+type StoredCard = Partial<LibraryCard> & LibraryCardBase & { cardData?: TavernCardV2; platform?: PlatformId };
+
+/**
  * Records written before card types existed have no `cardType`; they are all
  * character cards. Both reads apply this, so nothing downstream needs to repeat
  * the fallback — a card that has been through here always has a type.
  */
-function withCardType(record: LibraryCard): LibraryCard {
-  if (record.cardType) return record;
-  const legacy = record as LibraryCardBase & { cardData: TavernCardV2; platform?: PlatformId };
-  return { ...legacy, cardType: "character", platform: legacy.platform ?? "sillytavern" };
+function withCardType(record: StoredCard): LibraryCard {
+  if (record.cardType) return record as LibraryCard;
+  // A typeless record predates the other four kinds, so it is a character card
+  // and carries no rawData; the assertion says only that.
+  const { rawData: _unused, ...rest } = record;
+  return {
+    ...rest,
+    cardType: "character",
+    cardData: record.cardData ?? ({} as TavernCardV2),
+    platform: record.platform ?? "sillytavern",
+  };
 }
 
 /** Return all cards, newest first. */
 export async function getAllCards(): Promise<LibraryCard[]> {
   const db = await getDb();
-  const all: LibraryCard[] = await db.getAll(STORE);
+  const all: StoredCard[] = await db.getAll(STORE);
   return all.map(withCardType).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /** One card by id, without reading the whole library to find it. */
 export async function getCard(id: string): Promise<LibraryCard | null> {
   const db = await getDb();
-  const card = await db.get(STORE, id);
+  const card: StoredCard | undefined = await db.get(STORE, id);
   return card ? withCardType(card) : null;
 }
 

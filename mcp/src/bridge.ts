@@ -8,6 +8,7 @@ import {
   CLOSE_BAD_ORIGIN,
   CLOSE_BAD_TOKEN,
   CLOSE_PROTOCOL,
+  isHandshakeFrame,
   PROOF_SERVER,
   ALLOWED_APP_ORIGINS,
   USER_GATED_METHODS,
@@ -184,7 +185,7 @@ export function startBridge(opts: { port?: number; token?: string } = {}): {
     });
 
     ws.on("message", (raw) => {
-      let msg: (BridgeResponse & { type?: string }) & Record<string, unknown>;
+      let msg: unknown;
       try {
         msg = JSON.parse(String(raw));
       } catch {
@@ -193,25 +194,31 @@ export function startBridge(opts: { port?: number; token?: string } = {}): {
 
       // ── Handshake ──────────────────────────────────────────────────────
       if (!authed) {
+        // Narrowed on the shared frame union rather than read field by field:
+        // each branch below then has the fields its own frame declares.
+        if (!isHandshakeFrame(msg)) {
+          ws.close(CLOSE_PROTOCOL, "Handshake required");
+          return;
+        }
+
         if (msg.type === "hello") {
           if (msg.protocol !== BRIDGE_PROTOCOL_VERSION) {
             ws.close(CLOSE_PROTOCOL, `Expected protocol ${BRIDGE_PROTOCOL_VERSION}`);
             return;
           }
-          const clientNonce = String(msg.clientNonce ?? "");
-          if (clientNonce.length < 16) {
+          if (msg.clientNonce.length < 16) {
             ws.close(CLOSE_PROTOCOL, "Missing client nonce");
             return;
           }
           serverNonce = randomNonce();
           // Prove we hold the token before the app proves anything, so a
           // squatter can never harvest it.
-          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(PROOF_SERVER + clientNonce) }));
+          ws.send(JSON.stringify({ type: "challenge", serverNonce, proof: hmac(PROOF_SERVER + msg.clientNonce) }));
           return;
         }
 
         if (msg.type === "auth") {
-          if (!serverNonce || !proofsMatch(String(msg.proof ?? ""), hmac(PROOF_CLIENT + serverNonce))) {
+          if (!serverNonce || !proofsMatch(msg.proof, hmac(PROOF_CLIENT + serverNonce))) {
             console.error("[characterbinder-mcp] rejected a connection with a bad token");
             ws.send(JSON.stringify({ type: "auth_failed", reason: "Token did not match" }));
             ws.close(CLOSE_BAD_TOKEN, "Bad token");
@@ -243,12 +250,13 @@ export function startBridge(opts: { port?: number; token?: string } = {}): {
       // connection must not be able to answer for the app.
       if (ws !== appSocket) return;
 
-      const entry = msg.id ? pending.get(msg.id) : undefined;
+      const res = msg as BridgeResponse;
+      const entry = typeof res.id === "string" ? pending.get(res.id) : undefined;
       if (!entry) return;
-      pending.delete(msg.id);
+      pending.delete(res.id);
       clearTimeout(entry.timer);
-      if (msg.error) entry.reject(new Error(String(msg.error)));
-      else entry.resolve(msg.result);
+      if (res.error) entry.reject(new Error(String(res.error)));
+      else entry.resolve(res.result);
     });
 
     ws.on("close", () => {

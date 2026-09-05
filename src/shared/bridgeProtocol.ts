@@ -72,6 +72,25 @@ export interface AuthFailedFrame {
 
 export type HandshakeFrame = HelloFrame | ChallengeFrame | AuthFrame | ReadyFrame | AuthFailedFrame;
 
+/**
+ * A frame from the other side of the handshake, before anything is trusted.
+ *
+ * Only the discriminant is checked here — narrowing on `frame.type` is what
+ * gives each branch its own fields, and both sides then read them without
+ * restating the shape or defaulting a value the union says is a string.
+ */
+export function isHandshakeFrame(msg: unknown): msg is HandshakeFrame {
+  if (!msg || typeof msg !== "object") return false;
+  const type = (msg as { type?: unknown }).type;
+  return (
+    type === "hello" ||
+    type === "challenge" ||
+    type === "auth" ||
+    type === "ready" ||
+    type === "auth_failed"
+  );
+}
+
 /** Close codes, so each side can explain itself rather than dropping silently. */
 export const CLOSE_BAD_TOKEN = 4001;
 export const CLOSE_ALREADY_CONNECTED = 4002;
