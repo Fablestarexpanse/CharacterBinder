@@ -9,6 +9,8 @@ import {
   CLOSE_BAD_TOKEN,
   CLOSE_PROTOCOL,
   PROOF_SERVER,
+  ALLOWED_APP_ORIGINS,
+  USER_GATED_METHODS,
   PROOF_CLIENT,
   type BridgeCalls,
   type BridgeMethod,
@@ -52,7 +54,7 @@ const CALL_TIMEOUT_MS = 20_000;
  * believed had not happened.
  */
 const USER_GATED_TIMEOUT_MS = 5 * 60_000;
-const USER_GATED: ReadonlySet<BridgeMethod> = new Set<BridgeMethod>(["cards.update", "cards.delete"]);
+const USER_GATED: ReadonlySet<BridgeMethod> = new Set(USER_GATED_METHODS);
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 /**
  * Card bodies are text, but a create call can carry cover art as a data: URL,
@@ -61,12 +63,8 @@ const HANDSHAKE_TIMEOUT_MS = 10_000;
  */
 const MAX_PAYLOAD = 4 * 1024 * 1024;
 
-/** Where the app is legitimately served from. */
-const ALLOWED_ORIGINS = new Set([
-  "http://localhost:3737",
-  "http://127.0.0.1:3737",
-  "http://[::1]:3737",
-]);
+/** Where the app is legitimately served from; the list lives with the protocol. */
+const ALLOWED_ORIGINS = new Set(ALLOWED_APP_ORIGINS);
 
 const hmac = (message: string) => createHmac("sha256", token).update(message).digest("hex");
 
@@ -86,7 +84,14 @@ function randomNonce(): string {
  * than binding the real one and reading the user's pairing file.
  */
 export function startBridge(opts: { port?: number; token?: string } = {}): { close: () => void } {
-  token = opts.token ?? loadOrCreateToken();
+  let tokenIsNew = false;
+  if (opts.token) {
+    token = opts.token;
+  } else {
+    const loaded = loadOrCreateToken();
+    token = loaded.token;
+    tokenIsNew = loaded.created;
+  }
   const port = opts.port ?? BRIDGE_PORT;
 
   let wss: WebSocketServer;
@@ -232,11 +237,14 @@ export function startBridge(opts: { port?: number; token?: string } = {}): { clo
   });
 
   console.error(`[characterbinder-mcp] bridge listening on 127.0.0.1:${port}`);
-  console.error(`[characterbinder-mcp] pairing token: ${token}`);
-  // Only the token that came from the file lives at that path; an injected one
-  // does not, and saying otherwise would send a reader to the wrong value.
-  if (!opts.token) {
-    console.error(`[characterbinder-mcp] (also at ${tokenPath()} — paste it into the app's Settings once)`);
+  // Printed only when it was just minted. Re-printing a standing secret on
+  // every start puts it into every agent transcript that ever ran this server,
+  // for no benefit: it is in the file, and the user pastes it once.
+  if (tokenIsNew) {
+    console.error(`[characterbinder-mcp] new pairing token: ${token}`);
+    console.error(`[characterbinder-mcp] paste it into the app's Settings → MCP bridge (also saved at ${tokenPath()})`);
+  } else if (!opts.token) {
+    console.error(`[characterbinder-mcp] pairing token is in ${tokenPath()} — paste it into the app's Settings once`);
   }
 
   return {

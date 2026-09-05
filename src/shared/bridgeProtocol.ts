@@ -13,6 +13,8 @@
 export const BRIDGE_PORT = 8787;
 export const BRIDGE_URL = `ws://127.0.0.1:${BRIDGE_PORT}`;
 
+
+
 /** Bumped when the shape below changes incompatibly. v2 added the handshake. */
 export const BRIDGE_PROTOCOL_VERSION = 2;
 
@@ -118,6 +120,21 @@ export type BridgeMethod =
   | "cards.update"
   | "cards.delete"
   | "app.open";
+
+/** Where the app is served from; the server refuses browser origins outside it. */
+export const APP_PORT = 3737;
+export const ALLOWED_APP_ORIGINS: readonly string[] = [
+  `http://localhost:${APP_PORT}`,
+  `http://127.0.0.1:${APP_PORT}`,
+  `http://[::1]:${APP_PORT}`,
+];
+
+/**
+ * Methods the app answers only after asking the user. Declared with the
+ * protocol because both sides need to agree: the app raises a confirmation, and
+ * the server has to allow time for a person to read it.
+ */
+export const USER_GATED_METHODS: readonly BridgeMethod[] = ["cards.update", "cards.delete"];
 
 export interface BridgeRequest {
   id: string;

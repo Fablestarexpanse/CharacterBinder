@@ -353,8 +353,10 @@ Or for Claude Desktop, in `claude_desktop_config.json`:
 Then:
 
 1. Start the app (`npm start` from the repo root)
-2. Copy the pairing token the MCP server printed on startup (also saved to
-   `~/.characterbinder/bridge-token`) into **Settings → MCP bridge**
+2. Copy the pairing token from `~/.characterbinder/bridge-token` into
+   **Settings → MCP bridge**. The server prints it the first time it mints one,
+   and after that only names the file — a standing secret does not belong in
+   every agent transcript.
 3. Click the **MCP** light in the sidebar footer — it turns green once paired
 
 ### Tools
@@ -384,11 +386,13 @@ made. Pass `open: false` to work quietly in the background.
 The bridge exposes your card library to whatever is connected — it can read, edit,
 and delete. What keeps that bounded:
 
-- **A shared pairing token, proved in both directions.** The server prints a token
-  on startup and stores it in `~/.characterbinder/bridge-token`; you paste it into
+- **A shared pairing token, proved in both directions.** The server mints one on
+  first run and stores it in `~/.characterbinder/bridge-token`; you paste it into
   Settings once. Neither side ever transmits it — each proves it holds it by
   HMAC-ing the other's nonce, and the *server* proves itself first, so the app
-  never hands its secret to an unverified peer.
+  never hands its secret to an unverified peer. The app refuses to go on until
+  that proof checks out: a process that grabs the port and simply declares
+  itself ready is closed on, not answered.
 - **One connection at a time.** A second connection is refused rather than being
   allowed to displace a live session.
 - **Origin checking.** Connections from a browser origin that isn't the app are

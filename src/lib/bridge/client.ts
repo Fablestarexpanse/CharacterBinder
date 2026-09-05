@@ -607,5 +607,8 @@ async function removeCard(params: DeleteParams): Promise<{ id: string }> {
 async function openCard(params: OpenParams): Promise<{ id: string }> {
   const card = await findCard(params.id);
   host?.openCard(card);
+  // Recorded like the others: opening a card replaces whatever the user was
+  // editing, so it belongs in the list of what the agent did.
+  recordActivity({ at: Date.now(), method: "app.open", cardId: card.id, cardName: card.name });
   return { id: card.id };
 }

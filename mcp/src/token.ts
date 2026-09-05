@@ -28,11 +28,16 @@ export function tokenPath(baseDir?: string): string {
   return join(tokenDir(baseDir), "bridge-token");
 }
 
-export function loadOrCreateToken(baseDir?: string): string {
+/**
+ * @returns the token, and whether it had to be minted — the caller prints a
+ * freshly minted one so the user can copy it, but not one that already exists:
+ * an agent's stdout log is not a good place for a standing secret.
+ */
+export function loadOrCreateToken(baseDir?: string): { token: string; created: boolean } {
   const file = tokenPath(baseDir);
   try {
     const existing = readFileSync(file, "utf8").trim();
-    if (existing.length >= 32) return existing;
+    if (existing.length >= 32) return { token: existing, created: false };
   } catch {
     /* first run, or unreadable — fall through and mint a new one */
   }
@@ -46,5 +51,5 @@ export function loadOrCreateToken(baseDir?: string): string {
   } catch {
     /* best effort — Windows ACLs don't map cleanly onto POSIX modes */
   }
-  return token;
+  return { token, created: true };
 }
