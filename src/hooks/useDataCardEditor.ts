@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DataCardType, RawCardFor } from "../types";
 import { saveLibraryCard } from "../lib/library";
 import { encodeCharaToPng } from "../lib/pngMetadata";
 import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
 import { useStatusMessage } from "./useStatusMessage";
+import { useUnsavedWarning } from "./useUnsavedWarning";
 
 /**
  * The shell every non-character editor needs: the card being edited, its cover
@@ -78,6 +79,21 @@ export function useDataCardEditor<T extends DataCardType>(opts: Options<T>): Dat
   useEffect(() => {
     setOutputFileName(fileNameFor(card.name, cardType));
   }, [card.name, cardType]);
+
+  // Whatever is in an editor is plain React state until it is saved or
+  // exported. The character editor warned before the tab closed on unsaved
+  // work; these four held exactly the same kind of state and did not.
+  const dirty = useMemo(() => {
+    if (libraryId) return false; // already in the library
+    const empty = blank() as unknown as Record<string, unknown>;
+    return Object.entries(card as unknown as Record<string, unknown>).some(([key, value]) => {
+      const initial = empty[key];
+      if (typeof value === "string") return value.trim() !== String(initial ?? "").trim();
+      if (Array.isArray(value)) return value.length !== (Array.isArray(initial) ? initial.length : 0);
+      return false;
+    });
+  }, [card, libraryId, blank]);
+  useUnsavedWarning(dirty);
 
   const update = useCallback((patch: Partial<RawCardFor<T>>) => {
     setCard((c) => ({ ...c, ...patch }));

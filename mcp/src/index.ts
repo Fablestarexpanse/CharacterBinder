@@ -21,6 +21,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 import { startBridge, callApp, bridgeStatus } from "./bridge.js";
+
+// Shared with the app rather than reimplemented, so the two cannot disagree
+// about what a valid card is or what a platform supports. Only browser-neutral
+// modules may be imported across this line: this runs in Node, with no DOM, no
+// localStorage and no IndexedDB. Every file imported here is listed in
+// mcp/tsconfig.json, so a change on the app side is a type error here.
 import { validateTavernCardV2 } from "../../src/lib/validators.js";
 import { PLATFORMS, type PlatformId } from "../../src/lib/platforms/index.js";
 import { parsePersonaText, toCharacterFields } from "../../src/lib/personaParser.js";
