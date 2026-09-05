@@ -35,3 +35,15 @@ describe("coerceCardBody keeps the spec of the kind it was asked for", () => {
     expect(coerceCardBody("script", { spec: "persona_card_v1", content: "x" }).spec).toBe("script_card_v1");
   });
 });
+
+describe("script cards stored before the creator rename", () => {
+  it("reads an old card's author into creator", () => {
+    const card = coerceCardBody("script", { name: "Runner", author: "Ronan", content: "x" });
+    expect(card.creator).toBe("Ronan");
+  });
+
+  it("prefers creator when both are present", () => {
+    const card = coerceCardBody("script", { name: "Runner", author: "Old", creator: "New" });
+    expect(card.creator).toBe("New");
+  });
+});

@@ -49,7 +49,7 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
           </div>
           <div>
             <label className="label-base">Author</label>
-            <input className="input-base" placeholder="Your name..." value={card.author} onChange={(e) => update({ author: e.target.value })} />
+            <input className="input-base" placeholder="Your name..." value={card.creator} onChange={(e) => update({ creator: e.target.value })} />
           </div>
           <div>
             <label className="label-base">Description</label>

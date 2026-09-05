@@ -149,7 +149,8 @@ export interface ScriptCard {
   description: string;
   content: string;
   tags: string[];
-  author: string;
+  /** Named `creator` like every other card kind; older cards stored `author`. */
+  creator: string;
   version: string;
   creator_notes: string;
 }

@@ -18,7 +18,7 @@ export const blankScriptCard = (): ScriptCard => ({
   description: "",
   content: "",
   tags: [],
-  author: "",
+  creator: "",
   version: "1.0",
   creator_notes: "",
 });
@@ -80,6 +80,11 @@ export function coerceCardBody<T extends Exclude<LibraryCardType, "character">>(
     : blankPersonaCard();
 
   const out: Record<string, unknown> = { ...blank };
+  // Script cards stored `author` before the field was renamed to match every
+  // other kind; read it so an existing card still opens with its creator.
+  if (cardType === "script" && body.creator === undefined && typeof body.author === "string") {
+    out.creator = body.author;
+  }
   for (const [key, fallback] of Object.entries(blank)) {
     if (key === "spec") continue; // the spec identifies the kind; a body may not change it
     if (!(key in body)) continue;
