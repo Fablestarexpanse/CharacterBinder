@@ -55,6 +55,9 @@ opened from any static host — GitHub Pages, Netlify, or a folder behind nginx.
 npm test
 ```
 
+Components and hooks run under jsdom; the pure modules run in plain Node, so they
+stay fast.
+
 The MCP server is its own package with its own suite — the bridge handshake is
 driven over a real socket there:
 
