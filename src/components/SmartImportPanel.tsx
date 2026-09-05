@@ -1,4 +1,4 @@
-import { useState, useId } from "react";
+import { useState, useId, useRef } from "react";
 import {
   Wand2, ChevronDown, ChevronRight, ClipboardPaste, X, AlertTriangle, Check,
   Sparkles, Settings2, Loader2, Zap,
@@ -17,6 +17,7 @@ import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, typ
 import { useEngineState } from "../hooks/useEngineState";
 import { saveSorterSettings, type SorterSettings as Settings } from "../lib/cardTextSorter/settings";
 import { useSorterSettings } from "../hooks/useSorterSettings";
+import { errorMessage } from "../lib/errorMessage";
 import SorterSettings from "./SorterSettings";
 
 interface SmartImportPanelProps {
@@ -69,6 +70,10 @@ export default function SmartImportPanel({
   const settings = useSorterSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
+  // A model sort can run for a long time — minutes on a first load, and longer
+  // against a slow endpoint. The signal was already plumbed through to fetch
+  // and to WebLLM's interruptGenerate; this is the control that fires it.
+  const abortRef = useRef<AbortController | null>(null);
   const [progress, setProgress] = useState<LoadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const engine = useEngineState();
@@ -101,14 +106,31 @@ export default function SmartImportPanel({
     setError(null);
     setBusy(true);
     setProgress(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      acceptResult(await sorter(raw, { settings, target, onProgress: (p) => setProgress(p) }));
+      acceptResult(
+        await sorter(raw, {
+          settings,
+          target,
+          signal: controller.signal,
+          onProgress: (p) => setProgress(p),
+        })
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The sort failed.");
+      // A sort the user cancelled is not a failure to report back to them.
+      if (!(err instanceof Error && err.name === "AbortError")) {
+        setError(errorMessage(err));
+      }
     } finally {
+      abortRef.current = null;
       setBusy(false);
       setProgress(null);
     }
+  }
+
+  function cancelSort() {
+    abortRef.current?.abort();
   }
 
   function updateSettings(patch: Partial<Settings>) {
@@ -285,6 +307,13 @@ export default function SmartImportPanel({
                   First run only — the model is cached in your browser afterwards.
                 </p>
               )}
+              <button
+                type="button"
+                onClick={cancelSort}
+                className="text-xs text-text-secondary underline hover:text-text-primary"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
