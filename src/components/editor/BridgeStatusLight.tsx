@@ -1,6 +1,6 @@
 import { Plug } from "lucide-react";
 import { useBridgeState } from "../../hooks/useBridgeState";
-import { connectBridge, disconnectBridge } from "../../lib/bridge/client";
+import { connectBridge, disconnectBridge, getBridgeToken } from "../../lib/bridge/client";
 import { BRIDGE_PORT } from "../../shared/bridgeProtocol";
 
 /**
@@ -12,10 +12,13 @@ import { BRIDGE_PORT } from "../../shared/bridgeProtocol";
  */
 export default function BridgeStatusLight() {
   const bridge = useBridgeState();
+  // Without a token the handshake can only fail, so say that here rather than
+  // after a round trip that ends in "the server rejected your pairing token".
+  const paired = !!getBridgeToken();
 
   function toggle() {
-    if (bridge.status === "off") connectBridge();
-    else disconnectBridge();
+    if (bridge.status !== "off") disconnectBridge();
+    else if (paired) connectBridge();
   }
 
   const { dot, label, title } = (() => {
@@ -44,8 +47,9 @@ export default function BridgeStatusLight() {
         return {
           dot: "bg-text-muted",
           label: "MCP",
-          title:
-            "MCP bridge is off. Click to let a coding agent create and edit cards in your library. Requires the CharacterBinder MCP server to be running.",
+          title: paired
+            ? "MCP bridge is off. Click to let a coding agent create and edit cards in your library. Requires the CharacterBinder MCP server to be running."
+            : "MCP bridge is off and has no pairing token. Start the CharacterBinder MCP server and paste the token it prints into Settings → MCP bridge.",
         };
     }
   })();
