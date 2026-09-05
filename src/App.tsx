@@ -119,7 +119,6 @@ function App() {
 
   const loadFromLibrary = useCallback((
     card: TavernCardV2,
-    _pngData: Uint8Array | null,
     imageSrc: string | null,
     libraryId: string
   ) => {
@@ -208,7 +207,7 @@ function App() {
             console.error(`CharacterBinder: card ${card.id} has no character data to open.`);
             return;
           }
-          loadFromLibrary(card.cardData, null, image, card.id);
+          loadFromLibrary(card.cardData, image, card.id);
           return;
         }
         // Pass the library id: without it the editor would treat an agent-opened

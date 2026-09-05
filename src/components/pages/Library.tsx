@@ -37,7 +37,7 @@ const SECTION_META: Record<LibraryCardType, { label: string; icon: LucideIcon; c
 interface LibraryProps {
   /** Bumped by the MCP bridge after it mutates the library; forces a reload. */
   libraryRevision?: number;
-  onEditCard:     (card: TavernCardV2,  pngData: Uint8Array | null, imageSrc: string | null, id: string) => void;
+  onEditCard: (card: TavernCardV2, imageSrc: string | null, id: string) => void;
   /** Open a lorebook, script, scenario or persona in the editor for its kind. */
   onOpenDataCard: OpenDataCard;
 }
@@ -161,7 +161,7 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
         setMsg(`Can't open "${card.name}" — its character data is missing or damaged.`, false);
         return;
       }
-      onEditCard(card.cardData, card.pngData, card.imageSrc, card.id);
+      onEditCard(card.cardData, card.imageSrc, card.id);
       return;
     }
     onOpenDataCard(card.cardType, card.rawData, card.imageSrc, card.id);

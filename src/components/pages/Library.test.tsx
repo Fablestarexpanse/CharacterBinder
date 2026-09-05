@@ -62,7 +62,7 @@ describe("Library", () => {
     render(<Library onEditCard={onEditCard} onOpenDataCard={onOpenDataCard} />);
 
     await user.click(await screen.findByRole("button", { name: /edit rook/i }));
-    expect(onEditCard).toHaveBeenCalledWith(expect.objectContaining({ spec: "chara_card_v2" }), null, null, "c1");
+    expect(onEditCard).toHaveBeenCalledWith(expect.objectContaining({ spec: "chara_card_v2" }), null, "c1");
 
     await user.click(screen.getByRole("button", { name: /edit kael/i }));
     expect(onOpenDataCard).toHaveBeenCalledWith("persona", expect.objectContaining({ name: "Kael" }), null, "p1");
