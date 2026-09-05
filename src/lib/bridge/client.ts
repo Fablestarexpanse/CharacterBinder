@@ -16,6 +16,7 @@ import {
   BRIDGE_PROTOCOL_VERSION,
   CLOSE_ALREADY_CONNECTED,
   CLOSE_BAD_TOKEN,
+  CLOSE_PROTOCOL,
   isBridgeRequest,
   proveToken,
   randomNonce,
@@ -222,6 +223,9 @@ function openSocket() {
   // port would simply be handed the secret.
   const clientNonce = randomNonce();
   let authed = false;
+  // Set only once the server's challenge proof has been checked against the
+  // stored token. "ready" means nothing before that.
+  let serverProved = false;
 
   ws.onopen = () => {
     ws.send(
@@ -248,24 +252,49 @@ function openSocket() {
 
       if (frame.type === "challenge") {
         const token = getBridgeToken();
-        const expected = await proveToken(token, PROOF_SERVER + clientNonce);
-        if (!token || !safeEqual(String(frame.proof ?? ""), expected)) {
-          // Whatever is on that port does not hold the token. Say nothing more.
+        // Checked before proving anything: WebCrypto rejects an empty key, and
+        // that rejection inside this async handler left the light stuck on
+        // "connecting" with no explanation at all.
+        if (!token) {
           manualDisconnect = true;
           setState({
             status: "error",
-            error: token
-              ? "The server on that port failed to prove it holds your pairing token. Not sending anything to it."
-              : "No pairing token set. Copy it from the MCP server output into Settings → MCP bridge.",
+            error: "No pairing token set. Copy it from the MCP server output into Settings → MCP bridge.",
           });
           ws.close();
           return;
         }
+        const expected = await proveToken(token, PROOF_SERVER + clientNonce);
+        if (!safeEqual(String(frame.proof ?? ""), expected)) {
+          // Whatever is on that port does not hold the token. Say nothing more.
+          // Whatever is on that port does not hold the token. Say nothing more.
+          manualDisconnect = true;
+          setState({
+            status: "error",
+            error: "The server on that port failed to prove it holds your pairing token. Not sending anything to it.",
+          });
+          ws.close();
+          return;
+        }
+        serverProved = true;
         ws.send(JSON.stringify({ type: "auth", proof: await proveToken(token, PROOF_CLIENT + String(frame.serverNonce ?? "")) }));
         return;
       }
 
       if (frame.type === "ready") {
+        // Only after the server has proved it holds the token. Without this
+        // check a process that grabbed the port could skip the challenge
+        // entirely, send "ready", and be served the whole card library — the
+        // handshake would be there and prove nothing.
+        if (!serverProved) {
+          manualDisconnect = true;
+          setState({
+            status: "error",
+            error: "The server on that port skipped the pairing check. Not sending anything to it.",
+          });
+          ws.close(CLOSE_PROTOCOL, "Ready before challenge");
+          return;
+        }
         authed = true;
         setState({ status: "connected", error: null });
         return;
