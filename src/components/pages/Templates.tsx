@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import type { TavernCardV2, MetadataInfo } from "../../types";
-import type { PlatformId } from "../../lib/platforms";
+import type { PlatformId } from "../../shared/platforms";
 import { templates } from "../../data/builtinTemplates";
 import { getCustomTemplates, deleteCustomTemplate, type CustomTemplate } from "../../lib/customTemplates";
 import ConfirmModal from "../ui/ConfirmModal";
 import { FileText, Plus, Trash2 } from "lucide-react";
-import { errorMessage } from "../../lib/errorMessage";
+import { errorMessage } from "../../shared/errorMessage";
 
 interface TemplatesProps {
   onLoad: (card: TavernCardV2, imageSrc?: string, meta?: MetadataInfo, sourcePlatform?: PlatformId) => void;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { TavernCardV2, AppSettings, CardProject } from "../../types";
-import type { PlatformId } from "../../lib/platforms";
+import type { PlatformId } from "../../shared/platforms";
 import CharacterEditor from "../editor/CharacterEditor";
 import JSONView from "../ui/JSONView";
 import RawPreview from "../ui/RawPreview";

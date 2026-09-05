@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { TavernCardV2 } from "../../types";
 import { Check, AlertCircle, Copy, RefreshCw, Save } from "lucide-react";
-import { validateJson } from "../../lib/validators";
+import { validateJson } from "../../shared/validators";
 import { useTimedFlag } from "../../hooks/useTimedFlag";
 
 interface JSONViewProps {

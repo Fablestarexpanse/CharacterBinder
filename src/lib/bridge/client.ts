@@ -35,13 +35,13 @@ import {
   type MutationResult,
   type OpenParams,
   type UpdateParams,
-} from "./protocol";
+} from "../../shared/bridgeProtocol";
 import { getAllCards, getCard as readCard, saveLibraryCard, deleteCard } from "../library";
-import { createBlankTavernCard } from "../tavernCard";
+import { createBlankTavernCard } from "../../shared/tavernCard";
 import { coerceCardBody, coerceCharacterData } from "../blankCards";
 import { createPersistedSettings } from "../persistedSettings";
 import { CARD_TYPES, isCardType, type LibraryCard, type TavernCardV2 } from "../../types";
-import { errorMessage } from "../errorMessage";
+import { errorMessage } from "../../shared/errorMessage";
 
 /** Same read/patch contract as the app's other persisted settings. */
 const bridgeStore = createPersistedSettings("cb_bridge", { token: "", enabled: false });

@@ -5,7 +5,7 @@ import ConfirmClearPanel from "../ui/ConfirmClearPanel";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
 import SmartImportPanel from "../editor/SmartImportPanel";
-import type { CardField } from "../../lib/cardTextParser";
+import type { CardField } from "../../shared/cardTextParser";
 import { blankPersonaCard } from "../../lib/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 

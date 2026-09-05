@@ -10,7 +10,7 @@
 
 import type { LoreBook, PersonaCard, ScenarioCard, ScriptCard, LibraryCardType, RawCardFor, TavernCardV2 } from "../types";
 import { parseLorebook } from "./lorebook";
-import { createBlankTavernCard } from "./tavernCard";
+import { createBlankTavernCard } from "../shared/tavernCard";
 
 export const blankScriptCard = (): ScriptCard => ({
   spec: "script_card_v1",

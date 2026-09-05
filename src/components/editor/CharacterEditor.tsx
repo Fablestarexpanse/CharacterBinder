@@ -2,12 +2,12 @@ import { useState, useRef, useId } from "react";
 import type { TavernCardV2 } from "../../types";
 import { Plus, Minus, ChevronDown, ChevronUp, Image } from "lucide-react";
 import { readImageFile } from "../../lib/readImageFile";
-import { errorMessage } from "../../lib/errorMessage";
+import { errorMessage } from "../../shared/errorMessage";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
 import ResizableTextArea from "../ui/ResizableTextArea";
 import SmartImportPanel from "./SmartImportPanel";
-import type { CardField } from "../../lib/cardTextParser";
+import type { CardField } from "../../shared/cardTextParser";
 
 interface CharacterEditorProps {
   card: TavernCardV2;

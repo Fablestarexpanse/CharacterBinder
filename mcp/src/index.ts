@@ -22,15 +22,15 @@ import { z } from "zod";
 
 import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 
-// Shared with the app rather than reimplemented, so the two cannot disagree
-// about what a valid card is or what a platform supports. Only browser-neutral
-// modules may be imported across this line: this runs in Node, with no DOM, no
-// localStorage and no IndexedDB. Every file imported here is listed in
-// mcp/tsconfig.json, so a change on the app side is a type error here.
-import { validateTavernCardV2 } from "../../src/lib/validators.js";
-import { PLATFORMS, type PlatformId } from "../../src/lib/platforms/index.js";
-import { parsePersonaText, toCharacterFields } from "../../src/lib/cardTextParser.js";
-import type { CardSummary, GetResult, MutationResult } from "../../src/lib/bridge/protocol.js";
+// src/shared holds exactly the modules that are safe on both sides: no DOM, no
+// localStorage, no IndexedDB. Importing from src/lib here would compile and
+// then fail at runtime, which is why the boundary is a directory rather than a
+// convention. mcp/tsconfig.json compiles all of src/shared, so a change over
+// there is a type error here.
+import { validateTavernCardV2 } from "../../src/shared/validators.js";
+import { PLATFORMS, type PlatformId } from "../../src/shared/platforms/index.js";
+import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
+import type { CardSummary, GetResult, MutationResult } from "../../src/shared/bridgeProtocol.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });
 

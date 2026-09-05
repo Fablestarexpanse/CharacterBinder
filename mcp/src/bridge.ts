@@ -12,7 +12,7 @@ import {
   PROOF_CLIENT,
   type BridgeMethod,
   type BridgeResponse,
-} from "../../src/lib/bridge/protocol.js";
+} from "../../src/shared/bridgeProtocol.js";
 import { loadOrCreateToken, tokenPath } from "./token.js";
 
 /**

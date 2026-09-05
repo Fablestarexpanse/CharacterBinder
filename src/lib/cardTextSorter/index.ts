@@ -23,8 +23,8 @@
  * has structure, and that is a routing decision, not a fallback.
  */
 
-import type { ParsedPersona, CardField } from "../cardTextParser";
-import { parsePersonaText } from "../cardTextParser";
+import type { ParsedPersona, CardField } from "../../shared/cardTextParser";
+import { parsePersonaText } from "../../shared/cardTextParser";
 import { countTokens } from "../tokenizer";
 import { getSorterSettings, isRemoteUrl, type SorterSettings } from "./settings";
 

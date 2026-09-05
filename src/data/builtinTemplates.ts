@@ -1,5 +1,5 @@
 import type { TavernCardV2 } from "../types";
-import { createBlankTavernCard } from "../lib/tavernCard";
+import { createBlankTavernCard } from "../shared/tavernCard";
 
 export const ronanVossTemplate: TavernCardV2 = {
   spec: "chara_card_v2",

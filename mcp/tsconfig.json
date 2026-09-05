@@ -14,14 +14,7 @@
     "declaration": false,
     "sourceMap": false
   },
-  // Every app-side file this package imports, so a change over there is a type
-  // error here rather than a runtime surprise. Listing only some of them meant
-  // the validator and the platform table were compiled blind.
-  "include": [
-    "src/**/*.ts",
-    "../src/lib/bridge/protocol.ts",
-    "../src/lib/cardTextParser.ts",
-    "../src/lib/validators.ts",
-    "../src/lib/platforms/index.ts"
-  ]
+  // One glob rather than a hand-maintained file list that goes stale: src/shared
+  // is precisely the browser-neutral surface this package may import.
+  "include": ["src/**/*.ts", "../src/shared/**/*.ts"]
 }

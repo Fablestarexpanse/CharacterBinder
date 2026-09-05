@@ -6,7 +6,7 @@ import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
 import { useStatusMessage } from "./useStatusMessage";
 import { useUnsavedWarning } from "./useUnsavedWarning";
-import { errorMessage } from "../lib/errorMessage";
+import { errorMessage } from "../shared/errorMessage";
 
 /**
  * The shell every non-character editor needs: the card being edited, its cover

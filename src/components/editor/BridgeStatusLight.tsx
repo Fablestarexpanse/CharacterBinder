@@ -1,7 +1,7 @@
 import { Plug } from "lucide-react";
 import { useBridgeState } from "../../hooks/useBridgeState";
 import { connectBridge, disconnectBridge } from "../../lib/bridge/client";
-import { BRIDGE_PORT } from "../../lib/bridge/protocol";
+import { BRIDGE_PORT } from "../../shared/bridgeProtocol";
 
 /**
  * On/off light for the MCP bridge, alongside Ready and the AI light.

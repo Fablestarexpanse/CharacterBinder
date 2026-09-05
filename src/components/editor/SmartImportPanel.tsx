@@ -12,12 +12,12 @@ import {
   CHARACTER_FIELD_ORDER,
   type ParsedPersona,
   type CardField,
-} from "../../lib/cardTextParser";
+} from "../../shared/cardTextParser";
 import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../../lib/cardTextSorter";
 import { useEngineState } from "../../hooks/useEngineState";
 import { saveSorterSettings, type SorterSettings } from "../../lib/cardTextSorter/settings";
 import { useSorterSettings } from "../../hooks/useSorterSettings";
-import { errorMessage } from "../../lib/errorMessage";
+import { errorMessage } from "../../shared/errorMessage";
 import SorterSettingsPanel from "./SorterSettings";
 
 interface SmartImportPanelProps {

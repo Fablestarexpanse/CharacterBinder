@@ -10,7 +10,7 @@ import { getAllCards, deleteCard } from "../../lib/library";
 import { exportCardsAsZip } from "../../lib/archive";
 import ConfirmModal from "../ui/ConfirmModal";
 import { useStatusMessage } from "../../hooks/useStatusMessage";
-import { errorMessage } from "../../lib/errorMessage";
+import { errorMessage } from "../../shared/errorMessage";
 
 type SortKey = "updatedAt" | "createdAt" | "name";
 

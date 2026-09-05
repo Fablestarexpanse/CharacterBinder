@@ -104,7 +104,7 @@ export function randomNonce(): string {
   return [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-import type { LibraryCardType } from "../../types";
+import type { LibraryCardType } from "../types";
 
 /** The wire uses the app's own card vocabulary — no parallel union to cast across. */
 export type CardType = LibraryCardType;

@@ -493,16 +493,20 @@ CharacterBinder/
 │   │   ├── editor/          # Panels owned by one page (card preview, smart import, lights)
 │   │   └── ui/              # Shared primitives (inputs, modals, dropzone, JSON views)
 │   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
-│   ├── lib/
-│   │   ├── bridge/          # MCP bridge: wire protocol + app-side client
+│   ├── shared/              # Browser-neutral: the only code mcp/ may import
+│   │   ├── bridgeProtocol.ts # Wire protocol, shared by both sides of the bridge
 │   │   ├── platforms/       # Platform definitions + format converters
+│   │   ├── validators.ts    # Card validation logic
+│   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
+│   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
+│   │   └── errorMessage.ts  # The message from a caught unknown
+│   ├── lib/                 # Browser-only: IndexedDB, localStorage, DOM, WebGPU
+│   │   ├── bridge/          # MCP bridge: the app-side client
 │   │   ├── cardTextSorter/  # Quick Import: in-browser AI sorter (WebLLM) + settings
 │   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
-│   │   ├── validators.ts    # Card validation logic
 │   │   ├── library.ts       # IndexedDB card storage (idb)
 │   │   ├── archive.ts       # ZIP export (jszip)
 │   │   ├── tokenizer.ts     # Token counting (cl100k)
-│   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
 │   │   ├── customTemplates.ts # User-saved templates (localStorage)
 │   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
 │   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies
@@ -510,7 +514,6 @@ CharacterBinder/
 │   │   ├── carrierImage.ts  # Cover art → PNG bytes for embedding
 │   │   ├── download.ts      # Blob download helper (all export paths)
 │   │   ├── settings.ts      # App settings + localStorage persistence
-│   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   ├── minimalPng.ts    # 1×1 fallback carrier image
 │   │   └── readImageFile.ts # Image file → data URL helper
 │   ├── data/                # Built-in character templates
