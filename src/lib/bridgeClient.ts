@@ -310,24 +310,39 @@ function openSocket() {
     } catch {
       return;
     }
-    if (!authed) {
-      if (await advanceHandshake(ws, msg, { clientNonce, serverProved: () => serverProved, prove: () => { serverProved = true; } })) {
-        authed = true;
-        setState({ status: "connected", error: null });
-      }
-      return;
-    }
 
-    if (!isBridgeRequest(msg)) return;
-
-    const response: BridgeResponse = { id: msg.id };
+    // Everything below runs inside one guard. This is an async event handler:
+    // anything that throws past it becomes an unhandled rejection, and the
+    // light sits on "connecting" or "connected" with no sign that the bridge
+    // has stopped working.
     try {
-      response.result = await handleBridgeRequest(msg);
-      setState({ served: state.served + 1, lastMethod: msg.method });
+      if (!authed) {
+        if (await advanceHandshake(ws, msg, { clientNonce, serverProved: () => serverProved, prove: () => { serverProved = true; } })) {
+          authed = true;
+          setState({ status: "connected", error: null });
+        }
+        return;
+      }
+
+      if (!isBridgeRequest(msg)) return;
+
+      const response: BridgeResponse = { id: msg.id };
+      try {
+        response.result = await handleBridgeRequest(msg);
+        setState({ served: state.served + 1, lastMethod: msg.method });
+      } catch (err) {
+        response.error = errorMessage(err);
+      }
+      // Sending can fail on a socket that closed while the call ran; the agent
+      // is gone either way, but the user should see that this one did not land.
+      try {
+        ws.send(JSON.stringify(response));
+      } catch (err) {
+        setState({ status: "error", error: `Couldn't answer the agent: ${errorMessage(err)}` });
+      }
     } catch (err) {
-      response.error = errorMessage(err);
+      setState({ status: "error", error: `The bridge hit an error: ${errorMessage(err)}` });
     }
-    ws.send(JSON.stringify(response));
   };
 
   ws.onerror = () => {

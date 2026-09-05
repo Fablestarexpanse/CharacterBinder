@@ -99,8 +99,14 @@ export default function DecodePNG({ onLoad, onOpenDataCard }: DecodePNGProps) {
 
   const handleCopy = async () => {
     if (!result) return;
-    await navigator.clipboard.writeText(JSON.stringify(JSON.parse(result.json), null, 2));
-    flashCopied();
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(JSON.parse(result.json), null, 2));
+      flashCopied();
+    } catch (err) {
+      // Clipboard writes are refused without focus or permission; saying so
+      // beats a Copy button that quietly does nothing.
+      setError(`Couldn't copy to the clipboard: ${errorMessage(err)}`);
+    }
   };
 
   const isCharCard = result && result.sourcePlatform !== null && result.shape === "character";

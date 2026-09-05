@@ -38,9 +38,14 @@ export default function TextAreaField({
   const exact = useTokenizer();
   const tokens = useMemo(() => (showTokens ? countTokens(value) : 0), [value, showTokens, exact]);
 
-  function handleCopy() {
-    navigator.clipboard.writeText(value);
-    flashCopied();
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      flashCopied();
+    } catch {
+      // Same affordance the paste path uses when the clipboard is unavailable.
+      flashPasteHint();
+    }
   }
 
   async function handlePaste() {

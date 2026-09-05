@@ -40,3 +40,22 @@ describe("JSONView", () => {
     expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ name: "Rook the Elder" }));
   });
 });
+
+describe("copying", () => {
+  const card = () => createBlankTavernCard("Rook");
+
+  it("says so when the browser refuses the clipboard", async () => {
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      clipboard: { writeText: () => Promise.reject(new Error("Write permission denied")) },
+    });
+    try {
+      render(<JSONView card={card()} onUpdate={vi.fn()} />);
+      await userEvent.click(screen.getByRole("button", { name: /copy/i }));
+      // A Copy button that quietly does nothing is worse than one that explains.
+      expect(await screen.findByText(/couldn't copy to the clipboard/i)).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
