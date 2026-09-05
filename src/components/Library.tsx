@@ -5,7 +5,7 @@ import {
   SortAsc, SortDesc, CheckSquare, Square,
   type LucideIcon,
 } from "lucide-react";
-import { parseLorebook } from "../lib/lorebook";
+import { coerceCardBody } from "../lib/blankCards";
 import type { LibraryCard, LibraryCardType, TavernCardV2, LoreBook, ScriptCard, ScenarioCard, PersonaCard } from "../types";
 import { getAllCards, deleteCard } from "../lib/library";
 import { exportCardsAsZip } from "../lib/archive";
@@ -130,13 +130,13 @@ export default function Library({ refreshToken = 0, onEditCard, onEditLorebook, 
     if (type === "character" && card.cardData) {
       onEditCard(card.cardData, card.pngData, card.imageSrc, card.id);
     } else if (type === "lorebook" && card.rawData) {
-      onEditLorebook(parseLorebook(card.rawData), card.imageSrc, card.id);
+      onEditLorebook(coerceCardBody("lorebook", card.rawData), card.imageSrc, card.id);
     } else if (type === "script" && card.rawData) {
-      onEditScript(card.rawData as ScriptCard, card.imageSrc, card.id);
+      onEditScript(coerceCardBody("script", card.rawData), card.imageSrc, card.id);
     } else if (type === "scenario" && card.rawData) {
-      onEditScenario(card.rawData as ScenarioCard, card.imageSrc, card.id);
+      onEditScenario(coerceCardBody("scenario", card.rawData), card.imageSrc, card.id);
     } else if (type === "persona" && card.rawData) {
-      onEditPersona(card.rawData as PersonaCard, card.imageSrc, card.id);
+      onEditPersona(coerceCardBody("persona", card.rawData), card.imageSrc, card.id);
     }
   }
 

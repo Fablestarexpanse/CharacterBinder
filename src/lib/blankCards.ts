@@ -64,11 +64,14 @@ const strList = (v: unknown, fallback: string[]): string[] =>
  */
 export function coerceCardBody<T extends Exclude<LibraryCardType, "character">>(
   cardType: T,
-  body: Record<string, unknown>
+  raw: unknown
 ): RawCardFor<T> {
   if (cardType === "lorebook") {
-    return parseLorebook(body) as RawCardFor<T>;
+    return parseLorebook(raw) as RawCardFor<T>;
   }
+
+  const body: Record<string, unknown> =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
 
   const blank =
     cardType === "script" ? blankScriptCard()

@@ -28,55 +28,65 @@ export interface ExportedLoreBook extends Omit<LoreBook, "entries"> {
   entries: ExportedLoreEntry[];
 }
 
+/** Field readers: a value of the wrong type is treated as absent, not stored. */
+const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
+const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+const bool = (v: unknown): boolean | undefined => (typeof v === "boolean" ? v : undefined);
+const strList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
 /**
  * Read any lorebook-shaped payload into the internal shape.
  *
  * Accepts interchange exports, older library records, and hand-written JSON,
  * so every path into the editor goes through one normalisation.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export function parseLorebook(raw: any): LoreBook {
-  const src = raw && typeof raw === "object" ? raw : {};
+export function parseLorebook(raw: unknown): LoreBook {
+  // Read through an index signature rather than `any`: every field below is
+  // still checked before use, and nothing can be dereferenced by mistake.
+  const src: Record<string, unknown> = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
 
   let rawEntries: unknown[];
   if (Array.isArray(src.entries)) {
     rawEntries = src.entries;
   } else if (src.entries && typeof src.entries === "object") {
     // ST writes entries as an object keyed by numeric strings.
-    rawEntries = Object.values(src.entries);
+    rawEntries = Object.values(src.entries as Record<string, unknown>);
   } else {
     rawEntries = [];
   }
 
-  const entries: LoreEntry[] = rawEntries.map((e: any) => ({
-    id: crypto.randomUUID(),
-    name: e?.name ?? e?.comment ?? "",
-    comment: e?.comment ?? e?.name ?? "",
-    keys: Array.isArray(e?.keys) ? e.keys : [],
-    secondary_keys: Array.isArray(e?.secondary_keys) ? e.secondary_keys : [],
-    content: e?.content ?? "",
-    enabled: e?.enabled ?? true,
-    insertion_order: e?.insertion_order ?? 100,
-    case_sensitive: e?.case_sensitive ?? false,
-    priority: e?.priority ?? 10,
-    selective: e?.selective ?? false,
-    constant: e?.constant ?? false,
-    position: e?.position === "after_char" ? "after_char" : "before_char",
-  }));
+  const entries: LoreEntry[] = rawEntries.map((raw) => {
+    const e: Record<string, unknown> = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+    return {
+      id: crypto.randomUUID(),
+      name: str(e.name) ?? str(e.comment) ?? "",
+      comment: str(e.comment) ?? str(e.name) ?? "",
+      keys: strList(e.keys),
+      secondary_keys: strList(e.secondary_keys),
+      content: str(e.content) ?? "",
+      enabled: bool(e.enabled) ?? true,
+      insertion_order: num(e.insertion_order) ?? 100,
+      case_sensitive: bool(e.case_sensitive) ?? false,
+      priority: num(e.priority) ?? 10,
+      selective: bool(e.selective) ?? false,
+      constant: bool(e.constant) ?? false,
+      position: e.position === "after_char" ? "after_char" : "before_char",
+    };
+  });
 
   return {
-    name: src.name ?? "",
-    description: src.description ?? "",
-    creator: src.creator ?? src.author ?? "",
-    version: src.version ?? "1.0",
-    creator_notes: src.creator_notes ?? "",
-    scan_depth: src.scan_depth ?? 50,
-    token_budget: src.token_budget ?? 512,
-    recursive_scanning: src.recursive_scanning ?? false,
+    name: str(src.name) ?? "",
+    description: str(src.description) ?? "",
+    creator: str(src.creator) ?? str(src.author) ?? "",
+    version: str(src.version) ?? "1.0",
+    creator_notes: str(src.creator_notes) ?? "",
+    scan_depth: num(src.scan_depth) ?? 50,
+    token_budget: num(src.token_budget) ?? 512,
+    recursive_scanning: bool(src.recursive_scanning) ?? false,
     entries,
   };
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /** Render the internal shape as the interchange format other tools read. */
 export function toExportedLorebook(book: LoreBook): ExportedLoreBook {

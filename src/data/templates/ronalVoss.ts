@@ -1,4 +1,5 @@
 import type { TavernCardV2 } from "../../types";
+import { createBlankTavernCard } from "../../lib/tavernCard";
 
 export const ronanVossTemplate: TavernCardV2 = {
   spec: "chara_card_v2",
@@ -39,26 +40,13 @@ export const ronanVossTemplate: TavernCardV2 = {
   },
 };
 
-export const blankTemplate: TavernCardV2 = {
-  spec: "chara_card_v2",
-  spec_version: "2.0",
-  data: {
-    name: "",
-    description: "",
-    personality: "",
-    scenario: "",
-    first_mes: "",
-    mes_example: "",
-    creator_notes: "",
-    system_prompt: "",
-    post_history_instructions: "",
-    alternate_greetings: [],
-    tags: [],
-    creator: "",
-    character_version: "1.0",
-    extensions: {},
-  },
-};
+/**
+ * The empty card the "Blank Character" template starts from. It is the same
+ * card createBlankTavernCard() builds — this file used to restate the literal,
+ * so the two could drift and a field added to the spec would reach one and not
+ * the other.
+ */
+export const blankTemplate: TavernCardV2 = createBlankTavernCard();
 
 export const templates = [
   {

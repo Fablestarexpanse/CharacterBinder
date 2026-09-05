@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Download, FileJson, UserCircle, Save } from "lucide-react";
 import type { PersonaCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
-import { saveAnyCard } from "../lib/library";
+import { saveLibraryCard } from "../lib/library";
 import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
 import { useStatusMessage } from "../hooks/useStatusMessage";
@@ -77,7 +77,13 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
     setSaving(true);
     try {
       const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
-      const saved = await saveAnyCard("persona", card.name || "Unnamed Persona", card, imageSrc, card.tags, versionChanged ? undefined : libraryId);
+      const saved = await saveLibraryCard({
+        cardType: "persona",
+        body: card,
+        imageSrc,
+        tags: card.tags,
+        existingId: versionChanged ? undefined : libraryId,
+      });
       setLibraryId(saved.id);
       setSavedVersion(card.version);
       setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);

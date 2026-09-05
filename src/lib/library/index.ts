@@ -1,5 +1,7 @@
 import { openDB, type IDBPDatabase } from "idb";
-import type { LibraryCard, LibraryCardType, RawCardFor, TavernCardV2 } from "../../types";
+import type {
+  LibraryCard, LoreBook, PersonaCard, ScenarioCard, ScriptCard, TavernCardV2,
+} from "../../types";
 
 const DB_NAME = "characterbinder-library";
 const DB_VERSION = 2;
@@ -40,61 +42,80 @@ async function originalCreatedAt(db: IDBPDatabase, existingId: string | undefine
   return prior?.createdAt ?? fallback;
 }
 
-/** Save or update a character card. Name and tags come from the card itself. */
-export async function saveCard(
-  cardData: TavernCardV2,
-  pngData: Uint8Array | null,
-  imageSrc: string | null,
-  platform: string,
-  existingId?: string
-): Promise<LibraryCard> {
-  const db = await getDb();
-  const now = Date.now();
-  const card: LibraryCard = {
-    id: existingId ?? crypto.randomUUID(),
-    name: cardData.data.name || "Unnamed Character",
-    cardType: "character",
-    cardData,
-    pngData,
-    imageSrc,
-    platform,
-    tags: cardData.data.tags ?? [],
-    createdAt: await originalCreatedAt(db, existingId, now),
-    updatedAt: now,
-  };
-  await db.put(STORE, card);
-  return card;
+/**
+ * What a caller must supply to store a card, per kind.
+ *
+ * There were two save functions with incompatible positional parameter lists —
+ * `saveCard(cardData, pngData, imageSrc, platform, existingId)` for characters
+ * and `saveAnyCard(cardType, name, rawData, imageSrc, tags, existingId)` for
+ * everything else — so the same job read differently depending on which kind of
+ * card you had, and a misordered argument was a silent bug rather than a type
+ * error. One entry point, keyed by `cardType`, and the fields each kind
+ * actually needs are the ones it accepts.
+ */
+interface SaveCommon {
+  /** Cover art as a data: URL. Not the encoded card PNG. */
+  imageSrc?: string | null;
+  /** Overrides the name taken from the body. */
+  name?: string;
+  /** Pass the id of the record being edited; omit to store a new card. */
+  existingId?: string;
+  tags?: string[];
 }
 
-/**
- * Save or update a lorebook, script, scenario, or persona card.
- *
- * Generic over the card type so `rawData` is checked against the payload that
- * type actually stores, rather than being accepted as `unknown` and cast back
- * out at every read.
- */
-export async function saveAnyCard<T extends Exclude<LibraryCardType, "character">>(
-  cardType: T,
-  name: string,
-  rawData: RawCardFor<T>,
-  imageSrc: string | null,
-  tags: string[],
-  existingId?: string
-): Promise<LibraryCard> {
+export type SaveCardInput =
+  | (SaveCommon & {
+      cardType: "character";
+      body: TavernCardV2;
+      /** The card re-encoded into its PNG, kept so archive export needs no re-encode. */
+      pngData?: Uint8Array | null;
+      platform?: string;
+    })
+  | (SaveCommon & { cardType: "lorebook"; body: LoreBook })
+  | (SaveCommon & { cardType: "script"; body: ScriptCard })
+  | (SaveCommon & { cardType: "scenario"; body: ScenarioCard })
+  | (SaveCommon & { cardType: "persona"; body: PersonaCard });
+
+/** Store a card, or update the one named by `existingId`. */
+export async function saveLibraryCard(input: SaveCardInput): Promise<LibraryCard> {
   const db = await getDb();
   const now = Date.now();
-  const card = {
-    id: existingId ?? crypto.randomUUID(),
-    name: name || `Unnamed ${cardType}`,
-    cardType,
-    rawData,
-    pngData: null,
-    imageSrc,
-    platform: cardType,
-    tags,
-    createdAt: await originalCreatedAt(db, existingId, now),
+  const shell = {
+    id: input.existingId ?? crypto.randomUUID(),
+    imageSrc: input.imageSrc ?? null,
+    createdAt: await originalCreatedAt(db, input.existingId, now),
     updatedAt: now,
-  } as LibraryCard;
+  };
+
+  let card: LibraryCard;
+  if (input.cardType === "character") {
+    card = {
+      ...shell,
+      cardType: "character",
+      cardData: input.body,
+      name: input.name || input.body.data.name || "Unnamed Character",
+      pngData: input.pngData ?? null,
+      platform: input.platform ?? "sillytavern",
+      tags: input.tags ?? input.body.data.tags ?? [],
+    };
+  } else {
+    // Non-character cards carry no encoded PNG, and their "platform" is the
+    // kind itself — nothing converts them per target app.
+    const common = {
+      ...shell,
+      name: input.name || input.body.name || `Unnamed ${input.cardType}`,
+      pngData: null,
+      platform: input.cardType,
+      tags: input.tags ?? [],
+    };
+    switch (input.cardType) {
+      case "lorebook": card = { ...common, cardType: "lorebook", rawData: input.body }; break;
+      case "script":   card = { ...common, cardType: "script",   rawData: input.body }; break;
+      case "scenario": card = { ...common, cardType: "scenario", rawData: input.body }; break;
+      case "persona":  card = { ...common, cardType: "persona",  rawData: input.body }; break;
+    }
+  }
+
   await db.put(STORE, card);
   return card;
 }

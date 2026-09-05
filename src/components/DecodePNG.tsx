@@ -7,6 +7,7 @@ import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { convertCardFrom } from "../lib/platforms/converters";
 import FieldCompatibility from "./FieldCompatibility";
 import { useTimedFlag } from "../hooks/useTimedFlag";
+import { coerceCardBody } from "../lib/blankCards";
 
 const CHARACTER_KEYS = new Set(["chara", "character", "tavern", "tavern_card_v2"]);
 
@@ -113,10 +114,10 @@ export default function DecodePNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
       return;
     }
 
-    if (result.key === "lorebook") { onLoadLorebook?.(parsed as LoreBook, result.imageSrc); return; }
-    if (result.key === "script")   { onLoadScript?.(parsed as ScriptCard, result.imageSrc); return; }
-    if (result.key === "scenario") { onLoadScenario?.(parsed as ScenarioCard, result.imageSrc); return; }
-    if (result.key === "persona")  { onLoadPersona?.(parsed as PersonaCard, result.imageSrc); return; }
+    if (result.key === "lorebook") { onLoadLorebook?.(coerceCardBody("lorebook", parsed), result.imageSrc); return; }
+    if (result.key === "script")   { onLoadScript?.(coerceCardBody("script", parsed), result.imageSrc); return; }
+    if (result.key === "scenario") { onLoadScenario?.(coerceCardBody("scenario", parsed), result.imageSrc); return; }
+    if (result.key === "persona")  { onLoadPersona?.(coerceCardBody("persona", parsed), result.imageSrc); return; }
   };
 
   const handleCopy = async () => {

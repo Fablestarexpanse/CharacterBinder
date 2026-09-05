@@ -35,7 +35,7 @@ import {
   type OpenParams,
   type UpdateParams,
 } from "./protocol";
-import { getAllCards, getCard as readCard, saveCard, saveAnyCard, deleteCard } from "../library";
+import { getAllCards, getCard as readCard, saveLibraryCard, deleteCard } from "../library";
 import { createBlankTavernCard } from "../tavernCard";
 import { coerceCardBody } from "../blankCards";
 import { CARD_TYPES, type LibraryCard, type TavernCardV2 } from "../../types";
@@ -339,12 +339,28 @@ async function persist(
     // Carry the embedded card PNG and target platform across an edit. Passing
     // null/"sillytavern" unconditionally meant an agent editing one field threw
     // away the encoded PNG the archive exports, and silently retargeted the card.
-    return saveCard(card, existing?.pngData ?? null, imageSrc, existing?.platform ?? "sillytavern", existingId);
+    return saveLibraryCard({
+      cardType: "character",
+      body: card,
+      pngData: existing?.pngData ?? null,
+      imageSrc,
+      platform: existing?.platform ?? "sillytavern",
+      existingId,
+    });
   }
 
   const name = String(body.name ?? "") || `Unnamed ${cardType}`;
-  const tags = Array.isArray(body.tags) ? (body.tags as string[]) : [];
-  return saveAnyCard(cardType, name, coerceCardBody(cardType, body), imageSrc, tags, existingId);
+  const tags = Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === "string") : [];
+  const common = { name, imageSrc, tags, existingId };
+
+  // Each kind is spelled out so the body a peer sent is checked against the
+  // shape that kind stores, rather than cast into it.
+  switch (cardType) {
+    case "lorebook": return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
+    case "script":   return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
+    case "scenario": return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
+    case "persona":  return saveLibraryCard({ ...common, cardType, body: coerceCardBody(cardType, body) });
+  }
 }
 
 /**

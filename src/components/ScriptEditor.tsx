@@ -3,7 +3,7 @@ import { Download, FileJson, FileCode2, Save } from "lucide-react";
 import ResizableTextArea from "./ResizableTextArea";
 import type { ScriptCard } from "../types";
 import { encodeCharaToPng } from "../lib/pngMetadata";
-import { saveAnyCard } from "../lib/library";
+import { saveLibraryCard } from "../lib/library";
 import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
 import { useStatusMessage } from "../hooks/useStatusMessage";
@@ -69,7 +69,13 @@ export default function ScriptEditor({ initialCard, initialImageSrc, initialLibr
     setSaving(true);
     try {
       const versionChanged = !!libraryId && card.version.trim() !== savedVersion;
-      const saved = await saveAnyCard("script", card.name || "Unnamed Script", card, imageSrc, card.tags, versionChanged ? undefined : libraryId);
+      const saved = await saveLibraryCard({
+        cardType: "script",
+        body: card,
+        imageSrc,
+        tags: card.tags,
+        existingId: versionChanged ? undefined : libraryId,
+      });
       setLibraryId(saved.id);
       setSavedVersion(card.version);
       setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);

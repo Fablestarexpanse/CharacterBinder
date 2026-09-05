@@ -8,7 +8,7 @@ import {
 import type { LoreBook, LoreEntry } from "../types";
 import { countTokens, getTokenBudgetLevel, TOKEN_BUDGET_COLORS } from "../lib/tokenizer";
 import { encodeCharaToPng } from "../lib/pngMetadata";
-import { saveAnyCard } from "../lib/library";
+import { saveLibraryCard } from "../lib/library";
 import { parseLorebook, toExportedLorebook } from "../lib/lorebook";
 import { getCarrierPng } from "../lib/carrierImage";
 import { downloadJson, downloadPng } from "../lib/download";
@@ -152,7 +152,13 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
     try {
       const allKeys = book.entries.flatMap((e) => e.keys);
       const versionChanged = !!libraryId && book.version.trim() !== savedVersion;
-      const saved = await saveAnyCard("lorebook", book.name || "Unnamed Lorebook", book, imageSrc, allKeys.slice(0, 10), versionChanged ? undefined : libraryId);
+      const saved = await saveLibraryCard({
+        cardType: "lorebook",
+        body: book,
+        imageSrc,
+        tags: allKeys.slice(0, 10),
+        existingId: versionChanged ? undefined : libraryId,
+      });
       setLibraryId(saved.id);
       setSavedVersion(book.version);
       setMsg(versionChanged ? "Saved as new version!" : libraryId ? "Library updated!" : "Saved to library!", true);

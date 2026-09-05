@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef } from "react";
-import { parseLorebook } from "../lib/lorebook";
 import type { TavernCardV2, MetadataInfo, LoreBook, ScriptCard, ScenarioCard, PersonaCard, LibraryCardType } from "../types";
 import type { PlatformId } from "../lib/platforms";
 import { Upload, FileSearch, AlertCircle, CheckCircle, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
@@ -7,6 +6,7 @@ import { decodeCharaFromPng, getPngDimensions, isPng } from "../lib/pngMetadata"
 import { convertCardFrom } from "../lib/platforms/converters";
 import { detectPlatform, PLATFORMS } from "../lib/platforms";
 import { detectCardShape, shapeForKey } from "../lib/cardShape";
+import { coerceCardBody } from "../lib/blankCards";
 
 type DetectedType = LibraryCardType | null;
 
@@ -130,7 +130,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
           ? Object.keys(parsed.entries).length
           : 0;
         setMessage(`Loaded lorebook "${parsed.name || "Unnamed"}" — ${entryCount} entries${mismatchNote}. Opening in editor…`);
-        onLoadLorebook?.(parseLorebook(parsed), imageSrc);
+        onLoadLorebook?.(coerceCardBody("lorebook", parsed), imageSrc);
         return;
       }
 
@@ -139,7 +139,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         setDetectedType("script");
         setStatus("success");
         setMessage(`Loaded script "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onLoadScript?.(parsed as ScriptCard, imageSrc);
+        onLoadScript?.(coerceCardBody("script", parsed), imageSrc);
         return;
       }
 
@@ -148,7 +148,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         setDetectedType("scenario");
         setStatus("success");
         setMessage(`Loaded scenario "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onLoadScenario?.(parsed as ScenarioCard, imageSrc);
+        onLoadScenario?.(coerceCardBody("scenario", parsed), imageSrc);
         return;
       }
 
@@ -157,7 +157,7 @@ export default function ImportPNG({ onLoad, onLoadLorebook, onLoadScript, onLoad
         setDetectedType("persona");
         setStatus("success");
         setMessage(`Loaded persona "${parsed.name || "Unnamed"}"${mismatchNote}. Opening in editor…`);
-        onLoadPersona?.(parsed as PersonaCard, imageSrc);
+        onLoadPersona?.(coerceCardBody("persona", parsed), imageSrc);
         return;
       }
 

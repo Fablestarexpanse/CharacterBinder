@@ -19,6 +19,7 @@ import ScenarioEditor from "./components/ScenarioEditor";
 import PersonaEditor from "./components/PersonaEditor";
 import ConfirmModal from "./components/ConfirmModal";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { coerceCardBody } from "./lib/blankCards";
 
 /** Output filename derived from the character name, e.g. "Mira Vale" → "Mira_Vale_Tavern_Card.png". */
 function defaultFileName(name: string): string {
@@ -226,16 +227,16 @@ function App() {
             if (card.cardData) loadFromLibrary(card.cardData, null, image, card.id);
             break;
           case "lorebook":
-            handleImportLorebook(card.rawData as LoreBook, image);
+            handleImportLorebook(coerceCardBody("lorebook", card.rawData), image);
             break;
           case "script":
-            handleImportScript(card.rawData as ScriptCard, image);
+            handleImportScript(coerceCardBody("script", card.rawData), image);
             break;
           case "scenario":
-            handleImportScenario(card.rawData as ScenarioCard, image);
+            handleImportScenario(coerceCardBody("scenario", card.rawData), image);
             break;
           case "persona":
-            handleImportPersona(card.rawData as PersonaCard, image);
+            handleImportPersona(coerceCardBody("persona", card.rawData), image);
             break;
         }
       },

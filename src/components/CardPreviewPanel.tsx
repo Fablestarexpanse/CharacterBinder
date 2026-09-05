@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useId } from "react";
 import type { AppSettings, CardProject } from "../types";
 import { Download, Shield, FileJson, ChevronDown, ChevronUp, BookMarked, LayoutTemplate, FilePlus, AlertTriangle } from "lucide-react";
-import { saveCard } from "../lib/library";
+import { saveLibraryCard } from "../lib/library";
 import { saveCustomTemplate } from "../lib/customTemplates";
 import {
   getCardTokenBreakdown,
@@ -163,7 +163,14 @@ export default function CardPreviewPanel({
       );
 
       const existingId = hasExistingId && !versionChanged ? project.id : undefined;
-      const saved = await saveCard(project.card, pngData, project.imageSrc ?? null, targetPlatform, existingId);
+      const saved = await saveLibraryCard({
+        cardType: "character",
+        body: project.card,
+        pngData,
+        imageSrc: project.imageSrc ?? null,
+        platform: targetPlatform,
+        existingId,
+      });
       // Adopt the new id. Without this every save created another record, and a
       // version bump left the editor still pointing at the previous row — so the
       // next save overwrote the version the user had just preserved.
