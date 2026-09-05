@@ -1,7 +1,7 @@
-import { Download, FileJson, UserCircle, Save } from "lucide-react";
+import { UserCircle } from "lucide-react";
 import type { PersonaCard } from "../../types";
 import ImageDropzone from "../ui/ImageDropzone";
-import ConfirmClearPanel from "../ui/ConfirmClearPanel";
+import CardExportPanel from "../editor/CardExportPanel";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
 import SmartImportPanel from "../editor/SmartImportPanel";
@@ -97,63 +97,27 @@ export default function PersonaEditor({ initialCard, initialImageSrc, initialLib
 
         <ImageDropzone label="Avatar Image" imageSrc={imageSrc} onFile={setImageSrc} />
 
-        {/* Output Settings */}
-        <div className="border-t border-border pt-3 space-y-2">
-          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Output Settings</p>
-          <div>
-            <label className="label-base">Output File</label>
-            <input
-              className="input-base text-xs"
-              value={outputFileName}
-              onChange={(e) => setOutputFileName(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">Metadata key</span>
-            <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">persona</code>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">Version</span>
-            <input
-              className="input-base py-0.5 text-xs w-20 text-right"
-              value={card.version}
-              onChange={(e) => update({ version: e.target.value })}
-            />
-          </div>
-        </div>
-
-        {/* Save / New */}
-        <div className="border-t border-border pt-3 space-y-2">
-          <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
-            <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
-          </button>
-          <ConfirmClearPanel label="Persona" onConfirm={clearForNew} />
-        </div>
-
-        {/* Export buttons */}
-        <div className="space-y-2">
-          <button onClick={exportJson} className="btn-secondary w-full justify-center py-2">
-            <FileJson size={14} /> Export JSON
-          </button>
-          <button onClick={exportPng} className="btn-secondary w-full justify-center py-2">
-            <Download size={14} /> Embed in PNG
-          </button>
-        </div>
-
-        {status && (
-          <p
-            role="status"
-            aria-live="polite"
-            className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}
-          >
-            {status.msg}
-          </p>
-        )}
-
-        <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
-          <p><strong className="text-text-secondary">JSON</strong> — portable persona format.</p>
+        <CardExportPanel
+          cardType="persona"
+          label="Persona"
+          outputFileName={outputFileName}
+          onOutputFileNameChange={setOutputFileName}
+          version={card.version}
+          onVersionChange={(version) => update({ version })}
+          saving={saving}
+          libraryId={libraryId}
+          onSave={handleSaveToLibrary}
+          onExportJson={exportJson}
+          onExportPng={exportPng}
+          onClear={clearForNew}
+          status={status}
+          footnotes={
+            <>
+              <p><strong className="text-text-secondary">JSON</strong> — portable persona format.</p>
           <p><strong className="text-text-secondary">PNG</strong> — embeds persona using the <code className="bg-bg-tertiary px-1 rounded">persona</code> chunk.</p>
-        </div>
+            </>
+          }
+        />
       </aside>
     </div>
   );

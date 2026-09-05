@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { Download, FileJson, Map, Save } from "lucide-react";
+import { Map } from "lucide-react";
 import type { ScenarioCard } from "../../types";
 import ResizableTextArea from "../ui/ResizableTextArea";
 import { countTokens, getTokenBudgetLevel, tokenBudgetPercent, TOKEN_BUDGET_COLORS, TOKEN_BUDGET_BAR_COLORS } from "../../lib/tokenizer";
 import ImageDropzone from "../ui/ImageDropzone";
-import ConfirmClearPanel from "../ui/ConfirmClearPanel";
+import CardExportPanel from "../editor/CardExportPanel";
 import TagInput from "../ui/TagInput";
 import TextAreaField from "../ui/TextAreaField";
 import { blankScenarioCard } from "../../lib/blankCards";
@@ -94,62 +94,27 @@ export default function ScenarioEditor({ initialCard, initialImageSrc, initialLi
           </div>
         </div>
 
-        {/* Output Settings */}
-        <div className="border-t border-border pt-3 space-y-2">
-          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Output Settings</p>
-          <div>
-            <label className="label-base">Output File</label>
-            <input
-              className="input-base text-xs"
-              value={outputFileName}
-              onChange={(e) => setOutputFileName(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">Metadata key</span>
-            <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">scenario</code>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">Version</span>
-            <input
-              className="input-base py-0.5 text-xs w-20 text-right"
-              value={card.version}
-              onChange={(e) => update({ version: e.target.value })}
-            />
-          </div>
-        </div>
-
-        {/* Save to Library */}
-        <div className="border-t border-border pt-3 space-y-2">
-          <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
-            <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
-          </button>
-          <ConfirmClearPanel label="Scenario Card" onConfirm={clearForNew} />
-        </div>
-
-        <div className="space-y-2">
-          <button onClick={exportJson} className="btn-secondary w-full justify-center py-2">
-            <FileJson size={14} /> Export JSON
-          </button>
-          <button onClick={exportPng} className="btn-secondary w-full justify-center py-2">
-            <Download size={14} /> Embed in PNG
-          </button>
-        </div>
-
-        {status && (
-          <p
-            role="status"
-            aria-live="polite"
-            className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}
-          >
-            {status.msg}
-          </p>
-        )}
-
-        <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
-          <p><strong className="text-text-secondary">JSON</strong> — drop into SillyTavern or any compatible tool.</p>
-          <p><strong className="text-text-secondary">PNG</strong> — embeds the scenario using the <code className="bg-bg-tertiary px-1 rounded">scenario</code> chunk.</p>
-        </div>
+        <CardExportPanel
+          cardType="scenario"
+          label="Scenario Card"
+          outputFileName={outputFileName}
+          onOutputFileNameChange={setOutputFileName}
+          version={card.version}
+          onVersionChange={(version) => update({ version })}
+          saving={saving}
+          libraryId={libraryId}
+          onSave={handleSaveToLibrary}
+          onExportJson={exportJson}
+          onExportPng={exportPng}
+          onClear={clearForNew}
+          status={status}
+          footnotes={
+            <>
+              <p><strong className="text-text-secondary">JSON</strong> — drop into SillyTavern or any compatible tool.</p>
+              <p><strong className="text-text-secondary">PNG</strong> — embeds the scenario using the <code className="bg-bg-tertiary px-1 rounded">scenario</code> chunk.</p>
+            </>
+          }
+        />
       </aside>
     </div>
   );

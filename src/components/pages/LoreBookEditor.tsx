@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import ResizableTextArea from "../ui/ResizableTextArea";
 import {
-  Plus, Trash2, BookOpen, FileJson, Download, Save, Upload,
+  Plus, Trash2, BookOpen, Upload,
   ChevronDown, ChevronUp,
   ToggleLeft, ToggleRight,
 } from "lucide-react";
@@ -11,7 +11,7 @@ import { parseLorebook, toExportedLorebook } from "../../lib/lorebook";
 import { blankLoreBook } from "../../lib/blankCards";
 import { useDataCardEditor } from "../../hooks/useDataCardEditor";
 import ImageDropzone from "../ui/ImageDropzone";
-import ConfirmClearPanel from "../ui/ConfirmClearPanel";
+import CardExportPanel from "../editor/CardExportPanel";
 import TagInput from "../ui/TagInput";
 
 const DEFAULT_ENTRY = (): LoreEntry => ({
@@ -264,97 +264,63 @@ export default function LoreBookEditor({ initialBook, initialImageSrc, initialLi
 
         <ImageDropzone label="Cover Image" imageSrc={imageSrc} onFile={setImageSrc} />
 
-        {/* Output Settings */}
-        <div className="border-t border-border pt-3 space-y-2">
-          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Output Settings</p>
-          <div>
-            <label className="label-base">Output File</label>
-            <input
-              className="input-base text-xs"
-              value={outputFileName}
-              onChange={(e) => setOutputFileName(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">Metadata key</span>
-            <code className="text-accent-purple-light bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">lorebook</code>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">Version</span>
-            <input
-              className="input-base py-0.5 text-xs w-20 text-right"
-              value={book.version}
-              onChange={(e) => updateBook({ version: e.target.value })}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">Entries</span>
-            <span className="font-medium text-text-primary">{book.entries.length}</span>
-          </div>
-        </div>
-
-        {/* Book settings */}
-        <div className="border-t border-border pt-3">
-          <button
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            aria-expanded={settingsOpen}
-            className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary transition-colors mb-2"
-          >
-            <span className="font-medium">Book Settings</span>
-            {settingsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-          {settingsOpen && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">Scan depth</span>
-                <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.scan_depth} onChange={(e) => updateBook({ scan_depth: Number(e.target.value) })} />
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">Token budget</span>
-                <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.token_budget} onChange={(e) => updateBook({ token_budget: Number(e.target.value) })} />
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">Recursive scan</span>
-                <button onClick={() => updateBook({ recursive_scanning: !book.recursive_scanning })} className="text-accent-purple">
-                  {book.recursive_scanning ? <ToggleRight size={18} /> : <ToggleLeft size={18} className="text-text-muted" />}
-                </button>
-              </div>
+        <CardExportPanel
+          cardType="lorebook"
+          label="Lorebook"
+          outputFileName={outputFileName}
+          onOutputFileNameChange={setOutputFileName}
+          version={book.version}
+          onVersionChange={(version) => updateBook({ version })}
+          saving={saving}
+          libraryId={libraryId}
+          onSave={handleSaveToLibrary}
+          onExportJson={exportJson}
+          onExportPng={exportPng}
+          onClear={clearForNew}
+          status={status}
+          outputExtras={
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-text-muted">Entries</span>
+              <span className="font-medium text-text-primary">{book.entries.length}</span>
             </div>
-          )}
-        </div>
-
-        {/* Save / New */}
-        <div className="border-t border-border pt-3 space-y-2">
-          <button onClick={handleSaveToLibrary} disabled={saving} className="btn-primary w-full justify-center py-2.5">
-            <Save size={14} /> {saving ? "Saving…" : libraryId ? "Update in Library" : "Save to Library"}
-          </button>
-          <ConfirmClearPanel label="Lorebook" onConfirm={clearForNew} />
-        </div>
-
-        {/* Export buttons */}
-        <div className="space-y-2">
-          <button onClick={exportJson} className="btn-secondary w-full justify-center py-2">
-            <FileJson size={14} /> Export JSON
-          </button>
-          <button onClick={exportPng} className="btn-secondary w-full justify-center py-2">
-            <Download size={14} /> Embed in PNG
-          </button>
-        </div>
-
-        {status && (
-          <p
-            role="status"
-            aria-live="polite"
-            className={`text-xs text-center ${status.ok ? "text-status-ok" : "text-status-danger"}`}
-          >
-            {status.msg}
-          </p>
-        )}
-
-        <div className="border-t border-border pt-3 mt-auto text-xs text-text-muted space-y-1.5">
-          <p><strong className="text-text-secondary">JSON</strong> — SillyTavern-compatible lorebook format.</p>
-          <p><strong className="text-text-secondary">PNG</strong> — embeds lorebook in a <code className="bg-bg-tertiary px-1 rounded">lorebook</code> chunk.</p>
-        </div>
+          }
+          belowOutput={
+            <div className="border-t border-border pt-3">
+              <button
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                aria-expanded={settingsOpen}
+                className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary transition-colors mb-2"
+              >
+                <span className="font-medium">Book Settings</span>
+                {settingsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+              {settingsOpen && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-text-muted">Scan depth</span>
+                    <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.scan_depth} onChange={(e) => updateBook({ scan_depth: Number(e.target.value) })} />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-text-muted">Token budget</span>
+                    <input type="number" className="input-base py-0.5 w-16 text-right text-xs" value={book.token_budget} onChange={(e) => updateBook({ token_budget: Number(e.target.value) })} />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-text-muted">Recursive scan</span>
+                    <button onClick={() => updateBook({ recursive_scanning: !book.recursive_scanning })} className="text-accent-purple">
+                      {book.recursive_scanning ? <ToggleRight size={18} /> : <ToggleLeft size={18} className="text-text-muted" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+          footnotes={
+            <>
+              <p><strong className="text-text-secondary">JSON</strong> — SillyTavern-compatible lorebook format.</p>
+              <p><strong className="text-text-secondary">PNG</strong> — embeds lorebook in a <code className="bg-bg-tertiary px-1 rounded">lorebook</code> chunk.</p>
+            </>
+          }
+        />
       </aside>
     </div>
   );
