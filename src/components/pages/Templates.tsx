@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { TavernCardV2, MetadataInfo } from "../../types";
-import type { PlatformId } from "../../shared/platforms";
+import type { PlatformId } from "../../shared/platforms/registry";
 import { templates } from "../../data/builtinTemplates";
 import { getCustomTemplates, deleteCustomTemplate, type CustomTemplate } from "../../lib/customTemplates";
 import ConfirmModal from "../ui/ConfirmModal";

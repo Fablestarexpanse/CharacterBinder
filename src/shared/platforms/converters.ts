@@ -1,5 +1,5 @@
 import type { TavernCardV2 } from "../../types";
-import type { PlatformId } from "./index";
+import type { PlatformId } from "./registry";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 
 // ─── Master → Platform ───────────────────────────────────────────────────────

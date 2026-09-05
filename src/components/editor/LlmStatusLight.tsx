@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useEngineState } from "../../hooks/useEngineState";
-import { preloadModel, unloadModel, isModelCached, isWebGpuAvailable } from "../../lib/cardTextSorter";
+import { preloadModel, unloadModel, isModelCached, isWebGpuAvailable } from "../../lib/cardTextSorter/engine";
 import { useSorterSettings } from "../../hooks/useSorterSettings";
 import { findModel, formatSize } from "../../lib/cardTextSorter/models";
 

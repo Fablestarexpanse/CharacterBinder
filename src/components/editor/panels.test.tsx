@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";
-import { PLATFORMS } from "../../shared/platforms";
+import { PLATFORMS } from "../../shared/platforms/registry";
 
 describe("PlatformSelector", () => {
   it("lists every platform the app can export to", () => {

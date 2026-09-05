@@ -3,7 +3,7 @@ import type {
   TavernCardV2, NavPage, MetadataInfo, CardProject,
   LoreBook, ScriptCard, ScenarioCard, PersonaCard, OpenDataCard,
 } from "./types";
-import type { PlatformId } from "./shared/platforms";
+import type { PlatformId } from "./shared/platforms/registry";
 import { saveAppSettings } from "./lib/settings";
 import { useAppSettings } from "./hooks/useAppSettings";
 import { initBridge } from "./lib/bridge/client";

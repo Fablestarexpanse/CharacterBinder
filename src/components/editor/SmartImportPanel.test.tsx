@@ -5,8 +5,8 @@ import SmartImportPanel from "./SmartImportPanel";
 
 // The AI paths need WebGPU or a server; these cases cover the routing and the
 // keyword sort, which is the path that runs with neither.
-vi.mock("../../lib/cardTextSorter", async () => {
-  const actual = await vi.importActual<typeof import("../../lib/cardTextSorter")>("../../lib/cardTextSorter");
+vi.mock("../../lib/cardTextSorter/engine", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/cardTextSorter/engine")>("../../lib/cardTextSorter/engine");
   return { ...actual, isWebGpuAvailable: () => false };
 });
 

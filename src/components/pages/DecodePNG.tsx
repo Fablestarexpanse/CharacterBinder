@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef } from "react";
 import type { TavernCardV2, MetadataInfo, OpenDataCard, LibraryCardType, DataCardType } from "../../types";
-import type { PlatformId } from "../../shared/platforms";
+import type { PlatformId } from "../../shared/platforms/registry";
 import { FileSearch, Upload, Copy, Check, FileJson, BookOpen, FileCode2, Map, UserCircle } from "lucide-react";
 import { decodeCharaFromPng, getPngDimensions, isPng } from "../../lib/pngMetadata";
-import { detectPlatform, PLATFORMS } from "../../shared/platforms";
+import { detectPlatform, PLATFORMS } from "../../shared/platforms/registry";
 import { convertCardFrom } from "../../shared/platforms/converters";
 import FieldCompatibility from "../editor/FieldCompatibility";
 import { useTimedFlag } from "../../hooks/useTimedFlag";

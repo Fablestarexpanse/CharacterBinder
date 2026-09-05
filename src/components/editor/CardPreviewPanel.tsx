@@ -25,7 +25,7 @@ import { encodeCharaToPng } from "../../lib/pngMetadata";
 import { getCarrierPng } from "../../lib/carrierImage";
 import { downloadJson, downloadPng } from "../../lib/download";
 import { useStatusMessage } from "../../hooks/useStatusMessage";
-import { PLATFORMS, type PlatformId } from "../../shared/platforms";
+import { PLATFORMS, type PlatformId } from "../../shared/platforms/registry";
 import { convertCardTo } from "../../shared/platforms/converters";
 import PlatformSelector from "./PlatformSelector";
 import FieldCompatibility from "./FieldCompatibility";

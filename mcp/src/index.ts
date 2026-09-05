@@ -28,7 +28,7 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 // convention. mcp/tsconfig.json compiles all of src/shared, so a change over
 // there is a type error here.
 import { validateTavernCardV2 } from "../../src/shared/validators.js";
-import { PLATFORMS, PLATFORM_IDS } from "../../src/shared/platforms/index.js";
+import { PLATFORMS, PLATFORM_IDS } from "../../src/shared/platforms/registry.js";
 import { parsePersonaText, toCharacterFields } from "../../src/shared/cardTextParser.js";
 import { CARD_TYPES, type LibraryCardType } from "../../src/types/index.js";
 

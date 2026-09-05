@@ -509,14 +509,14 @@ CharacterBinder/
 │   ├── hooks/               # Shared React hooks (card editor shell, status messages, AI engine state)
 │   ├── shared/              # Browser-neutral: the only code mcp/ may import
 │   │   ├── bridgeProtocol.ts # Wire protocol, shared by both sides of the bridge
-│   │   ├── platforms/       # Platform definitions + format converters
+│   │   ├── platforms/       # registry.ts (definitions) + converters.ts
 │   │   ├── validators.ts    # Card validation logic
 │   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
 │   │   ├── tavernCard.ts    # Blank Tavern Card v2 factory
 │   │   └── errorMessage.ts  # The message from a caught unknown
 │   ├── lib/                 # Browser-only: IndexedDB, localStorage, DOM, WebGPU
 │   │   ├── bridge/          # MCP bridge: the app-side client
-│   │   ├── cardTextSorter/  # Quick Import: in-browser AI sorter (WebLLM) + settings
+│   │   ├── cardTextSorter/  # Quick Import: engine.ts (WebLLM) + models + settings
 │   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
 │   │   ├── library.ts       # IndexedDB card storage (idb)
 │   │   ├── archive.ts       # ZIP export (jszip)

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { convertCardTo, convertCardFrom } from "./converters";
-import { PLATFORMS, detectPlatform, type PlatformId } from "./index";
+import { PLATFORMS, detectPlatform, type PlatformId } from "./registry";
 import { createBlankTavernCard } from "../../shared/tavernCard";
 import { validateTavernCardV2 } from "../validators";
 import type { TavernCardV2 } from "../../types";

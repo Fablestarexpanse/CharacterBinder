@@ -10,8 +10,8 @@ const preloadModel = vi.fn(async () => {});
 const unloadModel = vi.fn(async () => {});
 
 vi.mock("../../hooks/useEngineState", () => ({ useEngineState: () => engineState() }));
-vi.mock("../../lib/cardTextSorter", async () => {
-  const actual = await vi.importActual<typeof import("../../lib/cardTextSorter")>("../../lib/cardTextSorter");
+vi.mock("../../lib/cardTextSorter/engine", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/cardTextSorter/engine")>("../../lib/cardTextSorter/engine");
   return {
     ...actual,
     isWebGpuAvailable: () => true,
