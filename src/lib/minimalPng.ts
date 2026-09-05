@@ -4,7 +4,9 @@
  *
  * Generated programmatically and verified byte-for-byte: every chunk's declared
  * length matches the bytes present, every CRC validates, and the stream ends
- * exactly on IEND. `minimalPng.test.ts` re-checks all of that.
+ * exactly on IEND. The "MINIMAL_PNG (the fallback carrier)" block in
+ * pngMetadata.test.ts re-checks all of that, with a chunk reader of its own
+ * rather than the one under test.
  *
  * This matters more than it looks. The previous constant declared an IDAT
  * length of 12 with only 11 bytes of data, so a reader would over-run into the

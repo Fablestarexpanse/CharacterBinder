@@ -1,7 +1,7 @@
 /**
  * AI-backed persona sorter.
  *
- * The keyword parser in ../personaParser can only match vocabulary, so a
+ * The keyword parser in ../cardTextParser can only match vocabulary, so a
  * sentence like "Kael is a blunt, wiry man born in Anvale" — appearance,
  * personality and background all at once — defeats it. A model reads the
  * meaning instead and splits mid-sentence where needed.
@@ -23,8 +23,8 @@
  * has structure, and that is a routing decision, not a fallback.
  */
 
-import type { ParsedPersona, CardField } from "../personaParser";
-import { parsePersonaText } from "../personaParser";
+import type { ParsedPersona, CardField } from "../cardTextParser";
+import { parsePersonaText } from "../cardTextParser";
 import { countTokens } from "../tokenizer";
 import { getSorterSettings, isRemoteUrl, type SorterSettings } from "./settings";
 

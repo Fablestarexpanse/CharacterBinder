@@ -20,7 +20,7 @@
   "include": [
     "src/**/*.ts",
     "../src/lib/bridge/protocol.ts",
-    "../src/lib/personaParser.ts",
+    "../src/lib/cardTextParser.ts",
     "../src/lib/validators.ts",
     "../src/lib/platforms/index.ts"
   ]

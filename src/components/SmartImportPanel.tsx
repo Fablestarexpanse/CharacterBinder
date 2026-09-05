@@ -12,10 +12,10 @@ import {
   CHARACTER_FIELD_ORDER,
   type ParsedPersona,
   type CardField,
-} from "../lib/personaParser";
-import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../lib/personaLlm";
+} from "../lib/cardTextParser";
+import { sortPersonaAuto, sortPersonaWithAi, isWebGpuAvailable, unloadModel, type LoadProgress, type SortTarget } from "../lib/cardTextSorter";
 import { useEngineState } from "../hooks/useEngineState";
-import { getSorterSettings, saveSorterSettings, type SorterSettings as Settings } from "../lib/personaLlm/settings";
+import { getSorterSettings, saveSorterSettings, type SorterSettings as Settings } from "../lib/cardTextSorter/settings";
 import SorterSettings from "./SorterSettings";
 
 interface SmartImportPanelProps {

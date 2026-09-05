@@ -493,13 +493,13 @@ CharacterBinder/
 │   ├── lib/
 │   │   ├── bridge/          # MCP bridge: wire protocol + app-side client
 │   │   ├── platforms/       # Platform definitions + format converters
-│   │   ├── personaLlm/      # Quick Import: in-browser AI sorter (WebLLM) + settings
+│   │   ├── cardTextSorter/  # Quick Import: in-browser AI sorter (WebLLM) + settings
 │   │   ├── pngMetadata.ts   # PNG tEXt chunk encoder/decoder
 │   │   ├── validators.ts    # Card validation logic
 │   │   ├── library.ts       # IndexedDB card storage (idb)
 │   │   ├── archive.ts       # ZIP export (jszip)
 │   │   ├── tokenizer.ts     # Token counting (cl100k)
-│   │   ├── personaParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
+│   │   ├── cardTextParser.ts # Quick Import: labelled / JSON / W++ / prose parsing
 │   │   ├── customTemplates.ts # User-saved templates (localStorage)
 │   │   ├── lorebook.ts      # Lorebook shapes: editor form ↔ interchange format
 │   │   ├── blankCards.ts    # Empty cards + coercion of untrusted card bodies

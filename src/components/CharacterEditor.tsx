@@ -7,7 +7,7 @@ import TagInput from "./TagInput";
 import TextAreaField from "./TextAreaField";
 import ResizableTextArea from "./ResizableTextArea";
 import SmartImportPanel from "./SmartImportPanel";
-import type { CardField } from "../lib/personaParser";
+import type { CardField } from "../lib/cardTextParser";
 
 interface CharacterEditorProps {
   card: TavernCardV2;

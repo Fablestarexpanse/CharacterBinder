@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { AlertTriangle, Cpu, Server } from "lucide-react";
-import { SORTER_MODELS, formatSize } from "../lib/personaLlm/models";
-import { isRemoteUrl, type SorterSettings as Settings, type SorterBackend } from "../lib/personaLlm/settings";
+import { SORTER_MODELS, formatSize } from "../lib/cardTextSorter/models";
+import { isRemoteUrl, type SorterSettings as Settings, type SorterBackend } from "../lib/cardTextSorter/settings";
 
 interface SorterSettingsProps {
   settings: Settings;

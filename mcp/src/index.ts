@@ -29,7 +29,7 @@ import { startBridge, callApp, bridgeStatus } from "./bridge.js";
 // mcp/tsconfig.json, so a change on the app side is a type error here.
 import { validateTavernCardV2 } from "../../src/lib/validators.js";
 import { PLATFORMS, type PlatformId } from "../../src/lib/platforms/index.js";
-import { parsePersonaText, toCharacterFields } from "../../src/lib/personaParser.js";
+import { parsePersonaText, toCharacterFields } from "../../src/lib/cardTextParser.js";
 import type { CardSummary, GetResult, MutationResult } from "../../src/lib/bridge/protocol.js";
 
 const server = new McpServer({ name: "characterbinder", version: "1.0.0" });

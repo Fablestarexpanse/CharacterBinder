@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useEngineState } from "../hooks/useEngineState";
-import { preloadModel, unloadModel, isModelCached, isWebGpuAvailable } from "../lib/personaLlm";
-import { getSorterSettings, subscribeSorterSettings } from "../lib/personaLlm/settings";
-import { findModel, formatSize } from "../lib/personaLlm/models";
+import { preloadModel, unloadModel, isModelCached, isWebGpuAvailable } from "../lib/cardTextSorter";
+import { getSorterSettings, subscribeSorterSettings } from "../lib/cardTextSorter/settings";
+import { findModel, formatSize } from "../lib/cardTextSorter/models";
 
 /**
  * On/off light for the AI sorter, sitting next to the app's Ready light.
