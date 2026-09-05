@@ -102,8 +102,7 @@ export default function CardPreviewPanel({
     setExporting(true);
     try {
       const pngBytes = await getCarrierPng(project.imageSrc);
-      // Convert card to target platform format for embedding
-      const converted = convertCardTo(project.card, targetPlatform);
+        const converted = convertCardTo(project.card, targetPlatform);
       const jsonData = JSON.stringify(converted, null, settings.prettyPrintJson ? 2 : 0);
       // Platforms that can't read PNG cards carry no key of their own; fall back
       // to the configured default so the file is still a valid, importable card

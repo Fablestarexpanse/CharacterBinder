@@ -37,7 +37,6 @@ export default function JSONView({ card, onUpdate }: JSONViewProps) {
     if (validationError) return;
     try {
       const parsed: TavernCardV2 = JSON.parse(jsonText);
-      // Apply the full card's data fields back to the parent
       onUpdate(parsed.data);
       setIsDirty(false);
       flashApplied();

@@ -91,7 +91,6 @@ export default function Library({ libraryRevision = 0, onEditCard, onOpenDataCar
       return sortDir === "asc" ? diff : -diff;
     });
 
-  // Group into sections
   const sections = CARD_TYPES
     .map((type) => ({ type, cards: filtered.filter((c) => c.cardType === type) }))
     .filter((s) => s.cards.length > 0);
